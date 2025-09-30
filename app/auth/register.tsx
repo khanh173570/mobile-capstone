@@ -60,7 +60,7 @@ const handleRegister = () => {
 
       {/* Form */}
       <View style={styles.formContainer}>
-        <Text style={styles.welcomeText}>Đăng ký tài khoản Nông trại</Text>
+        <Text style={styles.welcomeText}>Đăng ký tài khoản </Text>
         <Text style={styles.welcomeSubtext}>Xin chào !</Text>
 
         {/* Username */}
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 16, color: '#FFFFFF', opacity: 0.9, marginTop: 8 },
   formContainer: {
     //inside body register
-    flex: 0.72,
+    flex: 0.65,
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6B7280',
     marginBottom: 16,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   inputContainer: {
     flexDirection: 'row',
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.99 }], // hiệu ứng thu nhỏ nhẹ
   },
   
-  backLogin: { alignItems: 'center', marginTop: 16 },
-  backLoginText: { color: '#22C55E', fontSize: 16, fontWeight: '500' },
+  backLogin: { alignItems: 'flex-start', marginTop: 16 },
+  backLoginText: { fontSize: 16, fontWeight: '500' },
   
 });

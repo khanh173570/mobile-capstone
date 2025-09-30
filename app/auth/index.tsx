@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react-native';
+import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesome5 } from '@expo/vector-icons';
+
 import {
   View,
   Text,
@@ -94,7 +97,7 @@ export default function LoginScreen() {
         </TouchableOpacity>
 
         {/* Hàng Quên mật khẩu + Đăng ký */}
-        <View style={styles.bottomRow}>
+       <View style={styles.bottomRow}>
           <TouchableOpacity
             onPress={() => Alert.alert('Quên mật khẩu', 'Không sử dụng')}
           >
@@ -107,6 +110,24 @@ export default function LoginScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+<View style={styles.socialContainer}>
+  <Text style={styles.socialText}>Hoặc đăng nhập bằng</Text>
+  <View style={styles.socialRow}>
+    <TouchableOpacity style={styles.socialButton}>
+      <FontAwesome name="facebook" size={32} color="#1877F2" />
+    </TouchableOpacity>
+
+    <TouchableOpacity style={styles.socialButton}>
+      <FontAwesome name="google" size={32} color="#DB4437" />
+    </TouchableOpacity>
+
+    <TouchableOpacity style={styles.socialButton}>
+      <FontAwesome5 name="tiktok" size={32} color="#000000" />
+    </TouchableOpacity>
+  </View>
+</View>
+
+
       </View>
     </KeyboardAvoidingView>
   );
@@ -142,7 +163,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   formContainer: {
-    flex: 0.6,
+    flex: 0.65,
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
@@ -232,17 +253,48 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   bottomText: {
-    color: '#22C55E',
+    color: 'black',
     fontSize: 16,
     fontWeight: 'bold',
   },
   registerText: {
     fontWeight: 'bold',
-    color: '#22C55E',
+   
   },
   eyeIcon: {
   fontSize: 20,
   color: '#6B7280',
 },
+  socialContainer: {
+    marginTop: 32,
+    alignItems: 'center',
+  },
+  socialText: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 12,
+  },
+  socialRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 20, // RN mới hỗ trợ, nếu lỗi thì dùng marginHorizontal
+  },
+  socialButton: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+    width:  50,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+
+    marginHorizontal: 10,
+    elevation: 4,
+  },
+  socialIcon: {
+    width: 32,
+    height: 32,
+    resizeMode: 'contain',
+  },
+
 
 });
