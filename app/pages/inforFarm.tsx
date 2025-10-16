@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,18 +7,51 @@ import {
   TextInput,
   Alert,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { getCurrentUser, User, logout } from '../../services/authService';
 
 export default function InforFarm() {
   const router = useRouter();
   const [hasFarm, setHasFarm] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [userData, setUserData] = useState<User | null>(null);
 
   // State cho form khi chưa có farm
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [farmName, setFarmName] = useState('');
   const [location, setLocation] = useState('');
+
+  // Load user data
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const user = await getCurrentUser();
+        if (user) {
+          setUserData(user);
+          setName(user.firstName + ' ' + user.lastName);
+          setPhone(user.phoneNumber);
+          // If user has farm data, set hasFarm to true
+          // For now we'll assume they don't have a farm yet
+          setHasFarm(false);
+        } else {
+          // No user data found, redirect to login
+          Alert.alert('Phiên đăng nhập hết hạn', 'Vui lòng đăng nhập lại', [
+            { text: 'OK', onPress: () => router.replace('/auth') }
+          ]);
+        }
+      } catch (error) {
+        console.error('Error loading user data:', error);
+        Alert.alert('Lỗi', 'Không thể tải thông tin người dùng');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUserData();
+  }, []);
 
   const handleConfirm = () => {
     if (!name || !phone || !farmName || !location) {
@@ -29,10 +62,45 @@ export default function InforFarm() {
       { text: 'OK', onPress: () => router.replace('/(tabs)') },
     ]);
   };
+  
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.replace('/auth');
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Lỗi', 'Không thể đăng xuất');
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color="#22C55E" />
+        <Text style={styles.loadingText}>Đang tải thông tin...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.header}>Xác nhận thông tin nông trại</Text>
+      <Text style={styles.header}>Thông tin nông trại</Text>
+      
+      {userData && (
+        <View style={styles.userInfoContainer}>
+          <Text style={styles.userInfoLabel}>Thông tin tài khoản:</Text>
+          <Text style={styles.userInfoText}>Họ và tên: {userData.firstName} {userData.lastName}</Text>
+          <Text style={styles.userInfoText}>Email: {userData.email}</Text>
+          <Text style={styles.userInfoText}>Số điện thoại: {userData.phoneNumber}</Text>
+          <Text style={styles.userInfoText}>Địa chỉ: {userData.address}</Text>
+          <Text style={styles.userInfoText}>Xã/Phường: {userData.communes}</Text>
+          <Text style={styles.userInfoText}>Tỉnh/Thành phố: {userData.province}</Text>
+          
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Text style={styles.logoutText}>Đăng xuất</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {hasFarm === null && (
         <View style={styles.optionContainer}>
@@ -102,6 +170,45 @@ const styles = StyleSheet.create({
     padding: 24,
     backgroundColor: '#fff',
     justifyContent: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#22C55E',
+  },
+  userInfoContainer: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+  },
+  userInfoLabel: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  userInfoText: {
+    fontSize: 16,
+    color: '#374151',
+    marginBottom: 8,
+  },
+  logoutButton: {
+    backgroundColor: '#ef4444',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  logoutText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   header: {
     fontSize: 22,

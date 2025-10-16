@@ -13,29 +13,97 @@ import {
   Platform,
   Alert,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { User, Lock, Sprout } from 'lucide-react-native';
+import { User, Lock, Sprout, Mail } from 'lucide-react-native';
+import { loginUser, LoginData } from '../../services/authService';
 
 export default function LoginScreen() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    if (username.trim() === '' || password.trim() === '') {
+  const handleLogin = async () => {
+    // Form validation
+    if (email.trim() === '' || password.trim() === '') {
       Alert.alert('Thông báo', 'Vui lòng nhập đầy đủ thông tin đăng nhập');
       return;
     }
 
-    // Demo login - accept any non-empty credentials
-    Alert.alert('Đăng nhập thành công!', 'Chào mừng bạn đến với AgriMart', [
-      {
-        text: 'OK',
-        onPress: () => router.replace('/pages/inforFarm'),
-      },
-    ]);
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert('Thông báo', 'Vui lòng nhập email hợp lệ');
+      return;
+    }
+
+    // Password length validation
+    if (password.length < 6) {
+      Alert.alert('Thông báo', 'Mật khẩu phải có ít nhất 6 ký tự');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const loginData: LoginData = {
+        email: email.trim(),
+        password
+      };
+
+      console.log('Attempting login with email:', email.trim());
+      
+      const response = await loginUser(loginData);
+      
+      if (response.isSuccess) {
+        console.log('Login successful, navigating to farm info page');
+        // Login successful - redirect to farm info page
+        router.replace('/pages/inforFarm');
+      } else {
+        // Handle different error types
+        if (response.statusCode === 400) {
+          // Bad request - likely invalid credentials
+          Alert.alert('Lỗi đăng nhập', 'Email hoặc mật khẩu không đúng.');
+        } else if (response.statusCode === 0) {
+          // Network error
+          Alert.alert(
+            'Lỗi kết nối', 
+            'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại.'
+          );
+        } else {
+          // Other errors
+          let errorMessage = response.message || 'Đã xảy ra lỗi khi đăng nhập.';
+          
+          // Show detailed errors if available
+          if (response.errors) {
+            try {
+              const errorDetails = Object.entries(response.errors)
+                .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
+                .filter(text => text) // Filter out empty strings
+                .join('\n');
+              
+              if (errorDetails) {
+                errorMessage += '\n\n' + errorDetails;
+              }
+            } catch (parseError) {
+              console.error('Error parsing error details:', parseError);
+            }
+          }
+          
+          Alert.alert('Lỗi đăng nhập', errorMessage);
+        }
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      Alert.alert(
+        'Lỗi hệ thống', 
+        'Đã xảy ra lỗi không xác định khi đăng nhập. Vui lòng thử lại sau.'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -60,14 +128,15 @@ export default function LoginScreen() {
         <Text style={styles.welcomeSubtext}>Xin chào !</Text>
 
         <View style={styles.inputContainer}>
-          <User size={20} color="#6B7280" style={styles.inputIcon} />
+          <Mail size={20} color="#6B7280" style={styles.inputIcon} />
           <TextInput
             style={styles.input}
-            placeholder="Tên đăng nhập"
+            placeholder="Email"
             placeholderTextColor="#9CA3AF"
-            value={username}
-            onChangeText={setUsername}
+            value={email}
+            onChangeText={setEmail}
             autoCapitalize="none"
+            keyboardType="email-address"
           />
         </View>
 
@@ -92,8 +161,16 @@ export default function LoginScreen() {
 </View>
 
 
-        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-          <Text style={styles.loginButtonText}>Đăng nhập</Text>
+        <TouchableOpacity 
+          style={[styles.loginButton, loading && { opacity: 0.7 }]} 
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.loginButtonText}>Đăng nhập</Text>
+          )}
         </TouchableOpacity>
 
         {/* Hàng Quên mật khẩu + Đăng ký */}
@@ -104,7 +181,7 @@ export default function LoginScreen() {
             <Text style={styles.bottomText}>Quên mật khẩu?</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => router.push('/auth/register')}>
+          <TouchableOpacity onPress={() => router.push('/auth/role-selection')}>
             <Text style={[styles.bottomText, styles.registerText]}>
               Đăng ký
             </Text>

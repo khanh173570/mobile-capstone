@@ -1,0 +1,549 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+// Removing regular FileSystem import as we're now using the legacy version explicitly
+
+const API_URL = 'https://api.tuilakhanh.id.vn/api';
+
+// Types
+export interface Role {
+  id: string;
+  name: string;
+  normalizedName: string;
+  fullName: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface RolesResponse {
+  items: Role[];
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+  totalCount: number;
+  previousPage: boolean;
+  nextPage: boolean;
+}
+
+export interface RegisterData {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  address: string;
+  communes: string;
+  province: string;
+  phoneNumber: string;
+  roleId: string;
+  userVerifications: {
+    document: string; // Image URI from device storage (file://, content://)
+    documentType: number; // 0 = front ID, 1 = back ID
+    hasDocument?: boolean;
+  }[];
+}
+
+export interface LoginData {
+  email: string;
+  password: string;
+}
+
+export interface User {
+  id: string;
+  userName: string | null;
+  firstName: string;
+  lastName: string;
+  email: string;
+  address: string;
+  communes: string;
+  province: string;
+  phoneNumber: string;
+  userVerification: any[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TokenData {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface ApiResponse<T> {
+  isSuccess: boolean;
+  statusCode: number;
+  message: string;
+  errors: any | null;
+  data: T;
+}
+
+// Import the legacy FileSystem API (kept for fallback JSON method)
+import * as FileSystemLegacy from 'expo-file-system/legacy';
+
+// Helper function to convert image URI to base64 (used for fallback JSON method)
+const imageURIToBase64 = async (uri: string): Promise<string> => {
+  try {
+    // Check if URI exists
+    if (!uri) {
+      console.error('Empty image URI provided');
+      throw new Error('Empty image URI provided');
+    }
+    
+    console.log('Converting image URI to base64:', uri.substring(0, 50) + '...');
+    
+    // For content:// or file:// URIs
+    if (uri.startsWith('content://') || uri.startsWith('file://')) {
+      // Read the file as base64 using legacy API
+      try {
+        // Use the legacy API explicitly
+        const base64Data = await FileSystemLegacy.readAsStringAsync(uri, {
+          encoding: 'base64',
+        });
+        
+        // Verify we got proper data
+        if (!base64Data || base64Data.length < 100) {
+          console.error('Base64 conversion failed or produced too small output:', base64Data?.length || 0);
+          throw new Error('Chuyển đổi ảnh thất bại - dữ liệu không hợp lệ');
+        }
+        
+        console.log(`Successfully converted image to base64 string (length: ${base64Data.length})`);
+        return base64Data;
+      } catch (readError) {
+        console.error('Error reading file with legacy API:', readError);
+        throw new Error(`Không thể đọc file ảnh: ${readError instanceof Error ? readError.message : String(readError)}`);
+      }
+    } 
+    // If it's already a base64 string
+    else if (uri.startsWith('data:image')) {
+      const base64Data = uri.split(',')[1];
+      console.log(`Image is already in base64 format (length: ${base64Data.length})`);
+      return base64Data;
+    }
+    // Other URI formats - we'll return as is and report a warning
+    else {
+      console.warn('Unknown image URI format, will attempt direct base64 conversion:', uri.substring(0, 50) + '...');
+      // Try to read it anyway
+      try {
+        const base64Data = await FileSystemLegacy.readAsStringAsync(uri, {
+          encoding: 'base64',
+        });
+        
+        if (!base64Data || base64Data.length < 100) {
+          throw new Error('Conversion produced invalid data');
+        }
+        
+        console.log(`Fallback conversion successful (length: ${base64Data.length})`);
+        return base64Data;
+      } catch (fallbackError) {
+        console.error('Fallback conversion failed:', fallbackError);
+        throw new Error(`Không thể chuyển đổi ảnh từ URI: ${uri}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error converting image to base64:', error);
+    throw error;
+  }
+};
+
+// Helper function to validate and prepare user verification data
+const validateUserVerifications = (userVerifications: RegisterData['userVerifications']): void => {
+  if (!Array.isArray(userVerifications) || userVerifications.length === 0) {
+    throw new Error('Thiếu ảnh CCCD/CMND để xác minh');
+  }
+  
+  userVerifications.forEach((verification, index) => {
+    if (!verification.document) {
+      const docTypeName = verification.documentType === 0 ? 'Mặt trước CCCD' : 'Mặt sau CCCD';
+      throw new Error(`Thiếu ảnh ${docTypeName.toLowerCase()}`);
+    }
+    
+    const docTypeName = verification.documentType === 0 ? 'Mặt trước' : 'Mặt sau';
+    console.log(`Validating ${docTypeName} CCCD - URI: ${verification.document.substring(0, 30)}...`);
+  });
+};
+
+// Legacy JSON-based registration function (kept as fallback)
+export const registerUserWithJSON = async (userData: RegisterData): Promise<ApiResponse<User>> => {
+  try {
+    console.log('Using JSON/Base64 approach for registration (fallback)...');
+    console.log('Registration request URL:', `${API_URL}/Auth/Register`);
+    
+    // Validate user verifications
+    validateUserVerifications(userData.userVerifications);
+    
+    // Convert images to base64
+    const userVerificationsWithBase64 = await Promise.all(
+      userData.userVerifications.map(async (verification, index) => {
+        try {
+          const docTypeName = verification.documentType === 0 ? 'Mặt trước' : 'Mặt sau';
+          console.log(`Converting ${docTypeName} CCCD to base64...`);
+          
+          const base64Data = await imageURIToBase64(verification.document);
+          
+          return {
+            documentType: verification.documentType,
+            hasDocument: true,
+            document: base64Data
+          };
+        } catch (conversionError) {
+          const docTypeName = verification.documentType === 0 ? 'Mặt trước' : 'Mặt sau';
+          throw new Error(`Lỗi chuyển đổi ảnh ${docTypeName} CCCD: ${conversionError instanceof Error ? conversionError.message : String(conversionError)}`);
+        }
+      })
+    );
+
+    const registrationPayload = {
+      email: userData.email,
+      password: userData.password,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      address: userData.address,
+      communes: userData.communes,
+      province: userData.province,
+      phoneNumber: userData.phoneNumber,
+      roleId: userData.roleId,
+      userVerifications: userVerificationsWithBase64
+    };
+
+    const response = await fetch(`${API_URL}/Auth/Register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(registrationPayload),
+    });
+
+    const responseText = await response.text();
+    
+    let data: ApiResponse<User>;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      throw new Error(`Không thể parse response: ${responseText}`);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('JSON registration error:', error);
+    throw error;
+  }
+};
+
+// Register a new user
+export const registerUser = async (userData: RegisterData): Promise<ApiResponse<User>> => {
+  try {
+    console.log('Registration request URL:', `${API_URL}/Auth/Register`);
+    
+    // Create a working copy of the user data
+    const processedUserData = { ...userData };
+    
+    // For debugging, let's see if userVerifications array is valid
+    console.log('User verifications array length:', processedUserData.userVerifications?.length || 0);
+    
+    // Make sure userVerifications is an array
+    if (!Array.isArray(processedUserData.userVerifications)) {
+      console.error('userVerifications is not an array:', processedUserData.userVerifications);
+      processedUserData.userVerifications = [];
+    }
+    
+    // Process verification documents - use FormData approach for IFormFile
+    if (processedUserData.userVerifications.length === 0) {
+      console.error('No user verification documents found in request');
+      throw new Error('Thiếu ảnh CCCD/CMND để xác minh');
+    }
+
+    // Validate user verifications
+    validateUserVerifications(processedUserData.userVerifications);
+    
+    console.log('Creating FormData for registration with IFormFile support...');
+    
+    // Create FormData object
+    const formData = new FormData();
+    
+    // Add basic user information
+    formData.append('Email', processedUserData.email);
+    formData.append('Password', processedUserData.password);
+    formData.append('FirstName', processedUserData.firstName);
+    formData.append('LastName', processedUserData.lastName);
+    formData.append('Address', processedUserData.address);
+    formData.append('Communes', processedUserData.communes);
+    formData.append('Province', processedUserData.province);
+    formData.append('PhoneNumber', processedUserData.phoneNumber);
+    formData.append('RoleId', processedUserData.roleId);
+    
+    // Add verification documents as IFormFile
+    processedUserData.userVerifications.forEach((verification, index) => {
+      const docTypeName = verification.documentType === 0 ? 'Mặt trước' : 'Mặt sau';
+      console.log(`Adding ${docTypeName} CCCD to FormData (${index + 1}/${processedUserData.userVerifications.length})...`);
+      
+      // Create file object for React Native FormData
+      const fileObject = {
+        uri: verification.document,
+        type: 'image/jpeg',
+        name: `cccd_${verification.documentType === 0 ? 'front' : 'back'}.jpg`,
+      } as any;
+      
+      // Append file as IFormFile
+      formData.append(`UserVerifications[${index}].Document`, fileObject);
+      formData.append(`UserVerifications[${index}].DocumentType`, verification.documentType.toString());
+      formData.append(`UserVerifications[${index}].HasDocument`, 'true');
+    });
+
+    console.log('Sending FormData to register API (multipart/form-data)');
+    
+    // Send the API request with FormData (multipart/form-data)
+    const response = await fetch(`${API_URL}/Auth/Register`, {
+      method: 'POST',
+      // Don't set Content-Type header - let fetch set it automatically with boundary for multipart/form-data
+      body: formData,
+    });
+    
+    console.log('Registration response status:', response.status);
+    
+    // Get response text first for debugging
+    const responseText = await response.text();
+    console.log('Raw response text:', responseText);
+    
+    // Try to parse response as JSON
+    let data: ApiResponse<User>;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Error parsing API response:', parseError);
+      
+      // Special handling for different HTTP status codes
+      if (response.status === 415) {
+        console.error('Server rejected the content type. This should not happen with FormData.');
+        throw new Error('Server không chấp nhận định dạng dữ liệu multipart/form-data.');
+      } else if (response.status === 400) {
+        throw new Error('Dữ liệu đăng ký không hợp lệ. Vui lòng kiểm tra lại thông tin.');
+      } else if (response.status >= 500) {
+        throw new Error('Lỗi máy chủ. Vui lòng thử lại sau.');
+      } else {
+        throw new Error(`Không thể xử lý phản hồi từ máy chủ: ${responseText.substring(0, 100)}`);
+      }
+    }
+    
+    console.log('Registration API response:', data);
+    
+    // Log the API response
+    if (data.isSuccess) {
+      console.log('Registration successful with FormData!');
+    } else {
+      console.error('Registration failed:', data);
+      
+      // Check for specific error types
+      if (data.errors && Array.isArray(data.errors)) {
+        console.error('Registration errors:', data.errors);
+      }
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Registration error:', error);
+    
+    // Return a formatted error response
+    const errorMessage = error instanceof Error ? error.message : 'Đã xảy ra lỗi khi đăng ký';
+    const errorString = error instanceof Error ? error.toString() : String(error);
+    
+    return {
+      isSuccess: false,
+      statusCode: 500,
+      message: errorMessage,
+      errors: [errorString], // Changed to array to match API response format
+      data: {} as User // Empty user object to satisfy TypeScript
+    } as ApiResponse<User>;
+  }
+};
+
+// Login user
+export const loginUser = async (loginData: LoginData): Promise<ApiResponse<{user: User, token: TokenData}>> => {
+  try {
+    console.log('Login request URL:', `${API_URL}/Auth/Login`);
+    
+    // Validate required fields
+    if (!loginData.email || !loginData.password) {
+      console.error('Login error: Missing email or password');
+      return {
+        isSuccess: false,
+        statusCode: 400,
+        message: 'Vui lòng nhập email và mật khẩu',
+        errors: { form: ['Email và mật khẩu là bắt buộc'] },
+        data: null as any
+      };
+    }
+    
+    // Log login request with sanitized password
+    console.log('Login request data:', JSON.stringify({
+      email: loginData.email,
+      password: '*****' // Hide actual password
+    }));
+    
+    // Send login request
+    let response;
+    try {
+      response = await fetch(`${API_URL}/Auth/Login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(loginData),
+      });
+    } catch (fetchError) {
+      console.error('Network error during login:', fetchError);
+      return {
+        isSuccess: false,
+        statusCode: 0,
+        message: 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại.',
+        errors: { network: ['Lỗi kết nối'] },
+        data: null as any
+      };
+    }
+    
+    console.log('Login response status:', response.status);
+    
+    // Parse response
+    let data;
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      console.error('Error parsing login response:', parseError);
+      return {
+        isSuccess: false,
+        statusCode: response.status,
+        message: 'Không thể xử lý phản hồi từ máy chủ',
+        errors: { server: ['Lỗi định dạng phản hồi'] },
+        data: null as any
+      };
+    }
+    
+    // Log login response (with sanitized tokens if successful)
+    if (data.isSuccess) {
+      console.log('Login successful. Response data:', JSON.stringify({
+        isSuccess: data.isSuccess,
+        statusCode: data.statusCode,
+        message: data.message,
+        userData: {
+          id: data.data.user.id,
+          email: data.data.user.email,
+          firstName: data.data.user.firstName,
+          lastName: data.data.user.lastName,
+        },
+        tokenReceived: !!data.data.token.accessToken
+      }));
+      
+      // Store user data and tokens
+      try {
+        await AsyncStorage.setItem('accessToken', data.data.token.accessToken);
+        await AsyncStorage.setItem('refreshToken', data.data.token.refreshToken);
+        await AsyncStorage.setItem('user', JSON.stringify(data.data.user));
+      } catch (storageError) {
+        console.error('Error storing auth data:', storageError);
+        // Continue anyway since we have the response data
+      }
+    } else {
+      console.error('Login failed:', JSON.stringify({
+        isSuccess: data.isSuccess,
+        statusCode: data.statusCode,
+        message: data.message,
+        errors: data.errors
+      }));
+    }
+    
+    return data as ApiResponse<{user: User, token: TokenData}>;
+  } catch (error: any) {
+    console.error('Login error:', error);
+    
+    return {
+      isSuccess: false,
+      statusCode: 500,
+      message: error instanceof Error ? error.message : 'Đã xảy ra lỗi khi đăng nhập',
+      errors: { general: [error instanceof Error ? error.toString() : String(error)] },
+      data: null as any
+    };
+  }
+};
+
+// Get current user data
+export const getCurrentUser = async (): Promise<User | null> => {
+  try {
+    const userStr = await AsyncStorage.getItem('user');
+    if (userStr) {
+      return JSON.parse(userStr) as User;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting current user:', error);
+    return null;
+  }
+};
+
+// Check if user is logged in
+export const isAuthenticated = async (): Promise<boolean> => {
+  try {
+    const token = await AsyncStorage.getItem('accessToken');
+    return !!token;
+  } catch (error) {
+    return false;
+  }
+};
+
+// Logout user
+export const logout = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem('accessToken');
+    await AsyncStorage.removeItem('refreshToken');
+    await AsyncStorage.removeItem('user');
+  } catch (error) {
+    console.error('Logout error:', error);
+  }
+};
+
+// Get available roles
+export const getRoles = async (): Promise<ApiResponse<RolesResponse>> => {
+  try {
+    const response = await fetch(`${API_URL}/Role?index=1&pageSize=10`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+    return data as ApiResponse<RolesResponse>;
+  } catch (error) {
+    console.error('Get roles error:', error);
+    throw error;
+  }
+};
+
+// Upload document for verification
+export const uploadVerificationDocument = async (
+  userId: string,
+  documentFile: string,
+  documentType: number
+): Promise<ApiResponse<any>> => {
+  try {
+    const formData = new FormData();
+    // @ts-ignore - React Native's FormData accepts this format for file uploads
+    formData.append('document', {
+      uri: documentFile,
+      type: 'image/jpeg',
+      name: 'verification.jpg',
+    });
+    formData.append('documentType', documentType.toString());
+
+    const token = await AsyncStorage.getItem('accessToken');
+    
+    const response = await fetch(`${API_URL}/UserVerification/${userId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+    return data as ApiResponse<any>;
+  } catch (error) {
+    console.error('Document upload error:', error);
+    throw error;
+  }
+};
