@@ -58,9 +58,9 @@ export default function LoginScreen() {
       const response = await loginUser(loginData);
       
       if (response.isSuccess) {
-        console.log('Login successful, navigating to farm info page');
-        // Login successful - redirect to farm info page
-        router.replace('/pages/inforFarm');
+        console.log('Login successful, navigating to home page');
+        // Login successful - redirect to home page
+        router.replace('/(tabs)');
       } else {
         // Handle different error types
         if (response.statusCode === 400) {

@@ -4,6 +4,7 @@ import { User, Sprout, Brain, CloudRain } from 'lucide-react-native';
 export default function TabLayout() {
   return (
     <Tabs
+      initialRouteName="home"
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
@@ -24,10 +25,17 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Hồ sơ',
+          href: null, // Hide from tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="home"
+        options={{
+          title: 'Trang chủ',
           tabBarIcon: ({ size, color }) => (
             <User size={size} color={color} strokeWidth={2} />
           ),
+          href: "/(tabs)/home"
         }}
       />
       <Tabs.Screen
