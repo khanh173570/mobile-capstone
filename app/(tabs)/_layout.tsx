@@ -1,9 +1,11 @@
 import { Tabs } from 'expo-router';
-import { User, Sprout, Brain, CloudRain } from 'lucide-react-native';
+import { Home, Plus, Bell, User } from 'lucide-react-native';
+import AuthWrapper from '../../components/AuthWrapper';
 
 export default function TabLayout() {
   return (
-    <Tabs
+    <AuthWrapper>
+      <Tabs
       initialRouteName="home"
       screenOptions={{
         headerShown: false,
@@ -31,40 +33,60 @@ export default function TabLayout() {
       <Tabs.Screen
         name="home"
         options={{
-          title: 'Trang chủ',
+          title: 'Thông tin',
           tabBarIcon: ({ size, color }) => (
-            <User size={size} color={color} strokeWidth={2} />
+            <Home size={size} color={color} strokeWidth={2} />
           ),
           href: "/(tabs)/home"
         }}
       />
       <Tabs.Screen
+        name="create-auction"
+        options={{
+          title: 'Tạo đấu giá',
+          tabBarIcon: ({ size, color }) => (
+            <Plus size={size} color={color} strokeWidth={2} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="auction-management"
+        options={{
+          title: 'Quản lý đấu giá',
+          tabBarIcon: ({ size, color }) => (
+            <Bell size={size} color={color} strokeWidth={2} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ size, color }) => (
+            <User size={size} color={color} strokeWidth={2} />
+          ),
+        }}
+      />
+      {/* Hide old tabs */}
+      <Tabs.Screen
         name="crops"
         options={{
-          title: 'Cây trồng',
-          tabBarIcon: ({ size, color }) => (
-            <Sprout size={size} color={color} strokeWidth={2} />
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen
         name="ai-detection"
         options={{
-          title: 'AI Gợi ý',
-          tabBarIcon: ({ size, color }) => (
-            <Brain size={size} color={color} strokeWidth={2} />
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen
         name="weather"
         options={{
-          title: 'Thời tiết',
-          tabBarIcon: ({ size, color }) => (
-            <CloudRain size={size} color={color} strokeWidth={2} />
-          ),
+          href: null,
         }}
       />
     </Tabs>
+    </AuthWrapper>
   );
 }

@@ -8,6 +8,10 @@
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "extra": {
+      "identityApiUrl": "https://identity.a-379.store/api",
+      "farmApiUrl": "https://farm.a-379.store/api"
+    },
     "ios": {
       "supportsTablet": true
     },

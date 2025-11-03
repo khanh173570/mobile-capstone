@@ -58,8 +58,8 @@ export default function LoginScreen() {
       const response = await loginUser(loginData);
       
       if (response.isSuccess) {
-        console.log('Login successful, navigating to home page');
-        // Login successful - redirect to home page
+        console.log('Login successful, navigating based on farm status');
+        // Login successful - let AuthWrapper handle navigation based on farm status
         router.replace('/(tabs)');
       } else {
         // Handle different error types
