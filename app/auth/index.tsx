@@ -52,55 +52,66 @@ export default function LoginScreen() {
         email: email.trim(),
         password
       };
-
-      console.log('Attempting login with email:', email.trim());
       
       const response = await loginUser(loginData);
       
       if (response.isSuccess) {
-        console.log('Login successful, navigating based on farm status');
         // Login successful - let AuthWrapper handle navigation based on farm status
         router.replace('/(tabs)');
       } else {
-        // Handle different error types
+        // Handle error response
+        let errorMessage = 'Đã xảy ra lỗi khi đăng nhập.';
+        
+        // Check if errors is an array with messages
+        if (response.errors && Array.isArray(response.errors) && response.errors.length > 0) {
+          errorMessage = response.errors.join('\n');
+        } 
+        // Check if errors is an object
+        else if (response.errors && typeof response.errors === 'object') {
+          const errorDetails = Object.entries(response.errors)
+            .map(([key, value]) => {
+              if (Array.isArray(value)) {
+                return value.join(', ');
+              }
+              return String(value);
+            })
+            .filter(text => text)
+            .join('\n');
+          
+          if (errorDetails) {
+            errorMessage = errorDetails;
+          }
+        }
+        // Use message if available
+        else if (response.message) {
+          errorMessage = response.message;
+        }
+        
+        // Customize error message based on status code
         if (response.statusCode === 400) {
-          // Bad request - likely invalid credentials
-          Alert.alert('Lỗi đăng nhập', 'Email hoặc mật khẩu không đúng.');
+          Alert.alert('Lỗi đăng nhập', errorMessage);
+        } else if (response.statusCode === 500) {
+          Alert.alert('Lỗi đăng nhập', errorMessage);
         } else if (response.statusCode === 0) {
-          // Network error
           Alert.alert(
             'Lỗi kết nối', 
             'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại.'
           );
         } else {
-          // Other errors
-          let errorMessage = response.message || 'Đã xảy ra lỗi khi đăng nhập.';
-          
-          // Show detailed errors if available
-          if (response.errors) {
-            try {
-              const errorDetails = Object.entries(response.errors)
-                .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
-                .filter(text => text) // Filter out empty strings
-                .join('\n');
-              
-              if (errorDetails) {
-                errorMessage += '\n\n' + errorDetails;
-              }
-            } catch (parseError) {
-              console.error('Error parsing error details:', parseError);
-            }
-          }
-          
           Alert.alert('Lỗi đăng nhập', errorMessage);
         }
       }
     } catch (error) {
-      console.error('Login error:', error);
-      Alert.alert(
-        'Lỗi hệ thống', 
-        'Đã xảy ra lỗi không xác định khi đăng nhập. Vui lòng thử lại sau.'
-      );
+      // Try to extract error message from caught error
+      let errorMessage = 'Đã xảy ra lỗi không xác định khi đăng nhập.';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      Alert.alert('Lỗi hệ thống', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -124,7 +135,7 @@ export default function LoginScreen() {
 
       {/* Login Form */}
       <View style={styles.formContainer}>
-        <Text style={styles.welcomeText}>Đăng nhập Farm</Text>
+        <Text style={styles.welcomeText}>Đăng nhập tài khoản</Text>
         <Text style={styles.welcomeSubtext}>Xin chào !</Text>
 
         <View style={styles.inputContainer}>
@@ -240,7 +251,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   formContainer: {
-    flex: 0.65,
+    flex: 0.63,
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,

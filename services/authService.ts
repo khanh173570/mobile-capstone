@@ -495,11 +495,8 @@ export const getUserProfile = async (): Promise<ApiResponse<User>> => {
 // Login user với logic xử lý farm
 export const loginUser = async (loginData: LoginData): Promise<ApiResponse<LoginResponse>> => {
   try {
-    console.log('Login request URL:', `${API_URL}/Auth/Login`);
-    
     // Validate required fields
     if (!loginData.email || !loginData.password) {
-      console.error('Login error: Missing email or password');
       return {
         isSuccess: false,
         statusCode: 400,
@@ -508,12 +505,6 @@ export const loginUser = async (loginData: LoginData): Promise<ApiResponse<Login
         data: null as any
       };
     }
-    
-    // Log login request with sanitized password
-    console.log('Login request data:', JSON.stringify({
-      email: loginData.email,
-      password: '*****' // Hide actual password
-    }));
     
     // Send login request
     let response;
@@ -526,7 +517,6 @@ export const loginUser = async (loginData: LoginData): Promise<ApiResponse<Login
         body: JSON.stringify(loginData),
       });
     } catch (fetchError) {
-      console.error('Network error during login:', fetchError);
       return {
         isSuccess: false,
         statusCode: 0,
@@ -536,14 +526,11 @@ export const loginUser = async (loginData: LoginData): Promise<ApiResponse<Login
       };
     }
     
-    console.log('Login response status:', response.status);
-    
     // Parse response
     let data;
     try {
       data = await response.json();
     } catch (parseError) {
-      console.error('Error parsing login response:', parseError);
       return {
         isSuccess: false,
         statusCode: response.status,
@@ -553,24 +540,8 @@ export const loginUser = async (loginData: LoginData): Promise<ApiResponse<Login
       };
     }
     
-    // Log login response (with sanitized tokens if successful)
+    // Handle successful login
     if (data.isSuccess) {
-      console.log('Login successful. Response data:', JSON.stringify({
-        isSuccess: data.isSuccess,
-        statusCode: data.statusCode,
-        message: data.message,
-        userData: {
-          id: data.data.user.id,
-          email: data.data.user.email,
-          firstName: data.data.user.firstName,
-          lastName: data.data.user.lastName,
-        },
-        farmData: {
-          id: data.data.farm?.id,
-          isActive: data.data.farm?.isActive
-        },
-        tokenReceived: !!data.data.token.accessToken
-      }));
       
       // Add farm status to response for navigation logic
       if (data.data.farm) {
@@ -592,48 +563,33 @@ export const loginUser = async (loginData: LoginData): Promise<ApiResponse<Login
           await AsyncStorage.setItem('farmNeedsUpdate', JSON.stringify(farmNeedsUpdate));
           
           if (farmNeedsUpdate) {
-            console.log('Farm is not active, needs form update...');
             // Don't update automatically, let user fill the form
             await AsyncStorage.setItem('pendingFarmId', data.data.farm.id);
           } else {
             // Farm đã active, lấy thông tin farms của user
-            console.log('Farm is active, getting user farms...');
             try {
               const userFarmsResult = await getUserFarms();
               
               if (userFarmsResult.isSuccess && userFarmsResult.data.length > 0) {
-                console.log('User farms retrieved successfully:', userFarmsResult.data);
                 // Lưu danh sách farms
                 await AsyncStorage.setItem('userFarms', JSON.stringify(userFarmsResult.data));
                 // Cập nhật farm hiện tại
                 const currentFarm = userFarmsResult.data[0]; // Lấy farm đầu tiên
                 await AsyncStorage.setItem('farm', JSON.stringify(currentFarm));
                 data.data.farm = currentFarm;
-              } else {
-                console.error('Failed to get user farms:', userFarmsResult.message);
               }
             } catch (getFarmsError) {
-              console.error('Error getting user farms:', getFarmsError);
+              // Ignore errors getting farms
             }
           }
         }
       } catch (storageError) {
-        console.error('Error storing auth data:', storageError);
         // Continue anyway since we have the response data
       }
-    } else {
-      console.error('Login failed:', JSON.stringify({
-        isSuccess: data.isSuccess,
-        statusCode: data.statusCode,
-        message: data.message,
-        errors: data.errors
-      }));
     }
     
     return data as ApiResponse<LoginResponse>;
   } catch (error: any) {
-    console.error('Login error:', error);
-    
     return {
       isSuccess: false,
       statusCode: 500,

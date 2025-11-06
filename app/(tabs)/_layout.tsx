@@ -68,24 +68,9 @@ export default function TabLayout() {
         }}
       />
       {/* Hide old tabs */}
-      <Tabs.Screen
-        name="crops"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="ai-detection"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="weather"
-        options={{
-          href: null,
-        }}
-      />
+      
+     
+   
     </Tabs>
     </AuthWrapper>
   );

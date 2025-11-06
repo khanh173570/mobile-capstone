@@ -5,7 +5,8 @@ export default function PagesLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="farmProfile" />
       <Stack.Screen name="settings" />
-      <Stack.Screen name="inforFarm" />
+      <Stack.Screen name="farmDetail" />
+      <Stack.Screen name="harvestList" />
     </Stack>
   );
 }

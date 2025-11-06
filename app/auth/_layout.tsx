@@ -13,7 +13,7 @@ export default function RootLayout() {
           <Stack.Screen name="register" />
         {/* Màn hình Not Found */}
         <Stack.Screen name="+not-found" />
-        <Stack.Screen name="otp"     />
+     
       </Stack>
       <StatusBar style="auto" />
     </>

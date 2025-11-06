@@ -12,7 +12,9 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { Sprout, ShoppingBag, User } from 'lucide-react-native';
+import { Loader2, UserCircle } from 'lucide-react-native';
 import { getRoles, Role } from '../../services/authService';
+import { handleError } from '@/utils/errorHandler';
 
 export default function RoleSelection() {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -34,7 +36,8 @@ export default function RoleSelection() {
         }
       } catch (error) {
         console.error('Error fetching roles:', error);
-        Alert.alert('Lỗi', 'Đã xảy ra lỗi khi kết nối đến máy chủ');
+        const errorMessage = handleError(error, 'Load Roles');
+        Alert.alert('Lỗi', errorMessage);
       } finally {
         setLoading(false);
       }

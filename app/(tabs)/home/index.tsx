@@ -43,6 +43,7 @@ import {
 } from 'lucide-react-native';
 import Header from '../../../components/Header';
 import * as ImagePicker from 'expo-image-picker';
+import { handleError } from '@/utils/errorHandler';
 
 const { width } = Dimensions.get('window');
 
@@ -157,11 +158,13 @@ export default function HomeScreen() {
         setShowUpdateModal(false);
         await loadData(); // Reload data
       } else {
-        Alert.alert('Lỗi', result.message || 'Không thể cập nhật thông tin trang trại');
+        const errorMessage = result.message || 'Không thể cập nhật thông tin trang trại. Vui lòng thử lại.';
+        Alert.alert('Lỗi', errorMessage);
       }
     } catch (error) {
       console.error('Update farm error:', error);
-      Alert.alert('Lỗi', 'Đã xảy ra lỗi khi cập nhật thông tin trang trại');
+      const errorMessage = handleError(error, 'Update Farm');
+      Alert.alert('Lỗi', errorMessage);
     } finally {
       setUpdateLoading(false);
     }
@@ -213,7 +216,8 @@ export default function HomeScreen() {
       }));
     } catch (error) {
       console.error('Camera error:', error);
-      Alert.alert('Lỗi', 'Không thể chụp ảnh');
+      const errorMessage = handleError(error, 'Take Photo');
+      Alert.alert('Lỗi', errorMessage);
     }
   };
 
@@ -251,7 +255,8 @@ export default function HomeScreen() {
       }));
     } catch (error) {
       console.error('Image picker error:', error);
-      Alert.alert('Lỗi', 'Không thể chọn ảnh');
+      const errorMessage = handleError(error, 'Pick Image');
+      Alert.alert('Lỗi', errorMessage);
     }
   };
 
@@ -290,7 +295,11 @@ export default function HomeScreen() {
 
       {/* Farm Information Card */}
       {farmData && (
-        <View style={styles.farmCard}>
+        <TouchableOpacity 
+          style={styles.farmCard}
+          onPress={() => router.push('/pages/farmDetail/' as any)}
+          activeOpacity={0.7}
+        >
           <View style={styles.farmHeader}>
             <View style={styles.farmImageContainer}>
               {farmData.farmImage && farmData.farmImage !== 'string' && farmData.farmImage.startsWith('http') ? (
@@ -363,7 +372,7 @@ export default function HomeScreen() {
               </View>
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
       )}
 
       {/* Farm Statistics */}

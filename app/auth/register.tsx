@@ -20,6 +20,7 @@ import { Eye, EyeOff } from 'lucide-react-native';
 import { registerUser, RegisterData } from '../../services/authService';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { handleError } from '@/utils/errorHandler';
 
 const RegisterScreen: React.FC = () => {
   const params = useLocalSearchParams();
@@ -101,7 +102,8 @@ const RegisterScreen: React.FC = () => {
       }
     } catch (error) {
       console.error(`Error picking ${title} image:`, error);
-      Alert.alert('Lỗi', `Không thể chọn ảnh ${title.toLowerCase()}`);
+      const errorMessage = handleError(error, `Pick ${title} Image`);
+      Alert.alert('Lỗi', errorMessage);
     }
   };
 
@@ -266,15 +268,13 @@ const RegisterScreen: React.FC = () => {
         }
       } catch (apiError) {
         console.error('Registration API call error:', apiError);
-        Alert.alert(
-          'Lỗi kết nối',
-          'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại.',
-          [{ text: 'OK' }]
-        );
+        const errorMessage = handleError(apiError, 'Register User');
+        Alert.alert('Lỗi kết nối', errorMessage, [{ text: 'OK' }]);
       }
     } catch (error) {
       console.error('Validation error:', error);
-      Alert.alert('Lỗi', 'Đã xảy ra lỗi khi xác thực dữ liệu.');
+      const errorMessage = handleError(error, 'Validation');
+      Alert.alert('Lỗi', errorMessage);
     } finally {
       setLoading(false);
     }
