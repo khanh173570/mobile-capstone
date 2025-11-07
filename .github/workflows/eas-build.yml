@@ -1,0 +1,84 @@
+name: Auto Build Android App
+
+on:
+  push:
+    branches:
+      - main
+      - PhuongKhanh  # Branch hiện tại của bạn
+    tags:
+      - 'v*.*.*'  # Tag version như v1.0.0, v1.0.1
+  workflow_dispatch:  # Cho phép chạy thủ công từ GitHub UI
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 🏗 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏗 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: npm
+
+      - name: 🏗 Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🚀 Build Preview APK (for testing)
+        run: |
+          eas build --platform android --profile preview --non-interactive --no-wait
+        
+      - name: 📝 Build info
+        run: |
+          echo "✅ Build started successfully!"
+          echo "📱 Platform: Android"
+          echo "🔧 Profile: Preview (APK)"
+          echo "⏰ Build will take ~15-20 minutes"
+          echo "🔗 Check progress at: https://expo.dev/accounts/khanhtpse173570/projects/agrimart-shop/builds"
+
+  # Job riêng để build Production AAB (chỉ chạy khi có tag)
+  build-production:
+    name: Build Production AAB
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')  # Chỉ chạy khi push tag
+    
+    steps:
+      - name: 🏗 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏗 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: npm
+
+      - name: 🏗 Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🚀 Build Production AAB
+        run: |
+          eas build --platform android --profile production --non-interactive --no-wait
+        
+      - name: 📝 Build info
+        run: |
+          echo "✅ Production build started!"
+          echo "📱 Platform: Android"
+          echo "🔧 Profile: Production (AAB)"
+          echo "🏷️ Version: ${{ github.ref_name }}"
+          echo "⏰ Build will take ~15-20 minutes"
+          echo "🔗 Check progress at: https://expo.dev/accounts/khanhtpse173570/projects/agrimart-shop/builds"
