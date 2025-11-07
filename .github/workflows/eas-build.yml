@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - main
-      - PhuongKhanh  # Branch hiện tại của bạn
-    tags:
-      - 'v*.*.*'  # Tag version như v1.0.0, v1.0.1
+    paths-ignore:
+      - '**.md'
+      - 'download-app.html'
+      - 'index.html'
+      - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:  # Cho phép chạy thủ công từ GitHub UI
 
 jobs:

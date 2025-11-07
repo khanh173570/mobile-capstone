@@ -1,4 +1,5 @@
 export default {
+  owner: "khanhtpse173570",
   expo: {
     name: "AgriMart Shop",
     slug: "agrimart-shop",
@@ -8,6 +9,12 @@ export default {
     scheme: "agrimart",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
+    updates: {
+      url: "https://u.expo.dev/94ffbb8e-2601-48eb-8541-290c0b48921b"
+    },
+    runtimeVersion: {
+      policy: "sdkVersion"
+    },
     extra: {
       apiUrl: process.env.PRODUCTION_API_URL,
       eas: {
