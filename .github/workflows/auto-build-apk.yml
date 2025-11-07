@@ -13,6 +13,9 @@ jobs:
   build-and-update:
     name: Build APK & Update Landing
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Allow pushing to repo
+      actions: read
     steps:
       - name: Check for EXPO_TOKEN
         run: |
