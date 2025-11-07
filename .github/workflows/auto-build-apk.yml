@@ -55,17 +55,22 @@ jobs:
         run: |
           echo "🔍 Getting latest build info..."
           
-          # Retry mechanism with better error handling
-          for i in {1..5}; do
+          # Wait for EAS API to sync after build completion
+          echo "⏳ Waiting 60 seconds for EAS API to sync..."
+          sleep 60
+          
+          # Retry mechanism with improved error handling
+          for i in {1..10}; do
             echo "📡 Attempt $i to get build info..."
             
-            # Get build info with better error handling
-            BUILD_INFO=$(eas build:list --platform=android --limit=1 --json --non-interactive 2>/dev/null || echo "[]")
+            # Get build info with longer timeout and more results
+            BUILD_INFO=$(timeout 90 eas build:list --platform=android --limit=5 --json --non-interactive 2>/dev/null || echo "[]")
             
             # Check if we got valid JSON
             if echo "$BUILD_INFO" | jq empty 2>/dev/null; then
-              BUILD_URL=$(echo "$BUILD_INFO" | jq -r '.[0].artifacts.buildUrl // empty' 2>/dev/null)
-              BUILD_ID=$(echo "$BUILD_INFO" | jq -r '.[0].id // empty' 2>/dev/null)
+              # Filter for production builds only that are finished
+              BUILD_URL=$(echo "$BUILD_INFO" | jq -r '.[] | select(.buildProfile=="production" and .status=="finished") | .artifacts.buildUrl // empty' 2>/dev/null | head -1)
+              BUILD_ID=$(echo "$BUILD_INFO" | jq -r '.[] | select(.buildProfile=="production" and .status=="finished") | .id // empty' 2>/dev/null | head -1)
               
               if [[ -n "$BUILD_URL" && "$BUILD_URL" != "null" && "$BUILD_URL" != "empty" ]]; then
                 echo "✅ New APK build completed!"
@@ -78,8 +83,10 @@ jobs:
               fi
             fi
             
-            echo "⚠️ Attempt $i failed, waiting 15 seconds before retry..."
-            sleep 15
+            # Exponential backoff - wait longer between retries
+            SLEEP_TIME=$((i * 30))
+            echo "⚠️ Attempt $i failed, waiting ${SLEEP_TIME}s before retry..."
+            sleep $SLEEP_TIME
           done
           
           # Fallback: Try to get build URL from EAS web interface
