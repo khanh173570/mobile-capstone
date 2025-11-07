@@ -1,14 +1,13 @@
 name: Auto Build & Update APK
 
 on:
-  # Temporarily disabled to avoid conflicts
-  # push:
-  #   branches: [main]
-  #   paths-ignore:
-  #     - '*.md'
-  #     - '.github/workflows/eas-update.yml'
-  #     - 'AUTO_*.md'
-  workflow_dispatch: # Manual trigger only
+  push:
+    branches: [main]
+    paths-ignore:
+      - '*.md'
+      - '.github/workflows/eas-update.yml'
+      - 'AUTO_*.md'
+  workflow_dispatch: # Manual trigger
 
 jobs:
   build-and-update:
