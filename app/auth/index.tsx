@@ -194,7 +194,7 @@ export default function LoginScreen() { // Test fix workflow
 
           <TouchableOpacity onPress={() => router.push('/auth/role-selection')}>
             <Text style={[styles.bottomText, styles.registerText]}>
-              Đăng ký
+              Đăng ký account
             </Text>
           </TouchableOpacity>
         </View>
