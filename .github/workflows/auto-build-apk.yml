@@ -1,11 +1,14 @@
 name: Auto Build & Update APK
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '*.md'
-      - '.github/workflows/eas-update.yml'
+  # Temporarily disabled to avoid conflicts
+  # push:
+  #   branches: [main]
+  #   paths-ignore:
+  #     - '*.md'
+  #     - '.github/workflows/eas-update.yml'
+  #     - 'AUTO_*.md'
+  workflow_dispatch: # Manual trigger only
 
 jobs:
   build-and-update:
@@ -41,7 +44,10 @@ jobs:
         run: npm ci
 
       - name: Build APK
-        run: eas build --platform android --non-interactive --wait
+        run: |
+          echo "🚀 Starting APK build..."
+          eas build --platform android --non-interactive --wait
+        timeout-minutes: 30
         
       - name: Get latest build info
         id: build_info

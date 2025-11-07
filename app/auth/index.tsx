@@ -135,7 +135,7 @@ export default function LoginScreen() {
 
       {/* Login Form */}
       <View style={styles.formContainer}>
-        <Text style={styles.welcomeText}>Đăng nhập tài khoản</Text>
+        <Text style={styles.welcomeText}>Đăng nhập </Text>
         <Text style={styles.welcomeSubtext}>Xin chào !</Text>
 
         <View style={styles.inputContainer}>
