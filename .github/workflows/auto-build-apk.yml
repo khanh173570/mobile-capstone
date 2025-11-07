@@ -1,0 +1,89 @@
+name: Auto Build & Update APK
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '*.md'
+      - '.github/workflows/eas-update.yml'
+
+jobs:
+  build-and-update:
+    name: Build APK & Update Landing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for EXPO_TOKEN
+        run: |
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "You must provide an EXPO_TOKEN secret linked to this project's Expo account in this repo's secrets. Learn more: https://docs.expo.dev/eas-update/github-actions"
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: npm
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build APK
+        run: eas build --platform android --non-interactive --wait
+        
+      - name: Get latest build info
+        id: build_info
+        run: |
+          # Get latest build URL from EAS
+          BUILD_URL=$(eas build:list --platform=android --limit=1 --json | jq -r '.[0].artifacts.buildUrl // empty')
+          BUILD_ID=$(eas build:list --platform=android --limit=1 --json | jq -r '.[0].id // empty')
+          
+          if [ -z "$BUILD_URL" ] || [ "$BUILD_URL" = "null" ]; then
+            echo "❌ Could not get build URL"
+            exit 1
+          fi
+          
+          echo "✅ New APK build completed!"
+          echo "Build ID: $BUILD_ID"
+          echo "Build URL: $BUILD_URL"
+          
+          echo "build_url=$BUILD_URL" >> $GITHUB_OUTPUT
+          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+
+      - name: Update landing page with new APK link
+        run: |
+          # Update index.html with new APK download link
+          sed -i 's|href="[^"]*builds/[^"]*"|href="${{ steps.build_info.outputs.build_url }}"|g' index.html
+          
+          # Verify the change
+          echo "✅ Updated landing page with new APK link:"
+          grep -n "download-btn" index.html
+
+      - name: Commit and push updated landing page
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          if git diff --quiet; then
+            echo "No changes to commit"
+          else
+            git add index.html
+            git commit -m "🤖 Auto-update APK download link (Build: ${{ steps.build_info.outputs.build_id }})"
+            git push
+            echo "✅ Landing page updated with new APK link!"
+          fi
+
+      - name: Create OTA Update
+        run: eas update --auto --non-interactive

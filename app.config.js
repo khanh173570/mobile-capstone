@@ -1,7 +1,7 @@
 export default {
   owner: "khanhtpse173570",
   expo: {
-    name: "AgriMart Shop",
+    name: "AgriMart Shop", // Auto-build APK test
     slug: "agrimart-shop",
     version: "1.0.0",
     orientation: "portrait",
