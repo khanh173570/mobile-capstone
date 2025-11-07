@@ -108,12 +108,21 @@ jobs:
 
       - name: Update landing page with new APK link
         run: |
-          # Update index.html with new APK download link
-          sed -i 's|href="[^"]*builds/[^"]*"|href="${{ steps.build_info.outputs.build_url }}"|g' index.html
+          echo "🔄 Current APK link in landing page:"
+          grep -n "expo.dev/artifacts" index.html || echo "No current APK link found"
           
-          # Verify the change
+          # Fix regex pattern to match actual URL format
+          sed -i 's|https://expo\.dev/artifacts/eas/[^"]*\.apk|${{ steps.build_info.outputs.build_url }}|g' index.html
+          
           echo "✅ Updated landing page with new APK link:"
-          grep -n "download-btn" index.html
+          grep -n "expo.dev/artifacts" index.html || echo "No APK link after update"
+          
+          # Verify the change worked
+          if grep -q "${{ steps.build_info.outputs.build_url }}" index.html; then
+            echo "✅ Successfully updated APK link!"
+          else
+            echo "❌ Failed to update APK link - manual fallback needed"
+          fi
 
       - name: Commit and push updated landing page
         run: |
