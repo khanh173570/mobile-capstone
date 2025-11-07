@@ -111,17 +111,22 @@ jobs:
           echo "🔄 Current APK link in landing page:"
           grep -n "expo.dev/artifacts" index.html || echo "No current APK link found"
           
-          # Fix regex pattern to match actual URL format
-          sed -i 's|https://expo\.dev/artifacts/eas/[^"]*\.apk|${{ steps.build_info.outputs.build_url }}|g' index.html
+          # Fix: Match the href attribute specifically with proper escaping
+          sed -i 's|href="https://expo\.dev/artifacts/eas/[^"]*"|href="${{ steps.build_info.outputs.build_url }}"|g' index.html
           
           echo "✅ Updated landing page with new APK link:"
           grep -n "expo.dev/artifacts" index.html || echo "No APK link after update"
+          
+          # Debug: Show what build_url contains
+          echo "🔍 Build URL to insert: ${{ steps.build_info.outputs.build_url }}"
           
           # Verify the change worked
           if grep -q "${{ steps.build_info.outputs.build_url }}" index.html; then
             echo "✅ Successfully updated APK link!"
           else
-            echo "❌ Failed to update APK link - manual fallback needed"
+            echo "❌ Failed to update APK link"
+            echo "Current content around APK link:"
+            grep -A2 -B2 "expo.dev" index.html || echo "No matches found"
           fi
 
       - name: Commit and push updated landing page
