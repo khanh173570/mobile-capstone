@@ -53,21 +53,58 @@ jobs:
       - name: Get latest build info
         id: build_info
         run: |
-          # Get latest build URL from EAS
-          BUILD_URL=$(eas build:list --platform=android --limit=1 --json | jq -r '.[0].artifacts.buildUrl // empty')
-          BUILD_ID=$(eas build:list --platform=android --limit=1 --json | jq -r '.[0].id // empty')
+          echo "🔍 Getting latest build info..."
           
-          if [ -z "$BUILD_URL" ] || [ "$BUILD_URL" = "null" ]; then
-            echo "❌ Could not get build URL"
-            exit 1
+          # Retry mechanism with better error handling
+          for i in {1..5}; do
+            echo "📡 Attempt $i to get build info..."
+            
+            # Get build info with better error handling
+            BUILD_INFO=$(eas build:list --platform=android --limit=1 --json --non-interactive 2>/dev/null || echo "[]")
+            
+            # Check if we got valid JSON
+            if echo "$BUILD_INFO" | jq empty 2>/dev/null; then
+              BUILD_URL=$(echo "$BUILD_INFO" | jq -r '.[0].artifacts.buildUrl // empty' 2>/dev/null)
+              BUILD_ID=$(echo "$BUILD_INFO" | jq -r '.[0].id // empty' 2>/dev/null)
+              
+              if [[ -n "$BUILD_URL" && "$BUILD_URL" != "null" && "$BUILD_URL" != "empty" ]]; then
+                echo "✅ New APK build completed!"
+                echo "Build ID: $BUILD_ID"
+                echo "Build URL: $BUILD_URL"
+                
+                echo "build_url=$BUILD_URL" >> $GITHUB_OUTPUT
+                echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+                exit 0
+              fi
+            fi
+            
+            echo "⚠️ Attempt $i failed, waiting 15 seconds before retry..."
+            sleep 15
+          done
+          
+          # Fallback: Try to get build URL from EAS web interface
+          echo "🔄 Trying fallback method..."
+          BUILD_LIST=$(eas build:list --platform=android --limit=3 --non-interactive 2>/dev/null || echo "")
+          
+          if [[ -n "$BUILD_LIST" ]]; then
+            echo "📋 Available builds:"
+            echo "$BUILD_LIST"
+            
+            # Try to extract URL from text output
+            BUILD_URL=$(echo "$BUILD_LIST" | grep -o 'https://expo\.dev/artifacts/eas/[^[:space:]]*\.apk' | head -1 || echo "")
+            
+            if [[ -n "$BUILD_URL" ]]; then
+              BUILD_ID="manual-extract"
+              echo "✅ Extracted build URL: $BUILD_URL"
+              echo "build_url=$BUILD_URL" >> $GITHUB_OUTPUT
+              echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+              exit 0
+            fi
           fi
           
-          echo "✅ New APK build completed!"
-          echo "Build ID: $BUILD_ID"
-          echo "Build URL: $BUILD_URL"
-          
-          echo "build_url=$BUILD_URL" >> $GITHUB_OUTPUT
-          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+          echo "❌ Failed to get build info after all attempts"
+          echo "This might be a temporary EAS API issue"
+          exit 1
 
       - name: Update landing page with new APK link
         run: |
