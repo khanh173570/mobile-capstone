@@ -17,13 +17,15 @@ import { useRouter } from 'expo-router';
 import { 
   getCurrentUser, 
   getCurrentFarm, 
+  User
+} from '../../../services/authService';
+import { 
   getUserFarmsFromStorage,
   getUserFarms,
-  User, 
-  Farm,
   updateFarm,
-  UpdateFarmFormData
-} from '../../../services/authService';
+  type Farm,
+  type UpdateFarmFormData
+} from '../../../services/farmService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { 
   MapPin, 
@@ -148,8 +150,7 @@ export default function HomeScreen() {
         farmImageFile: formData.farmImageFile
       };
       
-      console.log('Updating farm with data:', updateData);
-      console.log('API endpoint will be:', `https://farm.a-379.store/api/farm/${updateData.id}`);
+   
       
       const result = await updateFarm(updateData);
       

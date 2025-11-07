@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Camera, Upload, Tractor } from 'lucide-react-native';
-import { submitFarmUpdate, FarmFormData } from '../services/authService';
+import { updateFarm, type UpdateFarmFormData, type FarmFormData } from '../services/farmService';
+import { getPendingFarmId } from '../services/authService';
 import * as ImagePicker from 'expo-image-picker';
 
 interface FarmUpdateFormProps {
@@ -123,11 +124,20 @@ export default function FarmUpdateForm({ onComplete }: FarmUpdateFormProps) {
 
     setIsLoading(true);
     try {
-      // Attach selected file if exists
-      const payload: any = { ...formData };
-      if (farmImageFile) payload.farmImageFile = farmImageFile;
+      // Get pending farm ID
+      const farmId = await getPendingFarmId();
+      if (!farmId) {
+        throw new Error('No pending farm ID found');
+      }
 
-      const result = await submitFarmUpdate(payload as any);
+      // Prepare update data
+      const updateData: UpdateFarmFormData = {
+        id: farmId,
+        name: formData.name,
+        farmImageFile: farmImageFile
+      };
+
+      const result = await updateFarm(updateData);
       
       if (result.isSuccess) {
         Alert.alert(

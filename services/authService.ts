@@ -1,10 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+// Import Farm type and functions from farmService
+import type { Farm } from './farmService';
+import { getUserFarms } from './farmService';
 // Removing regular FileSystem import as we're now using the legacy version explicitly
 
-// Get API URLs from environment variables
-const API_URL = Constants.expoConfig?.extra?.identityApiUrl || Constants.manifest2?.extra?.expoClient?.extra?.identityApiUrl || 'https://identity.a-379.store/api';
-const API_FARM_URL = Constants.expoConfig?.extra?.farmApiUrl || Constants.manifest2?.extra?.expoClient?.extra?.farmApiUrl || 'https://farm.a-379.store/api';
+// Get API URL from environment variables
+const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://gateway.a-379.store/api';
 
 // Types
 export interface Role {
@@ -64,16 +66,6 @@ export interface User {
   updatedAt: string;
 }
 
-export interface Farm {
-  id: string;
-  name: string;
-  farmImage: string;
-  isActive: boolean;
-  userId: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface TokenData {
   accessToken: string;
   refreshToken: string;
@@ -83,24 +75,6 @@ export interface LoginResponse {
   farm: Farm;
   user: User;
   token: TokenData;
-}
-
-export interface UpdateFarmData {
-  id: string;
-  name: string;
-  farmImage?: string | File | null;
-}
-
-export interface FarmFormData {
-  name: string;
-  farmImage: string;
-  description?: string;
-}
-
-export interface UpdateFarmFormData {
-  id: string;
-  name: string;
-  farmImageFile?: any; // For file upload
 }
 
 export interface LoginHandlerResponse {
@@ -402,77 +376,16 @@ export const registerUser = async (userData: RegisterData): Promise<ApiResponse<
   }
 };
 
-// Update farm with file upload
-export const updateFarm = async (farmData: UpdateFarmFormData): Promise<ApiResponse<Farm>> => {
-  try {
-    console.log('Update farm request URL:', `${API_FARM_URL}/farm/${farmData.id}`);
-    
-    const token = await AsyncStorage.getItem('accessToken');
-    
-    // Create FormData for file upload
-    const formData = new FormData();
-    formData.append('name', farmData.name);
-    
-    // Add file if provided
-    if (farmData.farmImageFile) {
-      formData.append('FarmImage', farmData.farmImageFile);
-    }
-    
-    console.log('Update farm FormData:', {
-      name: farmData.name,
-      hasFile: !!farmData.farmImageFile
-    });
-    
-    const response = await fetch(`${API_FARM_URL}/farm/${farmData.id}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        // Don't set Content-Type, let fetch set it with boundary for FormData
-      },
-      body: formData,
-    });
-    
-    const data = await response.json();
-    console.log('Update farm response:', data);
-    
-    return data as ApiResponse<Farm>;
-  } catch (error) {
-    console.error('Update farm error:', error);
-    throw error;
-  }
-};
-
-// Get user farms (user ID from token)
-export const getUserFarms = async (): Promise<ApiResponse<Farm[]>> => {
-  try {
-    console.log('Get user farms request URL:', `${API_FARM_URL}/user/farm`);
-    
-    const token = await AsyncStorage.getItem('accessToken');
-    
-    const response = await fetch(`${API_FARM_URL}/user/farm`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    
-    const data = await response.json();
-    console.log('Get user farms response:', data);
-    
-    return data as ApiResponse<Farm[]>;
-  } catch (error) {
-    console.error('Get user farms error:', error);
-    throw error;
-  }
-};
-
 // Get user profile
 export const getUserProfile = async (): Promise<ApiResponse<User>> => {
   try {
     console.log('Get user profile request URL:', `${API_URL}/Auth/Me`);
     
     const token = await AsyncStorage.getItem('accessToken');
+    
+    if (!token) {
+      throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+    }
     
     const response = await fetch(`${API_URL}/Auth/Me`, {
       method: 'GET',
@@ -482,13 +395,34 @@ export const getUserProfile = async (): Promise<ApiResponse<User>> => {
       },
     });
     
-    const data = await response.json();
+    // Handle empty or invalid response
+    const text = await response.text();
+    if (!text || text.trim() === '') {
+      throw new Error('Không nhận được phản hồi từ máy chủ');
+    }
+
+    let data: ApiResponse<User>;
+    try {
+      data = JSON.parse(text);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      console.error('Response text:', text);
+      throw new Error('Dữ liệu từ máy chủ không hợp lệ');
+    }
+    
     console.log('Get user profile response:', data);
     
-    return data as ApiResponse<User>;
+    if (!response.ok) {
+      throw new Error(data.message || 'Không thể lấy thông tin người dùng');
+    }
+    
+    return data;
   } catch (error) {
     console.error('Get user profile error:', error);
-    throw error;
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Đã xảy ra lỗi khi lấy thông tin người dùng');
   }
 };
 
@@ -628,20 +562,6 @@ export const getCurrentFarm = async (): Promise<Farm | null> => {
   }
 };
 
-// Get user farms from storage
-export const getUserFarmsFromStorage = async (): Promise<Farm[]> => {
-  try {
-    const farmsStr = await AsyncStorage.getItem('userFarms');
-    if (farmsStr) {
-      return JSON.parse(farmsStr) as Farm[];
-    }
-    return [];
-  } catch (error) {
-    console.error('Error getting user farms from storage:', error);
-    return [];
-  }
-};
-
 // Check if user is logged in
 export const isAuthenticated = async (): Promise<boolean> => {
   try {
@@ -735,47 +655,6 @@ export const getPendingFarmId = async (): Promise<string | null> => {
   } catch (error) {
     console.error('Error getting pending farm ID:', error);
     return null;
-  }
-};
-
-export const submitFarmUpdate = async (farmData: FarmFormData & { farmImageFile?: any }): Promise<ApiResponse<Farm>> => {
-  try {
-    const farmId = await getPendingFarmId();
-    if (!farmId) {
-      throw new Error('No pending farm ID found');
-    }
-
-    const updateData: UpdateFarmFormData = {
-      id: farmId,
-      name: farmData.name,
-      farmImageFile: farmData.farmImageFile
-    };
-
-    console.log('Submitting farm update:', { name: farmData.name, hasFile: !!farmData.farmImageFile });
-    const result = await updateFarm(updateData);
-    
-    if (result.isSuccess) {
-      // Clear pending status
-      await AsyncStorage.removeItem('farmNeedsUpdate');
-      await AsyncStorage.removeItem('pendingFarmId');
-      
-      // Update farm in storage
-      await AsyncStorage.setItem('farm', JSON.stringify(result.data));
-      
-      // Get user farms to ensure we have complete data
-      const userFarmsResult = await getUserFarms();
-      
-      if (userFarmsResult.isSuccess) {
-        await AsyncStorage.setItem('userFarms', JSON.stringify(userFarmsResult.data));
-      }
-      
-      console.log('Farm update completed successfully');
-    }
-    
-    return result;
-  } catch (error) {
-    console.error('Error submitting farm update:', error);
-    throw error;
   }
 };
 

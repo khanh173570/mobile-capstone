@@ -13,7 +13,8 @@ import {
   Image,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { getCurrentFarm, Farm } from '@/services/authService';
+import { getCurrentFarm } from '@/services/authService';
+import type { Farm } from '@/services/farmService';
 import { getCropsByFarmId, createCrop, updateCrop, Crop, CreateCropData, UpdateCropData } from '@/services/cropService';
 import { 
   ArrowLeft,

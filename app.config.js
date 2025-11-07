@@ -9,8 +9,7 @@ export default {
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     extra: {
-      identityApiUrl: process.env.IDENTITY_API_URL || "https://identity.a-379.store/api",
-      farmApiUrl: process.env.FARM_API_URL || "https://farm.a-379.store/api",
+      apiUrl: process.env.PRODUCTION_API_URL,
     },
     ios: {
       supportsTablet: true,
