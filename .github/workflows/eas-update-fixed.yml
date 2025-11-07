@@ -5,14 +5,8 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '*.md'
-      - '.github/workflows/deploy-pages.yml'
-      - 'index.html'
-      - 'EXPO_TOKEN_SETUP.md'
-      - 'WORKFLOW_FIXES.md'
+  # Disabled - use eas-update-simple.yml instead  
+  workflow_dispatch:
 
 jobs:
   update:
@@ -33,25 +27,19 @@ jobs:
           node-version: '18'
           cache: 'npm'
 
-      - name: Install Expo CLI
-        run: npm install -g @expo/cli@latest
-
-      - name: Install EAS CLI
-        run: npm install -g eas-cli@latest
-
       - name: Install dependencies
         run: |
           npm cache clean --force
           npm install --legacy-peer-deps
 
+      - name: Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
       - name: EAS Update
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          if [ -z "$EXPO_TOKEN" ]; then
-            echo "⚠️  EXPO_TOKEN not configured - skipping update"
-            exit 0
-          fi
-          
           echo "🚀 Creating EAS update..."
-          npx eas update --auto --non-interactive || echo "❌ EAS update failed but continuing..."
+          eas update --auto --non-interactive

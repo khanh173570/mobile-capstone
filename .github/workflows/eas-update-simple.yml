@@ -1,0 +1,43 @@
+name: EAS Update Simple
+
+concurrency:
+  group: eas-update-simple-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '*.md'
+      - 'index.html'
+
+jobs:
+  update:
+    name: EAS Update
+    runs-on: ubuntu-latest
+    env:
+      EXPO_NO_TELEMETRY: 1
+      
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Setup Expo and EAS
+        run: |
+          npm install -g @expo/cli@latest
+          npm install -g eas-cli@latest
+
+      - name: EAS Update
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          echo "Token length: ${#EXPO_TOKEN}"
+          echo "🚀 Starting EAS update..."
+          eas update --auto --non-interactive

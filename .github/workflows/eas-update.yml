@@ -6,12 +6,8 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '*.md'
-      - '.github/workflows/deploy-pages.yml'
-      - 'index.html'
+  # Disabled - use eas-update-simple.yml instead
+  workflow_dispatch:
 
 jobs:
   update:
