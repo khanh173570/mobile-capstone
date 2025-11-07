@@ -1,6 +1,10 @@
 # 🌾 AgriMart Shop - Mobile App
 
+[![Deploy GitHub Pages](https://github.com/khanh173570/mobile-capstone/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/khanh173570/mobile-capstone/actions/workflows/deploy-pages.yml)
+
 Ứng dụng di động quản lý trang trại thông minh cho nông dân.
+
+> **Branch chính**: `main` - Mọi thay đổi push lên main sẽ tự động deploy landing page
 
 ## 📱 Tải ứng dụng
 
@@ -88,8 +92,7 @@ eas build --platform android --profile preview
 
 ## 📄 Tài liệu
 
-- [Hướng dẫn Auto Build](./AUTO_BUILD_GUIDE.md)
-- [Hướng dẫn Deploy lên Google Play](./DEPLOY_GOOGLE_PLAY.md)
+- [Quy trình làm việc (Workflow)](./WORKFLOW.md) - **Đọc đầu tiên!**
 - [Chính sách bảo mật](./privacy-policy.md)
 
 ---
