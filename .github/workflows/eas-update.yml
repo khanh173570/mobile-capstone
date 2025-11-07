@@ -11,23 +11,17 @@ on:
     paths-ignore:
       - '*.md'
       - '.github/workflows/deploy-pages.yml'
-  pull_request:
-    branches: [main]
+      - 'index.html'
 
 jobs:
   update:
     name: EAS Update
     runs-on: ubuntu-latest
+    env:
+      EXPO_NO_TELEMETRY: 1
+      EAS_NO_VCS: 1
     steps:
-      - name: Check for EXPO_TOKEN
-        run: |
-          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
-            echo "❌ EXPO_TOKEN not found in GitHub secrets"
-            echo "Please add EXPO_TOKEN to repository secrets"
-            exit 1
-          else
-            echo "✅ EXPO_TOKEN found"
-          fi
+
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -37,22 +31,26 @@ jobs:
         with:
           node-version: 18.x
           cache: npm
+          registry-url: https://registry.npmjs.org/
 
       - name: Setup EAS
         uses: expo/expo-github-action@v8
         with:
           expo-version: latest
           eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+          token: ${{ secrets.EXPO_TOKEN || '' }}
+          packager: npm
 
-      - name: Install dependencies
+      - name: Clean and Install dependencies
         run: |
+          echo "🧹 Cleaning npm cache..."
+          npm cache clean --force
           echo "📦 Installing dependencies..."
-          npm install --force
+          npm install --legacy-peer-deps --no-audit
         continue-on-error: false
 
       - name: Create update
         run: |
           echo "🚀 Creating EAS update..."
-          eas update --auto --non-interactive
-        continue-on-error: true
+          npx eas update --auto --non-interactive
+        continue-on-error: false
