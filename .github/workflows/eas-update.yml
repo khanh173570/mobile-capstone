@@ -1,8 +1,16 @@
 name: EAS Auto Update
 
+# Prevent concurrent runs
+concurrency:
+  group: eas-update-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '*.md'
+      - '.github/workflows/deploy-pages.yml'
   pull_request:
     branches: [main]
 
@@ -40,7 +48,7 @@ jobs:
       - name: Install dependencies
         run: |
           echo "📦 Installing dependencies..."
-          npm ci
+          npm install --force
         continue-on-error: false
 
       - name: Create update
