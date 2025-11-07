@@ -18,7 +18,7 @@
     },
     "production": {
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "apk"
       },
       "env": {
         "PRODUCTION_API_URL": "https://gateway.a-379.store/api"
