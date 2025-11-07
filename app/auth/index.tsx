@@ -20,7 +20,7 @@ import { router } from 'expo-router';
 import { User, Lock, Sprout, Mail } from 'lucide-react-native';
 import { loginUser, LoginData } from '../../services/authService';
 
-export default function LoginScreen() {
+export default function LoginScreen() { // Test fix workflow
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
