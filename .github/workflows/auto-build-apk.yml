@@ -148,5 +148,29 @@ jobs:
             echo "✅ Landing page updated with new APK link!"
           fi
 
+      - name: Auto-sync gh-pages branch
+        run: |
+          echo "🔄 Auto-syncing gh-pages branch with updated APK link..."
+          
+          # Fetch gh-pages branch
+          git fetch origin gh-pages:gh-pages || git checkout -b gh-pages
+          git checkout gh-pages
+          
+          # Copy updated index.html from main
+          git checkout main -- index.html
+          
+          # Check if there are changes to commit
+          if git diff --quiet; then
+            echo "gh-pages already up to date"
+          else
+            git add index.html
+            git commit -m "🤖 Auto-sync APK link from main (Build: ${{ steps.build_info.outputs.build_id }})"
+            git push origin gh-pages
+            echo "✅ gh-pages branch synced successfully!"
+          fi
+          
+          # Switch back to main
+          git checkout main
+
       - name: Create OTA Update
         run: eas update --auto --non-interactive
