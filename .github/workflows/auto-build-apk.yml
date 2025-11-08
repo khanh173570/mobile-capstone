@@ -152,21 +152,43 @@ jobs:
         run: |
           echo "🔄 Auto-syncing gh-pages branch with updated APK link..."
           
-          # Fetch gh-pages branch
-          git fetch origin gh-pages:gh-pages || git checkout -b gh-pages
-          git checkout gh-pages
+          # Configure git
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Fetch all branches
+          git fetch origin
+          
+          # Check if gh-pages branch exists
+          if git ls-remote --exit-code --heads origin gh-pages; then
+            echo "📋 gh-pages branch exists, checking it out..."
+            git checkout gh-pages
+            git pull origin gh-pages
+          else
+            echo "📋 gh-pages branch doesn't exist, creating it..."
+            git checkout -b gh-pages
+          fi
           
           # Copy updated index.html from main
-          git checkout main -- index.html
+          echo "📄 Copying updated index.html from main..."
+          git show main:index.html > index.html
+          
+          # Show what we're about to commit
+          echo "🔍 Changes to be committed:"
+          git diff --name-only || echo "No changes detected"
           
           # Check if there are changes to commit
-          if git diff --quiet; then
-            echo "gh-pages already up to date"
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "✅ gh-pages already up to date with main"
           else
             git add index.html
             git commit -m "🤖 Auto-sync APK link from main (Build: ${{ steps.build_info.outputs.build_id }})"
             git push origin gh-pages
             echo "✅ gh-pages branch synced successfully!"
+            
+            # Show the updated APK link
+            echo "📋 Updated APK link in gh-pages:"
+            grep -n "expo.dev/artifacts" index.html || echo "No APK link found"
           fi
           
           # Switch back to main
