@@ -3,7 +3,7 @@ name: Deploy GitHub Pages
 on:
   push:
     branches:
-      - main  # Khi push lên main thì tự động deploy
+      - main  # Deploy trực tiếp từ main - đơn giản nhất!
     paths:
       - 'index.html'  # Chỉ chạy khi index.html thay đổi
       - '.github/workflows/deploy-pages.yml'
