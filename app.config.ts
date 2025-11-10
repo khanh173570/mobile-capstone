@@ -1,3 +1,6 @@
+// Load environment variables
+import 'dotenv/config';
+
 export default {
   owner: "khanhtpse173570",
   expo: {

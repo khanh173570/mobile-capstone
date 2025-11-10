@@ -40,10 +40,10 @@ export default function EditHarvestModal({ visible, harvest, onClose, onSubmit }
   useEffect(() => {
     if (visible && harvest) {
       setFormData({
-        harvestDate: harvest.harvestDate || new Date().toISOString(),
-        startDate: harvest.startDate,
+        harvestDate: new Date().toISOString(), // Always default to current date
+        startDate: harvest.startDate, // Keep original start date (not editable)
         totalQuantity: harvest.totalQuantity,
-        unit: harvest.unit,
+        unit: 'kg', // Fixed to kg
         note: harvest.note || '',
         salePrice: harvest.salePrice,
       });
@@ -51,19 +51,30 @@ export default function EditHarvestModal({ visible, harvest, onClose, onSubmit }
   }, [visible, harvest]);
 
   const handleSubmit = async () => {
-    // Validation
-    if (formData.totalQuantity < 0) {
-      Alert.alert('Lỗi', 'Sản lượng không thể âm');
+    // Validation - check required fields
+    if (formData.totalQuantity <= 0) {
+      Alert.alert('Lỗi', 'Sản lượng thu hoạch phải lớn hơn 0');
       return;
     }
-    if (formData.salePrice < 0) {
-      Alert.alert('Lỗi', 'Giá bán không thể âm');
+    if (formData.salePrice <= 0) {
+      Alert.alert('Lỗi', 'Giá bán phải lớn hơn 0');
+      return;
+    }
+
+    // Validate harvest date must be in the past
+    const harvestDate = new Date(formData.harvestDate);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // Set to end of today
+    
+    if (harvestDate > today) {
+      Alert.alert('Lỗi', 'Ngày thu hoạch phải là ngày trong quá khứ (đã thu hoạch)');
       return;
     }
 
     // Validate harvest date must be after start date
     const startDate = new Date(formData.startDate);
-    const harvestDate = new Date(formData.harvestDate);
+    harvestDate.setHours(0, 0, 0, 0);
+    startDate.setHours(0, 0, 0, 0);
     
     if (harvestDate < startDate) {
       Alert.alert('Lỗi', 'Ngày thu hoạch phải sau ngày bắt đầu mùa vụ');
@@ -75,6 +86,7 @@ export default function EditHarvestModal({ visible, harvest, onClose, onSubmit }
       // Prepare data - convert empty strings to "Không có"
       const submitData = {
         ...formData,
+        unit: 'kg', // Force unit to kg
         note: formData.note.trim() || 'Không có',
       };
       
@@ -132,29 +144,17 @@ export default function EditHarvestModal({ visible, harvest, onClose, onSubmit }
         </View>
 
         <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-          {/* Start Date */}
+          {/* Start Date - Read Only */}
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Ngày bắt đầu mùa vụ *</Text>
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => setShowStartDatePicker(true)}
-              disabled={loading}
-            >
-              <Calendar size={20} color="#6B7280" />
-              <Text style={styles.dateButtonText}>
+            <Text style={styles.inputHint}>(Không thể thay đổi)</Text>
+            <View style={[styles.dateButton, styles.dateButtonDisabled]}>
+              <Calendar size={20} color="#9CA3AF" />
+              <Text style={[styles.dateButtonText, styles.dateButtonTextDisabled]}>
                 {formatDateDisplay(formData.startDate)}
               </Text>
-            </TouchableOpacity>
+            </View>
           </View>
-
-          {showStartDatePicker && (
-            <DateTimePicker
-              value={new Date(formData.startDate)}
-              mode="date"
-              display="default"
-              onChange={handleStartDateChange}
-            />
-          )}
 
           {/* Harvest Date */}
           <View style={styles.inputGroup}>
@@ -178,6 +178,7 @@ export default function EditHarvestModal({ visible, harvest, onClose, onSubmit }
               display="default"
               onChange={handleHarvestDateChange}
               minimumDate={new Date(formData.startDate)}
+              maximumDate={new Date()}
             />
           )}
 
@@ -193,13 +194,9 @@ export default function EditHarvestModal({ visible, harvest, onClose, onSubmit }
                 onChangeText={(text) => setFormData(prev => ({ ...prev, totalQuantity: parseFloat(text) || 0 }))}
                 editable={!loading}
               />
-              <TextInput
-                style={[styles.textInput, styles.unitInput]}
-                placeholder="Đơn vị"
-                value={formData.unit}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, unit: text }))}
-                editable={!loading}
-              />
+              <View style={[styles.textInput, styles.unitInput, styles.unitInputDisabled]}>
+                <Text style={styles.unitText}>kg</Text>
+              </View>
             </View>
           </View>
 
@@ -327,6 +324,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#374151',
   },
+  dateButtonDisabled: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#E5E7EB',
+  },
+  dateButtonTextDisabled: {
+    color: '#9CA3AF',
+  },
+  inputHint: {
+    fontSize: 13,
+    color: '#F59E0B',
+    marginBottom: 8,
+    fontStyle: 'italic',
+  },
   quantityRow: {
     flexDirection: 'row',
     gap: 12,
@@ -336,6 +346,16 @@ const styles = StyleSheet.create({
   },
   unitInput: {
     flex: 1,
+  },
+  unitInputDisabled: {
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  unitText: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '500',
   },
   modalFooter: {
     flexDirection: 'row',

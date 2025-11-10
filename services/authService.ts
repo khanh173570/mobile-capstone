@@ -8,6 +8,13 @@ import { getUserFarms } from './farmService';
 // Get API URL from environment variables
 const API_URL = Constants.expoConfig?.extra?.apiUrl;
 
+// Tạm thời thêm fallback để debug
+if (!API_URL || API_URL === undefined) {
+  console.error('❌ API_URL is undefined! Using fallback...');
+  // Uncomment dòng dưới nếu cần fallback tạm thời
+  // API_URL = 'https://gateway.a-379.store/api';
+}
+
 // Types
 export interface Role {
   id: string;

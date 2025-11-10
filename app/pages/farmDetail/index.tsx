@@ -49,8 +49,13 @@ export default function FarmDetailScreen() {
         setFarmData(farm);
         // Load crops for this farm
         try {
+          console.log('Loading crops for farm:', farm.id);
           const cropsData = await getCropsByFarmId(farm.id);
-          setCrops(cropsData || []);
+          console.log('Raw crops data:', cropsData);
+          // Sort crops by ID to maintain consistent order 
+          const sortedCrops = (cropsData || []).sort((a, b) => a.id.localeCompare(b.id));
+          console.log('Sorted crops:', sortedCrops);
+          setCrops(sortedCrops);
         } catch (cropError) {
           console.error('Error loading crops:', cropError);
           setCrops([]); // Set empty array on error

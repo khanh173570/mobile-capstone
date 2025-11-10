@@ -33,6 +33,21 @@ export default function CreateHarvestModal({ visible, cropId, onClose, onSubmit 
   });
 
   const handleSubmit = async () => {
+    // Validation - check all required fields
+    if (!formData.startDate) {
+      Alert.alert('Lỗi', 'Vui lòng chọn ngày bắt đầu mùa vụ');
+      return;
+    }
+
+    const startDate = new Date(formData.startDate);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // Set to end of today for accurate comparison
+    
+    if (startDate > today) {
+      Alert.alert('Lỗi', 'Ngày bắt đầu mùa vụ phải là ngày trong quá khứ (không được chọn tương lai)');
+      return;
+    }
+
     setLoading(true);
     try {
       // Prepare data - convert empty strings to "Không có"
@@ -112,6 +127,7 @@ export default function CreateHarvestModal({ visible, cropId, onClose, onSubmit 
               mode="date"
               display="default"
               onChange={handleStartDateChange}
+              maximumDate={new Date()}
             />
           )}
 

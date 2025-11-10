@@ -45,7 +45,7 @@ export default function CropCard({ crop, cropIndex, onPress, onEdit, onCreateHar
         </View>
         <View style={styles.cropInfo}>
           <Text style={styles.cropType}>
-            Vườn số {cropIndex !== undefined ? cropIndex + 1 : '...'}
+            Vườn mãng cầu {cropIndex !== undefined ? cropIndex + 1 : '...'}
           </Text>
           <Text style={styles.cropNote}>{crop.note}</Text>
         </View>

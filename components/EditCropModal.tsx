@@ -40,14 +40,19 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
     treeCount: 0,
   });
 
-  // Load custard apple types and populate form when modal opens or crop changes
+  // Load custard apple types when modal opens
+  useEffect(() => {
+    if (visible) {
+      loadCustardAppleTypes();
+    }
+  }, [visible]);
+
+  // Populate form data when crop changes and modal is visible
   useEffect(() => {
     if (visible && crop) {
-      loadCustardAppleTypes();
-      // Populate form with crop data
       setFormData({
         area: crop.area,
-        custardAppleTypeID: crop.custardAppleTypeID,
+        custardAppleTypeID: crop.custardAppleTypeID || '',
         farmingDuration: crop.farmingDuration,
         startPlantingDate: crop.startPlantingDate,
         nearestHarvestDate: crop.nearestHarvestDate,
@@ -56,6 +61,30 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
       });
     }
   }, [visible, crop]);
+
+  // Ensure custardAppleTypeID is set after types are loaded
+  useEffect(() => {
+    if (visible && crop && custardAppleTypes.length > 0 && !loadingTypes) {
+      let matchingType = null;
+      
+      // Try to match by custardAppleTypeID first
+      if (crop.custardAppleTypeID) {
+        matchingType = custardAppleTypes.find(t => t.id === crop.custardAppleTypeID);
+      }
+      
+      // If no match by ID, try to match by custardAppleType name
+      if (!matchingType && crop.custardAppleType) {
+        matchingType = custardAppleTypes.find(t => t.name === crop.custardAppleType);
+      }
+      
+      if (matchingType) {
+        setFormData(prev => ({
+          ...prev,
+          custardAppleTypeID: matchingType.id,
+        }));
+      }
+    }
+  }, [visible, crop, custardAppleTypes, loadingTypes]);
 
   const loadCustardAppleTypes = async () => {
     setLoadingTypes(true);
@@ -85,17 +114,33 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
   };
 
   const handleSubmit = async () => {
-    // Validation
+    // Debug form data
+    console.log('Form data before validation:', formData);
+    
+    // Validation - check all required fields
     if (!formData.custardAppleTypeID) {
+      console.log('Validation failed: custardAppleTypeID');
       Alert.alert('Lỗi', 'Vui lòng chọn loại mãng cầu');
       return;
     }
     if (formData.area <= 0) {
-      Alert.alert('Lỗi', 'Vui lòng nhập diện tích hợp lệ');
+      console.log('Validation failed: area');
+      Alert.alert('Lỗi', 'Vui lòng nhập diện tích hợp lệ (phải lớn hơn 0)');
       return;
     }
     if (formData.treeCount <= 0) {
+      console.log('Validation failed: treeCount');
       Alert.alert('Lỗi', 'Vui lòng nhập số lượng cây (phải lớn hơn 0)');
+      return;
+    }
+    if (!formData.startPlantingDate || formData.startPlantingDate.trim() === '') {
+      console.log('Validation failed: startPlantingDate');
+      Alert.alert('Lỗi', 'Vui lòng chọn ngày bắt đầu trồng');
+      return;
+    }
+    if (!formData.nearestHarvestDate || formData.nearestHarvestDate.trim() === '') {
+      console.log('Validation failed: nearestHarvestDate');
+      Alert.alert('Lỗi', 'Vui lòng chọn ngày thu hoạch gần nhất');
       return;
     }
     
@@ -193,10 +238,18 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
                   disabled={loading}
                 >
                   <Text style={styles.pickerButtonText}>
-                    {formData.custardAppleTypeID 
-                      ? custardAppleTypes.find(t => t.id === formData.custardAppleTypeID)?.name || 'Chọn loại mãng cầu'
-                      : 'Chọn loại mãng cầu'
-                    }
+                    {(() => {
+                      // Show crop's custardAppleType name immediately if available
+                      if (crop && crop.custardAppleType) {
+                        return crop.custardAppleType;
+                      }
+                      
+                      // Otherwise try to find from loaded types
+                      const selectedType = custardAppleTypes.find(t => t.id === formData.custardAppleTypeID);
+                      return formData.custardAppleTypeID && selectedType
+                        ? selectedType.name
+                        : 'Chọn loại mãng cầu';
+                    })()}
                   </Text>
                   <ChevronDown size={20} color="#6B7280" />
                 </TouchableOpacity>

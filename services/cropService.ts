@@ -116,7 +116,11 @@ export const getCropsByFarmId = async (farmId: string): Promise<Crop[]> => {
       throw new Error('No access token found');
     }
 
-    const response = await fetch(`${API_URL}/farm-service/api/farm/${farmId}/crop`, {
+    const url = `${API_URL}/farm-service/api/farm/${farmId}/crop`;
+    console.log('Fetching crops from URL:', url);
+    console.log('Using token:', token ? 'Token exists' : 'No token');
+
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -124,8 +128,14 @@ export const getCropsByFarmId = async (farmId: string): Promise<Crop[]> => {
       },
     });
 
+    console.log('Response status:', response.status);
+    console.log('Response ok:', response.ok);
+
     // Check if response is empty or not valid JSON
     const text = await response.text();
+    console.log('Response text:', text);
+    console.log('Response text length:', text ? text.length : 0);
+    
     if (!text || text.trim() === '') {
       console.log('Empty response, returning empty array');
       return [];
