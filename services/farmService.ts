@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
-const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://gateway.a-379.store/api';
+const API_URL = Constants.expoConfig?.extra?.apiUrl;
 
 // Types
 export interface Farm {

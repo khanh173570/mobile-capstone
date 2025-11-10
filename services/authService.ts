@@ -6,7 +6,7 @@ import { getUserFarms } from './farmService';
 // Removing regular FileSystem import as we're now using the legacy version explicitly
 
 // Get API URL from environment variables
-const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://gateway.a-379.store/api';
+const API_URL = Constants.expoConfig?.extra?.apiUrl;
 
 // Types
 export interface Role {

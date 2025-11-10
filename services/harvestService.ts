@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
-const API_BASE_URL = Constants.expoConfig?.extra?.apiUrl || 'https://gateway.a-379.store/api';
+const API_URL = Constants.expoConfig?.extra?.apiUrl;
 
 export interface Harvest {
   id: string;
@@ -41,7 +41,7 @@ export const getHarvestsByCropId = async (cropId: string): Promise<Harvest[]> =>
     }
 
     console.log('Fetching harvests for crop:', cropId);
-    const response = await fetch(`${API_BASE_URL}/farm-service/crop/${cropId}/harvest`, {
+    const response = await fetch(`${API_URL}/farm-service/crop/${cropId}/harvest`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -79,7 +79,7 @@ export const getHarvestById = async (harvestId: string): Promise<Harvest> => {
       throw new Error('No authentication token found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/farm-service/harvest/${harvestId}`, {
+    const response = await fetch(`${API_URL}/farm-service/harvest/${harvestId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -116,7 +116,7 @@ export const createHarvest = async (harvestData: CreateHarvestData): Promise<Har
       throw new Error('No authentication token found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/farm-service/harvest`, {
+    const response = await fetch(`${API_URL}/farm-service/harvest`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -154,7 +154,7 @@ export const updateHarvest = async (harvestId: string, harvestData: UpdateHarves
       throw new Error('No authentication token found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/farm-service/harvest/${harvestId}`, {
+    const response = await fetch(`${API_URL}/farm-service/harvest/${harvestId}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,

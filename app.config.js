@@ -16,7 +16,7 @@ export default {
       policy: "sdkVersion"
     },
     extra: {
-      apiUrl: process.env.PRODUCTION_API_URL,
+      apiUrl: process.env.EXPO_PUBLIC_API_URL,
       eas: {
         projectId: "94ffbb8e-2601-48eb-8541-290c0b48921b"
       }

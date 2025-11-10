@@ -9,8 +9,7 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "extra": {
-      "identityApiUrl": "https://gateway.a-379.store/api",
-      "farmApiUrl": "https://gateway.a-379.store/api"
+      "apiUrl": "https://gateway.a-379.store/api"
     },
     "ios": {
       "supportsTablet": true

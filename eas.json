@@ -15,7 +15,7 @@
         "buildType": "apk"
       },
       "env": {
-        "PRODUCTION_API_URL": "https://gateway.a-379.store/api"
+        "EXPO_PUBLIC_API_URL": "https://gateway.a-379.store/api"
       }
     }
   },

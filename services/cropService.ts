@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
-const API_BASE_URL = Constants.expoConfig?.extra?.apiUrl || 'https://gateway.a-379.store/api';
+const API_URL = Constants.expoConfig?.extra?.apiUrl;
 
 export interface CustardAppleType {
   id: string;
@@ -66,7 +66,7 @@ export const getCustardAppleTypes = async (): Promise<CustardAppleType[]> => {
       return [];
     }
 
-    const response = await fetch(`${API_BASE_URL}/farm-service/custardappletype`, {
+    const response = await fetch(`${API_URL}/farm-service/custardappletype`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -116,7 +116,7 @@ export const getCropsByFarmId = async (farmId: string): Promise<Crop[]> => {
       throw new Error('No access token found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/farm-service/farm/${farmId}/crop`, {
+    const response = await fetch(`${API_URL}/farm-service/api/farm/${farmId}/crop`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -166,7 +166,7 @@ export const createCrop = async (cropData: CreateCropData): Promise<Crop> => {
       throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
     }
 
-    const response = await fetch(`${API_BASE_URL}/farm-service/crop`, {
+    const response = await fetch(`${API_URL}/farm-service/crop`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -223,7 +223,7 @@ export const updateCrop = async (cropId: string, cropData: UpdateCropData): Prom
       throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
     }
 
-    const response = await fetch(`${API_BASE_URL}/farm-service/crop/${cropId}`, {
+    const response = await fetch(`${API_URL}/farm-service/crop/${cropId}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
