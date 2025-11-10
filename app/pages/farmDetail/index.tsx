@@ -15,7 +15,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getCurrentFarm } from '@/services/authService';
 import type { Farm } from '@/services/farmService';
-import { getCropsByFarmId, createCrop, updateCrop, Crop, CreateCropData, UpdateCropData } from '@/services/cropService';
+import { getCropsByFarmId, createCrop, updateCrop, deleteCrop, Crop, CreateCropData, UpdateCropData } from '@/services/cropService';
 import { 
   ArrowLeft,
   Plus,
@@ -118,6 +118,34 @@ export default function FarmDetailScreen() {
       const errorMessage = handleError(error, 'Update Crop');
       Alert.alert('Lỗi', errorMessage);
     }
+  };
+
+  const handleDeleteCrop = (crop: Crop) => {
+    Alert.alert(
+      'Xác nhận xóa',
+      `Bạn có chắc chắn muốn xóa vườn "${crop.custardAppleType || 'mãng cầu'}" không? Hành động này không thể hoàn tác.`,
+      [
+        {
+          text: 'Hủy',
+          style: 'cancel',
+        },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteCrop(crop.id);
+              Alert.alert('Thành công', 'Đã xóa vườn thành công!');
+              await loadData(); // Reload data
+            } catch (error) {
+              console.error('Error deleting crop:', error);
+              const errorMessage = handleError(error, 'Delete Crop');
+              Alert.alert('Lỗi', errorMessage);
+            }
+          },
+        },
+      ],
+    );
   };
 
   if (loading) {
@@ -226,6 +254,7 @@ export default function FarmDetailScreen() {
                   crop={crop}
                   cropIndex={index}
                   onEdit={() => handleEditCrop(crop)}
+                  onDelete={() => handleDeleteCrop(crop)}
                   onCreateHarvest={() => {
                     console.log('=== Navigate to Harvest List ===');
                     console.log('Crop ID:', crop.id);

@@ -278,3 +278,62 @@ export const updateCrop = async (cropId: string, cropData: UpdateCropData): Prom
     throw new Error('Đã xảy ra lỗi khi cập nhật vườn. Vui lòng kiểm tra kết nối mạng.');
   }
 };
+
+/**
+ * Delete a crop
+ */
+export const deleteCrop = async (cropId: string): Promise<void> => {
+  try {
+    const token = await AsyncStorage.getItem('accessToken');
+    
+    if (!token) {
+      throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+    }
+
+    const response = await fetch(`${API_URL}/farm-service/crop/${cropId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    // Handle empty or invalid response
+    const text = await response.text();
+    
+    // For DELETE, we might get empty response on success
+    if (!response.ok) {
+      let errorMessage = 'Không thể xóa vườn';
+      
+      if (text && text.trim() !== '') {
+        try {
+          const result = JSON.parse(text);
+          errorMessage = result.message || errorMessage;
+        } catch (parseError) {
+          // Use default error message if can't parse
+        }
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    // Success - either empty response or JSON with success flag
+    if (text && text.trim() !== '') {
+      try {
+        const result = JSON.parse(text);
+        if (result.isSuccess === false) {
+          throw new Error(result.message || 'Không thể xóa vườn');
+        }
+      } catch (parseError) {
+        // If can't parse but response is ok, consider it success
+      }
+    }
+  } catch (error) {
+    console.error('Delete crop error:', error);
+    // Re-throw with user-friendly message
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Đã xảy ra lỗi khi xóa vườn. Vui lòng kiểm tra kết nối mạng.');
+  }
+};

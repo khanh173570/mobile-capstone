@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Crop } from '../services/cropService';
 import { 
@@ -8,6 +8,8 @@ import {
   MapPin,
   Clock,
   Edit3,
+  MoreVertical,
+  Trash2,
 } from 'lucide-react-native';
 
 interface CropCardProps {
@@ -15,10 +17,15 @@ interface CropCardProps {
   cropIndex?: number; // Add index for numbering
   onPress?: () => void;
   onEdit?: () => void;
+  onDelete?: () => void;
   onCreateHarvest?: () => void;
 }
 
-export default function CropCard({ crop, cropIndex, onPress, onEdit, onCreateHarvest }: CropCardProps) {
+export default function CropCard({ crop, cropIndex, onPress, onEdit, onDelete, onCreateHarvest }: CropCardProps) {
+  const [showDropdown, setShowDropdown] = useState(false);
+  
+  // Debug props
+  console.log('CropCard props:', { onEdit: !!onEdit, onDelete: !!onDelete, shouldShowMenu: !!(onEdit || onDelete) });
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN');
   };
@@ -49,16 +56,50 @@ export default function CropCard({ crop, cropIndex, onPress, onEdit, onCreateHar
           </Text>
           <Text style={styles.cropNote}>{crop.note}</Text>
         </View>
-        {onEdit && (
-          <TouchableOpacity 
-            style={styles.editButton}
-            onPress={(e) => {
-              e.stopPropagation();
-              onEdit();
-            }}
-          >
-            <Edit3 size={20} color="#6B7280" />
-          </TouchableOpacity>
+        {(onEdit || onDelete) && (
+          <View style={styles.menuContainer}>
+            <TouchableOpacity 
+              style={styles.menuButton}
+              onPress={() => {
+                console.log('Menu button clicked');
+                setShowDropdown(!showDropdown);
+              }}
+            >
+              <MoreVertical size={20} color="#6B7280" />
+            </TouchableOpacity>
+            
+            {showDropdown && (
+              <View style={styles.dropdown}>
+                {onEdit && (
+                  <TouchableOpacity 
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      console.log('Edit clicked');
+                      setShowDropdown(false);
+                      onEdit();
+                    }}
+                  >
+                    <Edit3 size={16} color="#6B7280" />
+                    <Text style={styles.dropdownText}>Chỉnh sửa</Text>
+                  </TouchableOpacity>
+                )}
+                
+                {onDelete && (
+                  <TouchableOpacity 
+                    style={[styles.dropdownItem, styles.deleteItem]}
+                    onPress={() => {
+                      console.log('Delete clicked');
+                      setShowDropdown(false);
+                      onDelete();
+                    }}
+                  >
+                    <Trash2 size={16} color="#EF4444" />
+                    <Text style={[styles.dropdownText, styles.deleteText]}>Xóa</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </View>
         )}
       </View>
 
@@ -269,5 +310,62 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
+  },
+  menuContainer: {
+    position: 'relative',
+    marginLeft: 8,
+  },
+  menuButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dropdown: {
+    position: 'absolute',
+    top: 40,
+    right: 0,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingVertical: 4,
+    minWidth: 120,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 10,
+    zIndex: 1001,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  dropdownText: {
+    fontSize: 14,
+    color: '#374151',
+  },
+  deleteItem: {
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  deleteText: {
+    color: '#EF4444',
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 999,
+    backgroundColor: 'transparent',
   },
 });
