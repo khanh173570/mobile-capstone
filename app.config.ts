@@ -12,7 +12,9 @@ export default {
     scheme: "agrimart",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
-
+    updates: {
+      url: "https://u.expo.dev/4efa3864-b8da-485a-8616-023817c89dcc"
+    },
     runtimeVersion: {
       policy: "sdkVersion"
     },
