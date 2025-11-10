@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "AgriMart Management",
-    "slug": "bolt-expo-nativewind",
+    "slug": "agrimart-mobile-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logoA.jpg",
