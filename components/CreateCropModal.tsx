@@ -84,21 +84,38 @@ export default function CreateCropModal({ visible, onClose, onSubmit }: CreateCr
       return;
     }
     if (formData.area <= 0) {
-      Alert.alert('Lỗi', 'Vui lòng nhập diện tích hợp lệ');
+     Alert.alert('Lỗi thông số (Diện tích > 0)', 'Vui lòng nhập diện tích hợp lệ ');
       return;
     }
     if (formData.treeCount <= 0) {
-      Alert.alert('Lỗi', 'Vui lòng nhập số lượng cây (phải lớn hơn 0)');
+      Alert.alert('Lỗi thông số (Số lượng > 0)', 'Vui lòng nhập số lượng cây hợp lệ');
       return;
     }
 
-    // Validate harvest date must be in the past (already harvested)
+    // Validate dates
+    const plantingDate = new Date(formData.startPlantingDate);
     const harvestDate = new Date(formData.nearestHarvestDate);
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time for accurate date comparison
+    
+    // Reset time for accurate date comparison
+    today.setHours(0, 0, 0, 0);
+    plantingDate.setHours(0, 0, 0, 0);
     harvestDate.setHours(0, 0, 0, 0);
     
-    if (harvestDate > today) {
+    // Check if planting date is before today
+    if (plantingDate >= today) {
+      Alert.alert('Lỗi', 'Ngày bắt đầu trồng phải là ngày trong quá khứ');
+      return;
+    }
+    
+    // Check if harvest date is after planting date
+    if (harvestDate <= plantingDate) {
+      Alert.alert('Lỗi', 'Ngày thu hoạch phải sau ngày bắt đầu trồng');
+      return;
+    }
+    
+    // Check if harvest date is before today
+    if (harvestDate >= today) {
       Alert.alert('Lỗi', 'Ngày thu hoạch phải là ngày trong quá khứ (đã thu hoạch)');
       return;
     }
@@ -263,6 +280,7 @@ export default function CreateCropModal({ visible, onClose, onSubmit }: CreateCr
           {/* Start Planting Date */}
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Ngày bắt đầu trồng *</Text>
+            <Text style={styles.inputHint}>(Vui lòng nhập chính xác ngày trồng cây)</Text>
             <TouchableOpacity
               style={styles.dateButton}
               onPress={() => setShowStartDatePicker(true)}
@@ -291,13 +309,14 @@ export default function CreateCropModal({ visible, onClose, onSubmit }: CreateCr
               mode="date"
               display="default"
               onChange={handleStartDateChange}
+              maximumDate={new Date(Date.now() - 24 * 60 * 60 * 1000)} // Yesterday or earlier
             />
           )}
 
           {/* Nearest Harvest Date */}
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Ngày thu hoạch gần nhất *</Text>
-            <Text style={styles.inputHint}>(Ngày đã thu hoạch - chỉ chọn ngày quá khứ)</Text>
+            <Text style={styles.inputHint}>(Phải sau ngày trồng và trước hôm nay)</Text>
             <TouchableOpacity
               style={styles.dateButton}
               onPress={() => setShowHarvestDatePicker(true)}
@@ -316,7 +335,8 @@ export default function CreateCropModal({ visible, onClose, onSubmit }: CreateCr
               mode="date"
               display="default"
               onChange={handleHarvestDateChange}
-              maximumDate={new Date()} // Only allow past dates
+              minimumDate={new Date(formData.startPlantingDate)} // Must be after planting date
+              maximumDate={new Date(Date.now() - 24 * 60 * 60 * 1000)} // Yesterday or earlier
             />
           )}
 

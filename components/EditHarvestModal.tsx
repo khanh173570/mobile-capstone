@@ -53,11 +53,11 @@ export default function EditHarvestModal({ visible, harvest, onClose, onSubmit }
   const handleSubmit = async () => {
     // Validation - check required fields
     if (formData.totalQuantity <= 0) {
-      Alert.alert('Lỗi', 'Sản lượng thu hoạch phải lớn hơn 0');
+      Alert.alert('Lỗi thông số ( sản lượng > 0 )', 'Vui lòng nhập sản lượng thu hoạch hợp lệ');
       return;
     }
-    if (formData.salePrice <= 0) {
-      Alert.alert('Lỗi', 'Giá bán phải lớn hơn 0');
+    if (formData.salePrice <= 1000) {
+     Alert.alert('Lỗi ( Giá trị > 1000 VND )', 'Vui lòng nhập giá sản phẩm hợp lệ');
       return;
     }
 
