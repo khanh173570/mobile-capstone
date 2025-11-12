@@ -35,7 +35,7 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
     custardAppleTypeID: '',
     farmingDuration: 0,
     startPlantingDate: new Date().toISOString(),
-    nearestHarvestDate: new Date().toISOString(),
+    nearestHarvestDate: undefined, // Changed to undefined
     note: '',
     treeCount: 0,
   });
@@ -55,7 +55,7 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
         custardAppleTypeID: crop.custardAppleTypeID || '',
         farmingDuration: crop.farmingDuration,
         startPlantingDate: crop.startPlantingDate,
-        nearestHarvestDate: crop.nearestHarvestDate,
+        nearestHarvestDate: crop.nearestHarvestDate || undefined, // Handle null value
         note: crop.note || '',
         treeCount: crop.treeCount,
       });
@@ -139,32 +139,28 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
       Alert.alert('Lỗi', 'Vui lòng chọn ngày bắt đầu trồng');
       return;
     }
-    if (!formData.nearestHarvestDate || formData.nearestHarvestDate.trim() === '') {
-      console.log('Validation failed: nearestHarvestDate');
-      Alert.alert('Lỗi', 'Vui lòng chọn ngày thu hoạch gần nhất');
-      return;
-    }
-    
-    // Validate harvest date must be after planting date and before today
-    const harvestDate = new Date(formData.nearestHarvestDate);
-    const plantingDate = new Date(formData.startPlantingDate);
-    const today = new Date();
-    
-    // Reset time for accurate date comparison
-    today.setHours(0, 0, 0, 0);
-    harvestDate.setHours(0, 0, 0, 0);
-    plantingDate.setHours(0, 0, 0, 0);
-    
-    // Check if harvest date is after planting date
-    if (harvestDate <= plantingDate) {
-      Alert.alert('Lỗi', 'Ngày thu hoạch phải sau ngày bắt đầu trồng');
-      return;
-    }
-    
-    // Check if harvest date is before or equal to today
-    if (harvestDate > today) {
-      Alert.alert('Lỗi', 'Ngày thu hoạch phải là ngày trong quá khứ hoặc hôm nay (đã thu hoạch)');
-      return;
+    // Validate harvest date only if it's provided
+    if (formData.nearestHarvestDate && formData.nearestHarvestDate.trim() !== '') {
+      const harvestDate = new Date(formData.nearestHarvestDate);
+      const plantingDate = new Date(formData.startPlantingDate);
+      const today = new Date();
+      
+      // Reset time for accurate date comparison
+      today.setHours(0, 0, 0, 0);
+      harvestDate.setHours(0, 0, 0, 0);
+      plantingDate.setHours(0, 0, 0, 0);
+      
+      // Check if harvest date is after planting date
+      if (harvestDate <= plantingDate) {
+        Alert.alert('Lỗi', 'Ngày thu hoạch phải sau ngày bắt đầu trồng');
+        return;
+      }
+      
+      // Check if harvest date is before or equal to today
+      if (harvestDate > today) {
+        Alert.alert('Lỗi', 'Ngày thu hoạch phải là ngày trong quá khứ hoặc hôm nay (đã thu hoạch)');
+        return;
+      }
     }
 
     setLoading(true);
@@ -348,15 +344,24 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
               disabled={loading}
             >
               <Calendar size={20} color="#6B7280" />
-              <Text style={styles.dateButtonText}>
-                {formatDateDisplay(formData.nearestHarvestDate)}
+              <Text style={[
+                styles.dateButtonText,
+                !formData.nearestHarvestDate && { color: '#9CA3AF' }
+              ]}>
+                {formData.nearestHarvestDate 
+                  ? formatDateDisplay(formData.nearestHarvestDate)
+                  : 'Chọn ngày thu hoạch'
+                }
               </Text>
             </TouchableOpacity>
           </View>
 
           {showHarvestDatePicker && (
             <DateTimePicker
-              value={new Date(formData.nearestHarvestDate)}
+              value={formData.nearestHarvestDate 
+                ? new Date(formData.nearestHarvestDate) 
+                : new Date()
+              }
               mode="date"
               display="default"
               onChange={handleHarvestDateChange}
