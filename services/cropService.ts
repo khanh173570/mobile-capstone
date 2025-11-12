@@ -19,8 +19,9 @@ export interface Crop {
   custardAppleType: string; // Added: actual type name from API
   custardAppleTypeID: string;
   farmingDuration: number;
+  status: number; // Added: status field (0, 1, 2, 3, 4)
   startPlantingDate: string;
-  nearestHarvestDate: string;
+  nearestHarvestDate: string | null; // Can be null
   note: string;
   treeCount: number;
 }
@@ -31,7 +32,7 @@ export interface CreateCropData {
   custardAppleTypeID: string;
   farmingDuration: number;
   startPlantingDate: string;
-  nearestHarvestDate: string;
+  nearestHarvestDate?: string; // Made optional
   note: string;
   treeCount: number;
 }
@@ -41,7 +42,7 @@ export interface UpdateCropData {
   custardAppleTypeID: string;
   farmingDuration: number;
   startPlantingDate: string;
-  nearestHarvestDate: string;
+  nearestHarvestDate?: string; // Made optional
   note: string;
   treeCount: number;
 }
@@ -116,7 +117,7 @@ export const getCropsByFarmId = async (farmId: string): Promise<Crop[]> => {
       throw new Error('No access token found');
     }
 
-    const url = `${API_URL}/farm-service/api/farm/${farmId}/crop`;
+    const url = `${API_URL}/farm-service/farm/${farmId}/crop`;
     console.log('Fetching crops from URL:', url);
     console.log('Using token:', token ? 'Token exists' : 'No token');
 
@@ -176,16 +177,24 @@ export const createCrop = async (cropData: CreateCropData): Promise<Crop> => {
       throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
     }
 
+    // Prepare request body - remove nearestHarvestDate if empty
+    const requestBody: any = {
+      ...cropData,
+      cropType: null, // Set to null as per requirement
+    };
+
+    // Remove nearestHarvestDate if it's empty or undefined
+    if (!cropData.nearestHarvestDate || cropData.nearestHarvestDate.trim() === '') {
+      delete requestBody.nearestHarvestDate;
+    }
+
     const response = await fetch(`${API_URL}/farm-service/crop`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        ...cropData,
-        cropType: null, // Set to null as per requirement
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     // Handle empty or invalid response
@@ -233,16 +242,24 @@ export const updateCrop = async (cropId: string, cropData: UpdateCropData): Prom
       throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
     }
 
+    // Prepare request body - remove nearestHarvestDate if empty
+    const requestBody: any = {
+      ...cropData,
+      cropType: null, // Set to null as per requirement
+    };
+
+    // Remove nearestHarvestDate if it's empty or undefined
+    if (!cropData.nearestHarvestDate || cropData.nearestHarvestDate.trim() === '') {
+      delete requestBody.nearestHarvestDate;
+    }
+
     const response = await fetch(`${API_URL}/farm-service/crop/${cropId}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        ...cropData,
-        cropType: null, // Set to null as per requirement
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     // Handle empty or invalid response

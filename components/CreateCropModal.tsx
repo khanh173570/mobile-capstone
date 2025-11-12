@@ -34,7 +34,7 @@ export default function CreateCropModal({ visible, onClose, onSubmit }: CreateCr
     custardAppleTypeID: '',
     farmingDuration: 0,
     startPlantingDate: new Date().toISOString(),
-    nearestHarvestDate: new Date().toISOString(),
+    nearestHarvestDate: undefined, // Changed to undefined
     note: '',
     treeCount: 0,
   });
@@ -51,8 +51,8 @@ export default function CreateCropModal({ visible, onClose, onSubmit }: CreateCr
     try {
       const types = await getCustardAppleTypes();
       setCustardAppleTypes(types);
-      // Set default selection if available
-      if (types.length > 0 && !formData.custardAppleTypeID) {
+      // Always set default selection to first item when loading types
+      if (types.length > 0) {
         setFormData(prev => ({ ...prev, custardAppleTypeID: types[0].id }));
       }
     } catch (error) {
@@ -94,30 +94,34 @@ export default function CreateCropModal({ visible, onClose, onSubmit }: CreateCr
 
     // Validate dates
     const plantingDate = new Date(formData.startPlantingDate);
-    const harvestDate = new Date(formData.nearestHarvestDate);
     const today = new Date();
     
     // Reset time for accurate date comparison
     today.setHours(0, 0, 0, 0);
     plantingDate.setHours(0, 0, 0, 0);
-    harvestDate.setHours(0, 0, 0, 0);
     
-    // Check if planting date is before today
-    if (plantingDate >= today) {
-      Alert.alert('Lỗi', 'Ngày bắt đầu trồng phải là ngày trong quá khứ');
+    // Check if planting date is not in the future
+    if (plantingDate > today) {
+      Alert.alert('Lỗi', 'Ngày bắt đầu trồng không được là ngày trong tương lai');
       return;
     }
     
-    // Check if harvest date is after planting date
-    if (harvestDate <= plantingDate) {
-      Alert.alert('Lỗi', 'Ngày thu hoạch phải sau ngày bắt đầu trồng');
-      return;
-    }
-    
-    // Check if harvest date is before today
-    if (harvestDate >= today) {
-      Alert.alert('Lỗi', 'Ngày thu hoạch phải là ngày trong quá khứ (đã thu hoạch)');
-      return;
+    // Validate harvest date only if it's provided
+    if (formData.nearestHarvestDate && formData.nearestHarvestDate.trim() !== '') {
+      const harvestDate = new Date(formData.nearestHarvestDate);
+      harvestDate.setHours(0, 0, 0, 0);
+      
+      // Check if harvest date is after planting date
+      if (harvestDate <= plantingDate) {
+        Alert.alert('Lỗi', 'Ngày thu hoạch phải sau ngày bắt đầu trồng');
+        return;
+      }
+      
+      // Check if harvest date is before today
+      if (harvestDate >= today) {
+        Alert.alert('Lỗi', 'Ngày thu hoạch phải là ngày trong quá khứ (đã thu hoạch)');
+        return;
+      }
     }
 
     setLoading(true);
@@ -139,7 +143,7 @@ export default function CreateCropModal({ visible, onClose, onSubmit }: CreateCr
         custardAppleTypeID: custardAppleTypes.length > 0 ? custardAppleTypes[0].id : '',
         farmingDuration: 0,
         startPlantingDate: new Date().toISOString(),
-        nearestHarvestDate: new Date().toISOString(),
+        nearestHarvestDate: undefined, // Changed to undefined
         note: '',
         treeCount: 0,
       });
@@ -280,7 +284,7 @@ export default function CreateCropModal({ visible, onClose, onSubmit }: CreateCr
           {/* Start Planting Date */}
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Ngày bắt đầu trồng *</Text>
-            <Text style={styles.inputHint}>(Vui lòng nhập chính xác ngày trồng cây)</Text>
+            <Text style={styles.inputHint}>(Có thể chọn từ quá khứ đến hôm nay)</Text>
             <TouchableOpacity
               style={styles.dateButton}
               onPress={() => setShowStartDatePicker(true)}
@@ -309,29 +313,38 @@ export default function CreateCropModal({ visible, onClose, onSubmit }: CreateCr
               mode="date"
               display="default"
               onChange={handleStartDateChange}
-              maximumDate={new Date(Date.now() - 24 * 60 * 60 * 1000)} // Yesterday or earlier
+              maximumDate={new Date()} // Today or earlier
             />
           )}
 
           {/* Nearest Harvest Date */}
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Ngày thu hoạch gần nhất *</Text>
-            <Text style={styles.inputHint}>(Phải sau ngày trồng và trước hôm nay)</Text>
+            <Text style={styles.inputLabel}>Ngày thu hoạch gần nhất</Text>
+            <Text style={styles.inputHint}>(Tùy chọn - có thể để trống nếu chưa thu hoạch)</Text>
             <TouchableOpacity
               style={styles.dateButton}
               onPress={() => setShowHarvestDatePicker(true)}
               disabled={loading}
             >
               <Calendar size={20} color="#6B7280" />
-              <Text style={styles.dateButtonText}>
-                {formatDateDisplay(formData.nearestHarvestDate)}
+              <Text style={[
+                styles.dateButtonText,
+                !formData.nearestHarvestDate && { color: '#9CA3AF' }
+              ]}>
+                {formData.nearestHarvestDate 
+                  ? formatDateDisplay(formData.nearestHarvestDate)
+                  : 'Chọn ngày thu hoạch'
+                }
               </Text>
             </TouchableOpacity>
           </View>
 
           {showHarvestDatePicker && (
             <DateTimePicker
-              value={new Date(formData.nearestHarvestDate)}
+              value={formData.nearestHarvestDate 
+                ? new Date(formData.nearestHarvestDate) 
+                : new Date()
+              }
               mode="date"
               display="default"
               onChange={handleHarvestDateChange}
