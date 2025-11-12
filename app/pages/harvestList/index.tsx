@@ -17,6 +17,7 @@ import {
   getHarvestsByCropId, 
   createHarvest, 
   updateHarvest,
+  deleteHarvest,
   Harvest,
   CreateHarvestData,
   UpdateHarvestData,
@@ -27,11 +28,13 @@ export default function HarvestListPage() {
   const params = useLocalSearchParams();
   const cropId = params.cropId as string;
   const cropName = params.cropName as string;
+  const cropPlantingDate = params.cropPlantingDate as string;
 
   console.log('=== HarvestListPage Loaded ===');
   console.log('Params:', params);
   console.log('Crop ID:', cropId);
   console.log('Crop Name:', cropName);
+  console.log('Crop Planting Date:', cropPlantingDate);
 
   const [harvests, setHarvests] = useState<Harvest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,6 +96,15 @@ export default function HarvestListPage() {
     }
   };
 
+  const handleDeleteHarvest = async (harvestId: string) => {
+    try {
+      await deleteHarvest(harvestId);
+      loadHarvests(); // Reload danh sách sau khi xóa thành công
+    } catch (error) {
+      handleError(error, 'Không thể xóa mùa vụ');
+    }
+  };
+
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <Text style={styles.emptyStateText}>Chưa có mùa vụ nào</Text>
@@ -141,6 +153,7 @@ export default function HarvestListPage() {
           <HarvestCard 
             harvest={item}
             onEdit={() => handleEditHarvest(item)}
+            onDelete={() => handleDeleteHarvest(item.id)}
           />
         )}
         contentContainerStyle={styles.listContent}
@@ -158,6 +171,7 @@ export default function HarvestListPage() {
       <CreateHarvestModal
         visible={showCreateModal}
         cropId={cropId}
+        cropPlantingDate={cropPlantingDate}
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreateHarvest}
       />

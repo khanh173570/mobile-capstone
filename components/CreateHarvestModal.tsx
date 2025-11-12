@@ -18,11 +18,12 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 interface CreateHarvestModalProps {
   visible: boolean;
   cropId: string;
+  cropPlantingDate?: string; // Ngày trồng của crop để validation
   onClose: () => void;
   onSubmit: (harvestData: CreateHarvestData) => Promise<void>;
 }
 
-export default function CreateHarvestModal({ visible, cropId, onClose, onSubmit }: CreateHarvestModalProps) {
+export default function CreateHarvestModal({ visible, cropId, cropPlantingDate, onClose, onSubmit }: CreateHarvestModalProps) {
   const [loading, setLoading] = useState(false);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   
@@ -33,6 +34,10 @@ export default function CreateHarvestModal({ visible, cropId, onClose, onSubmit 
   });
 
   const handleSubmit = async () => {
+    console.log('=== CreateHarvest Submit ===');
+    console.log('FormData:', formData);
+    console.log('CropPlantingDate:', cropPlantingDate);
+    
     // Validation - check all required fields
     if (!formData.startDate) {
       Alert.alert('Lỗi', 'Vui lòng chọn ngày bắt đầu mùa vụ');
@@ -41,11 +46,35 @@ export default function CreateHarvestModal({ visible, cropId, onClose, onSubmit 
 
     const startDate = new Date(formData.startDate);
     const today = new Date();
-    today.setHours(23, 59, 59, 999); // Set to end of today for accurate comparison
     
+    // Reset time for accurate date comparison
+    today.setHours(0, 0, 0, 0);
+    startDate.setHours(0, 0, 0, 0);
+    
+    // Check if harvest start date is not in the future
     if (startDate > today) {
-      Alert.alert('Lỗi', 'Ngày bắt đầu mùa vụ phải là ngày trong quá khứ (không được chọn tương lai)');
+      Alert.alert('Lỗi', 'Ngày bắt đầu mùa vụ không được chọn ngày tương lai');
       return;
+    }
+
+    // Check if harvest start date is after crop planting date (only if cropPlantingDate is provided and valid)
+    if (cropPlantingDate && cropPlantingDate.trim() !== '') {
+      try {
+        const plantingDate = new Date(cropPlantingDate);
+        
+        // Check if plantingDate is valid
+        if (!isNaN(plantingDate.getTime())) {
+          plantingDate.setHours(0, 0, 0, 0);
+          
+          if (startDate <= plantingDate) {
+            Alert.alert('Lỗi', 'Ngày bắt đầu mùa vụ phải sau ngày trồng cây');
+            return;
+          }
+        }
+      } catch (error) {
+        console.log('Invalid cropPlantingDate:', cropPlantingDate);
+        // Continue without planting date validation if date is invalid
+      }
     }
 
     setLoading(true);
@@ -57,6 +86,7 @@ export default function CreateHarvestModal({ visible, cropId, onClose, onSubmit 
         cropID: cropId,
       };
       
+      console.log('Submitting harvest data:', submitData);
       await onSubmit(submitData);
       
       // Reset form
@@ -109,6 +139,20 @@ export default function CreateHarvestModal({ visible, cropId, onClose, onSubmit 
           {/* Start Date */}
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Ngày bắt đầu mùa vụ *</Text>
+            <Text style={styles.inputHint}>
+              {cropPlantingDate && cropPlantingDate.trim() !== '' 
+                ? (() => {
+                    try {
+                      const plantingDate = new Date(cropPlantingDate);
+                      return !isNaN(plantingDate.getTime()) 
+                        ? `(Phải sau ngày trồng ${formatDateDisplay(cropPlantingDate)} và không quá hôm nay)`
+                        : '(Không được chọn ngày tương lai)';
+                    } catch {
+                      return '(Không được chọn ngày tương lai)';
+                    }
+                  })()
+                : '(Không được chọn ngày tương lai)'}
+            </Text>
             <TouchableOpacity
               style={styles.dateButton}
               onPress={() => setShowStartDatePicker(true)}
@@ -127,7 +171,19 @@ export default function CreateHarvestModal({ visible, cropId, onClose, onSubmit 
               mode="date"
               display="default"
               onChange={handleStartDateChange}
-              maximumDate={new Date()}
+              minimumDate={
+                cropPlantingDate && cropPlantingDate.trim() !== '' 
+                  ? (() => {
+                      try {
+                        const plantingDate = new Date(cropPlantingDate);
+                        return !isNaN(plantingDate.getTime()) ? plantingDate : undefined;
+                      } catch {
+                        return undefined;
+                      }
+                    })()
+                  : undefined
+              }
+              maximumDate={new Date()} // Today or earlier
             />
           )}
 
@@ -219,6 +275,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#374151',
     marginBottom: 8,
+  },
+  inputHint: {
+    fontSize: 13,
+    color: '#F59E0B',
+    marginBottom: 8,
+    fontStyle: 'italic',
   },
   textInput: {
     borderWidth: 1,
