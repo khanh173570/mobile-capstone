@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Crop } from '../services/cropService';
+import { getCropStatusInfo } from '../utils/cropStatusUtils';
 import { 
   Sprout, 
   Calendar, 
@@ -10,6 +11,7 @@ import {
   Edit3,
   MoreVertical,
   Trash2,
+  CheckCircle,
 } from 'lucide-react-native';
 
 interface CropCardProps {
@@ -31,6 +33,7 @@ export default function CropCard({ crop, cropIndex, onPress, onEdit, onDelete, o
   };
 
   const calculateDaysSinceLastHarvest = () => {
+    if (!crop.nearestHarvestDate) return 0;
     const lastHarvestDate = new Date(crop.nearestHarvestDate);
     const today = new Date();
     const diffTime = today.getTime() - lastHarvestDate.getTime();
@@ -39,6 +42,7 @@ export default function CropCard({ crop, cropIndex, onPress, onEdit, onDelete, o
   };
 
   const daysSinceLastHarvest = calculateDaysSinceLastHarvest();
+  const statusInfo = getCropStatusInfo(crop.status);
 
   return (
     <TouchableOpacity 
@@ -54,7 +58,13 @@ export default function CropCard({ crop, cropIndex, onPress, onEdit, onDelete, o
           <Text style={styles.cropType}>
             Vườn mãng cầu {cropIndex !== undefined ? cropIndex + 1 : '...'}
           </Text>
-          <Text style={styles.cropNote}>{crop.note}</Text>
+          {/* Status moved to note position */}
+          <View style={[styles.statusBadge, { backgroundColor: statusInfo.backgroundColor }]}>
+            <CheckCircle size={14} color={statusInfo.color} />
+            <Text style={[styles.statusText, { color: statusInfo.color }]}>
+              {statusInfo.name}
+            </Text>
+          </View>
         </View>
         {(onEdit || onDelete) && (
           <View style={styles.menuContainer}>
@@ -106,28 +116,36 @@ export default function CropCard({ crop, cropIndex, onPress, onEdit, onDelete, o
       <View style={styles.cardBody}>
         <View style={styles.infoRow}>
           <View style={styles.infoItem}>
-            <MapPin size={16} color="#6B7280" />
-            <Text style={styles.infoLabel}>Diện tích</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <MapPin size={16} color="#6B7280" />
+              <Text style={styles.infoLabel}>Diện tích</Text>
+            </View>
             <Text style={styles.infoValue}>{crop.area} m²</Text>
           </View>
           
           <View style={styles.infoItem}>
-            <Sprout size={16} color="#6B7280" />
-            <Text style={styles.infoLabel}>Số cây</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Sprout size={16} color="#6B7280" />
+              <Text style={styles.infoLabel}>Số cây</Text>
+            </View>
             <Text style={styles.infoValue}>{crop.treeCount} cây</Text>
           </View>
         </View>
 
         <View style={styles.infoRow}>
           <View style={styles.infoItem}>
-            <Calendar size={16} color="#6B7280" />
-            <Text style={styles.infoLabel}>Ngày trồng</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Calendar size={16} color="#6B7280" />
+              <Text style={styles.infoLabel}>Ngày trồng</Text>
+            </View>
             <Text style={styles.infoValue}>{formatDate(crop.startPlantingDate)}</Text>
           </View>
           
           <View style={styles.infoItem}>
-            <Clock size={16} color="#6B7280" />
-            <Text style={styles.infoLabel}>Thời gian</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Clock size={16} color="#6B7280" />
+              <Text style={styles.infoLabel}>Thời gian</Text>
+            </View>
             <Text style={styles.infoValue}>{crop.farmingDuration} năm</Text>
           </View>
         </View>
@@ -141,11 +159,13 @@ export default function CropCard({ crop, cropIndex, onPress, onEdit, onDelete, o
           </Text>
         </View>
 
-        <View style={styles.harvestSection}>
-          <TrendingUp size={16} color="#22C55E" />
-          <Text style={styles.harvestLabel}>Ngày thu hoạch gần nhất:</Text>
-          <Text style={styles.harvestDate}>{formatDate(crop.nearestHarvestDate)}</Text>
-        </View>
+        {crop.nearestHarvestDate && (
+          <View style={styles.harvestSection}>
+            <TrendingUp size={16} color="#22C55E" />
+            <Text style={styles.harvestLabel}>Ngày thu hoạch gần nhất:</Text>
+            <Text style={styles.harvestDate}>{formatDate(crop.nearestHarvestDate)}</Text>
+          </View>
+        )}
 
         <TouchableOpacity 
           style={styles.createHarvestButton}
@@ -205,7 +225,20 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#111827',
-    marginBottom: 4,
+    marginBottom: 8,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+    alignSelf: 'flex-start', // Make badge fit content
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   cropNote: {
     fontSize: 14,

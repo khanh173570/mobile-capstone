@@ -183,3 +183,40 @@ export const updateHarvest = async (harvestId: string, harvestData: UpdateHarves
     throw error;
   }
 };
+
+// Delete harvest
+export const deleteHarvest = async (harvestId: string): Promise<void> => {
+  try {
+    const token = await AsyncStorage.getItem('accessToken');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_URL}/farm-service/harvest/${harvestId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const text = await response.text();
+    let data;
+    
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch (e) {
+      console.error('JSON parse error:', e);
+      throw new Error('Invalid response format from server');
+    }
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to delete harvest');
+    }
+
+    console.log('Harvest deleted successfully');
+  } catch (error) {
+    console.error('Error deleting harvest:', error);
+    throw error;
+  }
+};

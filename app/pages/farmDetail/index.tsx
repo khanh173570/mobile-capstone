@@ -262,7 +262,7 @@ export default function FarmDetailScreen() {
                     
                     try {
                       // Using string path with query params
-                      const path = `/pages/harvestList?cropId=${crop.id}&cropName=${encodeURIComponent(crop.custardAppleType || 'Vườn mãng cầu')}`;
+                      const path = `/pages/harvestList?cropId=${crop.id}&cropName=${encodeURIComponent(crop.custardAppleType || 'Vườn mãng cầu')}&cropPlantingDate=${encodeURIComponent(crop.startPlantingDate)}`;
                       console.log('Navigation path:', path);
                       router.push(path as any);
                       console.log('Navigation called successfully');

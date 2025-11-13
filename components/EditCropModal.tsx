@@ -35,7 +35,7 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
     custardAppleTypeID: '',
     farmingDuration: 0,
     startPlantingDate: new Date().toISOString(),
-    nearestHarvestDate: new Date().toISOString(),
+    nearestHarvestDate: undefined, // Changed to undefined
     note: '',
     treeCount: 0,
   });
@@ -55,16 +55,16 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
         custardAppleTypeID: crop.custardAppleTypeID || '',
         farmingDuration: crop.farmingDuration,
         startPlantingDate: crop.startPlantingDate,
-        nearestHarvestDate: crop.nearestHarvestDate,
+        nearestHarvestDate: crop.nearestHarvestDate || undefined, // Handle null value
         note: crop.note || '',
         treeCount: crop.treeCount,
       });
     }
   }, [visible, crop]);
 
-  // Ensure custardAppleTypeID is set after types are loaded
+  // Ensure custardAppleTypeID is set after types are loaded (only if not already set)
   useEffect(() => {
-    if (visible && crop && custardAppleTypes.length > 0 && !loadingTypes) {
+    if (visible && crop && custardAppleTypes.length > 0 && !loadingTypes && !formData.custardAppleTypeID) {
       let matchingType = null;
       
       // Try to match by custardAppleTypeID first
@@ -78,13 +78,14 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
       }
       
       if (matchingType) {
+        console.log('Auto-setting type from crop:', matchingType.name);
         setFormData(prev => ({
           ...prev,
           custardAppleTypeID: matchingType.id,
         }));
       }
     }
-  }, [visible, crop, custardAppleTypes, loadingTypes]);
+  }, [visible, crop, custardAppleTypes, loadingTypes, formData.custardAppleTypeID]);
 
   const loadCustardAppleTypes = async () => {
     setLoadingTypes(true);
@@ -138,21 +139,28 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
       Alert.alert('Lỗi', 'Vui lòng chọn ngày bắt đầu trồng');
       return;
     }
-    if (!formData.nearestHarvestDate || formData.nearestHarvestDate.trim() === '') {
-      console.log('Validation failed: nearestHarvestDate');
-      Alert.alert('Lỗi', 'Vui lòng chọn ngày thu hoạch gần nhất');
-      return;
-    }
-    
-    // Validate harvest date must be in the past (already harvested)
-    const harvestDate = new Date(formData.nearestHarvestDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time for accurate date comparison
-    harvestDate.setHours(0, 0, 0, 0);
-    
-    if (harvestDate > today) {
-      Alert.alert('Lỗi', 'Ngày thu hoạch phải là ngày trong quá khứ (đã thu hoạch)');
-      return;
+    // Validate harvest date only if it's provided
+    if (formData.nearestHarvestDate && formData.nearestHarvestDate.trim() !== '') {
+      const harvestDate = new Date(formData.nearestHarvestDate);
+      const plantingDate = new Date(formData.startPlantingDate);
+      const today = new Date();
+      
+      // Reset time for accurate date comparison
+      today.setHours(0, 0, 0, 0);
+      harvestDate.setHours(0, 0, 0, 0);
+      plantingDate.setHours(0, 0, 0, 0);
+      
+      // Check if harvest date is after planting date
+      if (harvestDate <= plantingDate) {
+        Alert.alert('Lỗi', 'Ngày thu hoạch phải sau ngày bắt đầu trồng');
+        return;
+      }
+      
+      // Check if harvest date is before or equal to today
+      if (harvestDate > today) {
+        Alert.alert('Lỗi', 'Ngày thu hoạch phải là ngày trong quá khứ hoặc hôm nay (đã thu hoạch)');
+        return;
+      }
     }
 
     setLoading(true);
@@ -239,16 +247,21 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
                 >
                   <Text style={styles.pickerButtonText}>
                     {(() => {
-                      // Show crop's custardAppleType name immediately if available
-                      if (crop && crop.custardAppleType) {
+                      // First priority: Show selected type from formData
+                      if (formData.custardAppleTypeID) {
+                        const selectedType = custardAppleTypes.find(t => t.id === formData.custardAppleTypeID);
+                        if (selectedType) {
+                          return selectedType.name;
+                        }
+                      }
+                      
+                      // Second priority: Show crop's existing custardAppleType name
+                      if (crop && crop.custardAppleType && !formData.custardAppleTypeID) {
                         return crop.custardAppleType;
                       }
                       
-                      // Otherwise try to find from loaded types
-                      const selectedType = custardAppleTypes.find(t => t.id === formData.custardAppleTypeID);
-                      return formData.custardAppleTypeID && selectedType
-                        ? selectedType.name
-                        : 'Chọn loại mãng cầu';
+                      // Default: placeholder text
+                      return 'Chọn loại mãng cầu';
                     })()}
                   </Text>
                   <ChevronDown size={20} color="#6B7280" />
@@ -266,7 +279,11 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
                             formData.custardAppleTypeID === type.id && styles.pickerItemSelected
                           ]}
                           onPress={() => {
-                            setFormData(prev => ({ ...prev, custardAppleTypeID: type.id }));
+                            console.log('Selected type:', type.name, 'ID:', type.id);
+                            setFormData(prev => ({ 
+                              ...prev, 
+                              custardAppleTypeID: type.id 
+                            }));
                             setShowTypePicker(false);
                           }}
                         >
@@ -285,6 +302,73 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
               </>
             )}
           </View>
+
+          {/* Start Planting Date - Read Only */}
+          <View style={[styles.inputGroup, styles.readOnlyInputGroup]}>
+            <Text style={[styles.inputLabel, styles.readOnlyInputLabel]}>Ngày bắt đầu trồng *</Text>
+            <Text style={styles.readOnlyHint}>🔒 Không thể chỉnh sửa khi cập nhật</Text>
+            <View style={[styles.dateButton, styles.readOnlyDateButton]}>
+              <Calendar size={20} color="#059669" />
+              <Text style={[styles.dateButtonText, styles.readOnlyDateButtonText]}>
+                {formatDateDisplay(formData.startPlantingDate)}
+              </Text>
+            </View>
+            
+            {/* Auto-calculated farming duration display */}
+            <View style={styles.autoCalculatedInfo}>
+              <Text style={styles.autoCalculatedLabel}>
+                Thời gian canh tác (tự động cập nhật): 
+                <Text style={styles.autoCalculatedValue}>
+                  {' '}{calculateFarmingDuration(formData.startPlantingDate)} năm
+                </Text>
+              </Text>
+            </View>
+          </View>
+
+          {showStartDatePicker && (
+            <DateTimePicker
+              value={new Date(formData.startPlantingDate)}
+              mode="date"
+              display="default"
+              onChange={handleStartDateChange}
+            />
+          )}
+
+          {/* Nearest Harvest Date */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Ngày thu hoạch gần nhất *</Text>
+            <Text style={styles.inputHint}>(Phải sau ngày trồng và trước hôm nay)</Text>
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => setShowHarvestDatePicker(true)}
+              disabled={loading}
+            >
+              <Calendar size={20} color="#6B7280" />
+              <Text style={[
+                styles.dateButtonText,
+                !formData.nearestHarvestDate && { color: '#9CA3AF' }
+              ]}>
+                {formData.nearestHarvestDate 
+                  ? formatDateDisplay(formData.nearestHarvestDate)
+                  : 'Chọn ngày thu hoạch'
+                }
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {showHarvestDatePicker && (
+            <DateTimePicker
+              value={formData.nearestHarvestDate 
+                ? new Date(formData.nearestHarvestDate) 
+                : new Date()
+              }
+              mode="date"
+              display="default"
+              onChange={handleHarvestDateChange}
+              minimumDate={new Date(formData.startPlantingDate)}
+              maximumDate={new Date()}
+            />
+          )}
 
           {/* Area */}
           <View style={styles.inputGroup}>
@@ -312,65 +396,7 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
             />
           </View>
 
-          {/* Start Planting Date */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Ngày bắt đầu trồng *</Text>
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => setShowStartDatePicker(true)}
-              disabled={loading}
-            >
-              <Calendar size={20} color="#6B7280" />
-              <Text style={styles.dateButtonText}>
-                {formatDateDisplay(formData.startPlantingDate)}
-              </Text>
-            </TouchableOpacity>
-            
-            {/* Auto-calculated farming duration display */}
-            <View style={styles.autoCalculatedInfo}>
-              <Text style={styles.autoCalculatedLabel}>
-                Thời gian canh tác (tự động cập nhật): 
-                <Text style={styles.autoCalculatedValue}>
-                  {' '}{calculateFarmingDuration(formData.startPlantingDate)} năm
-                </Text>
-              </Text>
-            </View>
-          </View>
 
-          {showStartDatePicker && (
-            <DateTimePicker
-              value={new Date(formData.startPlantingDate)}
-              mode="date"
-              display="default"
-              onChange={handleStartDateChange}
-            />
-          )}
-
-          {/* Nearest Harvest Date */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Ngày thu hoạch gần nhất *</Text>
-            <Text style={styles.inputHint}>(Ngày đã thu hoạch - chỉ chọn ngày quá khứ)</Text>
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => setShowHarvestDatePicker(true)}
-              disabled={loading}
-            >
-              <Calendar size={20} color="#6B7280" />
-              <Text style={styles.dateButtonText}>
-                {formatDateDisplay(formData.nearestHarvestDate)}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {showHarvestDatePicker && (
-            <DateTimePicker
-              value={new Date(formData.nearestHarvestDate)}
-              mode="date"
-              display="default"
-              onChange={handleHarvestDateChange}
-              maximumDate={new Date()}
-            />
-          )}
 
           {/* Note */}
           <View style={styles.inputGroup}>
@@ -489,6 +515,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#374151',
   },
+  dateButtonDisabled: {
+    backgroundColor: '#F9FAFB',
+    borderColor: '#E5E7EB',
+  },
+  dateButtonTextDisabled: {
+    color: '#9CA3AF',
+  },
   modalFooter: {
     flexDirection: 'row',
     padding: 20,
@@ -560,6 +593,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     maxHeight: 250,
     overflow: 'hidden',
+    elevation: 5,
+    zIndex: 1000,
   },
   pickerScrollView: {
     maxHeight: 250,
@@ -601,5 +636,34 @@ const styles = StyleSheet.create({
   autoCalculatedValue: {
     fontWeight: 'bold',
     color: '#F59E0B',
+  },
+  // Read-only styles
+  readOnlyInputGroup: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: '#10B981',
+    marginBottom: 20,
+  },
+  readOnlyInputLabel: {
+    color: '#059669',
+    fontWeight: '700',
+  },
+  readOnlyHint: {
+    fontSize: 13,
+    color: '#059669',
+    marginBottom: 8,
+    fontStyle: 'italic',
+    fontWeight: '600',
+  },
+  readOnlyDateButton: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#10B981',
+    borderWidth: 2,
+  },
+  readOnlyDateButtonText: {
+    color: '#059669',
+    fontWeight: '600',
   },
 });
