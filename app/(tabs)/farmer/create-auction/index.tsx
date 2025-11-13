@@ -295,7 +295,7 @@ export default function CreateAuctionScreen() {
           {/* Chọn Crop */}
           <View style={styles.fieldContainer}>
             <View style={styles.labelWithButton}>
-              <Text style={styles.fieldLabel}>Chọn sản phẩm (Crop) *</Text>
+              <Text style={styles.fieldLabel}>Vui lòng chọn vườn *</Text>
               <TouchableOpacity
                 style={styles.addButton}
                 onPress={() => {
@@ -310,7 +310,7 @@ export default function CreateAuctionScreen() {
 
             {selectedCrops.length === 0 ? (
               <View style={styles.emptyStateContainer}>
-                <Text style={styles.emptyStateText}>Chưa chọn sản phẩm nào</Text>
+                <Text style={styles.emptyStateText}>Chưa chọn mảnh vườn</Text>
               </View>
             ) : (
               selectedCrops.map((item, index) => (
@@ -383,9 +383,9 @@ export default function CreateAuctionScreen() {
 
           {/* Starting Price */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>Giá khởi điểm ({'{>'}1000) *</Text>
+            <Text style={styles.fieldLabel}>Giá khởi điểm ({'>'}1000) *</Text>
             <View style={styles.priceInputContainer}>
-              <DollarSign size={20} color="#6B7280" style={styles.priceIcon} />
+              <Text style={styles.priceLabel}>VND</Text>
               <TextInput
                 style={styles.priceInput}
                 placeholder="0"
@@ -400,9 +400,9 @@ export default function CreateAuctionScreen() {
 
           {/* Min Bid Increment */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>Mức tăng ({'{>'}1000) *</Text>
+            <Text style={styles.fieldLabel}>Mức tăng ({'>'}1000) *</Text>
             <View style={styles.priceInputContainer}>
-              <DollarSign size={20} color="#6B7280" style={styles.priceIcon} />
+              <Text style={styles.priceLabel}>VND</Text>
               <TextInput
                 style={styles.priceInput}
                 placeholder="0"
@@ -434,7 +434,7 @@ export default function CreateAuctionScreen() {
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>Giá mua ngay *</Text>
               <View style={styles.priceInputContainer}>
-                <DollarSign size={20} color="#6B7280" style={styles.priceIcon} />
+                <Text style={styles.priceLabel}>VND</Text>
                 <TextInput
                   style={styles.priceInput}
                   placeholder="0"
@@ -476,7 +476,8 @@ export default function CreateAuctionScreen() {
 
           {/* Expected Harvest Date */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>Ngày thu hoạch dự kiến (+10 ngày) *</Text>
+            <Text style={styles.fieldLabel}>Ngày thu hoạch dự kiến *</Text>
+            <Text style={styles.fieldNote}>( Sau 10 ngày kể từ ngày kết thúc đấu giá )</Text>
             <TouchableOpacity
               style={styles.dateButton}
               onPress={() => setShowExpectedHarvestPicker(true)}
@@ -527,8 +528,8 @@ export default function CreateAuctionScreen() {
         {/* Note */}
         <View style={styles.noteContainer}>
           <Text style={styles.noteText}>
-            📝 <Text style={styles.noteTextBold}>Lưu ý:</Text> Chọn ít nhất 1 sản phẩm để tạo phiên đấu giá. 
-            Tổng số lượng sẽ được tính tự động từ harvest grade details.
+            📝 <Text style={styles.noteTextBold}>Lưu ý:</Text> Chọn ít nhất 1 vườn để tạo phiên đấu giá. 
+            Tổng số lượng ước tính sẽ được tính tự động .
           </Text>
         </View>
       </ScrollView>
@@ -627,6 +628,12 @@ const styles = StyleSheet.create({
     color: '#374151',
     marginBottom: 8,
   },
+  fieldNote: {
+    fontSize: 12,
+    color: '#F97316',
+    marginBottom: 8,
+    fontStyle: 'italic',
+  },
   addButton: {
     backgroundColor: '#3B82F6',
     borderRadius: 8,
@@ -720,6 +727,13 @@ const styles = StyleSheet.create({
     borderColor: '#D1D5DB',
     borderRadius: 12,
     backgroundColor: '#fff',
+  },
+  priceLabel: {
+    paddingLeft: 12,
+    paddingRight: 8,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
   },
   priceIcon: {
     marginLeft: 12,
