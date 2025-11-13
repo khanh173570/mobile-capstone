@@ -14,7 +14,7 @@ import { router } from 'expo-router';
 import { Sprout, ShoppingBag, User } from 'lucide-react-native';
 import { Loader2, UserCircle } from 'lucide-react-native';
 import { getRoles, Role } from '../../services/authService';
-import { handleError } from '@/utils/errorHandler';
+import { handleError } from '../../utils/errorHandler';
 
 export default function RoleSelection() {
   const [roles, setRoles] = useState<Role[]>([]);
