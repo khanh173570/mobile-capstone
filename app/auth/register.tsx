@@ -21,6 +21,8 @@ import { registerUser, RegisterData } from '../../services/authService';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { handleError } from '@/utils/errorHandler';
+import AddressPicker from '../../components/AddressPicker';
+import { SelectedAddress, formatFullAddress } from '../../services/addressService';
 
 const RegisterScreen: React.FC = () => {
   const params = useLocalSearchParams();
@@ -31,9 +33,12 @@ const RegisterScreen: React.FC = () => {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
-  const [address, setAddress] = useState<string>('');
-  const [communes, setCommunes] = useState<string>('');
-  const [province, setProvince] = useState<string>('');
+  const [selectedAddress, setSelectedAddress] = useState<SelectedAddress>({
+    province: null,
+    district: null,
+    ward: null,
+    detailAddress: '',
+  });
   const [phoneNumber, setPhoneNumber] = useState<string>('');
   const [frontIdImage, setFrontIdImage] = useState<string | null>(null);
   const [backIdImage, setBackIdImage] = useState<string | null>(null);
@@ -112,19 +117,22 @@ const RegisterScreen: React.FC = () => {
     setLoading(true);
     try {
       // Validate all fields
-      if (!firstName || !lastName || !email || !password || !confirmPassword || !address || !communes || !province || !phoneNumber) {
+      const fullAddress = formatFullAddress(selectedAddress);
+      if (!firstName || !lastName || !email || !password || !confirmPassword || !fullAddress || !phoneNumber) {
         console.log('Missing required fields:', {
           firstName: !!firstName,
           lastName: !!lastName,
           email: !!email,
           password: !!password,
           confirmPassword: !!confirmPassword,
-          address: !!address,
-          communes: !!communes,
-          province: !!province,
+          hasFullAddress: !!fullAddress,
+          hasProvince: !!selectedAddress.province,
+          hasDistrict: !!selectedAddress.district,
+          hasWard: !!selectedAddress.ward,
+          hasDetailAddress: !!selectedAddress.detailAddress,
           phoneNumber: !!phoneNumber
         });
-        Alert.alert('Thông báo', 'Vui lòng nhập đầy đủ thông tin');
+        Alert.alert('Thông báo', 'Vui lòng nhập đầy đủ thông tin địa chỉ và các trường khác');
         return;
       }
       
@@ -180,9 +188,9 @@ const RegisterScreen: React.FC = () => {
         password,
         firstName,
         lastName,
-        address,
-        communes,
-        province,
+        address: fullAddress,
+        communes: selectedAddress.ward?.name || '',
+        province: selectedAddress.province?.name || '',
         phoneNumber,
         roleId: roleId,
         userVerifications: [
@@ -356,41 +364,11 @@ const RegisterScreen: React.FC = () => {
             />
           </View>
 
-          {/* Address */}
-          <View style={styles.inputContainer}>
-            <Home size={20} color="#6B7280" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Địa chỉ"
-              placeholderTextColor="#9CA3AF"
-              value={address}
-              onChangeText={setAddress}
-            />
-          </View>
-
-          {/* Communes */}
-          <View style={styles.inputContainer}>
-            <MapPin size={20} color="#6B7280" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Xã/Phường"
-              placeholderTextColor="#9CA3AF"
-              value={communes}
-              onChangeText={setCommunes}
-            />
-          </View>
-
-          {/* Province */}
-          <View style={styles.inputContainer}>
-            <MapPin size={20} color="#6B7280" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Tỉnh/Thành phố"
-              placeholderTextColor="#9CA3AF"
-              value={province}
-              onChangeText={setProvince}
-            />
-          </View>
+          {/* Address Picker */}
+          <AddressPicker
+            selectedAddress={selectedAddress}
+            onAddressChange={setSelectedAddress}
+          />
 
           {/* Password */}
           <View style={styles.inputContainer}>
