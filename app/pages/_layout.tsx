@@ -3,9 +3,12 @@ import { Stack } from 'expo-router';
 export default function PagesLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="farmProfile" />
-      <Stack.Screen name="farmDetail" />
-      <Stack.Screen name="harvestList" />
+      <Stack.Screen name="farmer/farmProfile" />
+      <Stack.Screen name="farmer/farmDetail" />
+      <Stack.Screen name="farmer/harvestList" />
+      <Stack.Screen name="farmer/harvestGradeDetail" />
+      <Stack.Screen name="farmer/add-auction-harvests" />
+      <Stack.Screen name="wholesaler" />
     </Stack>
   );
 }

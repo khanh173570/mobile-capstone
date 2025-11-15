@@ -20,8 +20,8 @@ import { Eye, EyeOff } from 'lucide-react-native';
 import { registerUser, RegisterData } from '../../services/authService';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { handleError } from '@/utils/errorHandler';
-import AddressPicker from '../../components/AddressPicker';
+import { handleError } from '../../utils/errorHandler';
+import AddressPicker from '../../components/shared/AddressPicker';
 import { SelectedAddress, formatFullAddress } from '../../services/addressService';
 
 const RegisterScreen: React.FC = () => {
