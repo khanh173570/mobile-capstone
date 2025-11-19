@@ -56,7 +56,7 @@ export default function CropCard({ crop, cropIndex, onPress, onEdit, onDelete, o
         </View>
         <View style={styles.cropInfo}>
           <Text style={styles.cropType}>
-            Vườn mãng cầu {cropIndex !== undefined ? cropIndex + 1 : '...'}
+            {crop.name || 'Chưa đặt tên'}
           </Text>
           {/* Status moved to note position */}
           <View style={[styles.statusBadge, { backgroundColor: statusInfo.backgroundColor }]}>

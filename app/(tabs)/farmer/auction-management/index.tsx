@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,291 +6,287 @@ import {
   TouchableOpacity,
   FlatList,
   StyleSheet,
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  Modal,
 } from 'react-native';
-import { Clock, Eye, Edit, Trash2, Bell } from 'lucide-react-native';
+import { Filter } from 'lucide-react-native';
+import { router, useFocusEffect } from 'expo-router';
 import Header from '../../../../components/shared/Header';
-
-interface Auction {
-  id: string;
-  title: string;
-  status: 'active' | 'pending' | 'completed';
-  currentBid: number;
-  startingPrice: number;
-  endDate: string;
-  bidCount: number;
-}
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: 'bid' | 'winner' | 'ended';
-  time: string;
-  read: boolean;
-}
+import AuctionCard from '../../../../components/farmer/AuctionCard';
+import { 
+  getFarmerAuctions, 
+  FarmerAuction, 
+  filterAuctionsByStatus 
+} from '../../../../services/auctionService';
 
 export default function AuctionManagementScreen() {
-  const [activeTab, setActiveTab] = useState<'auctions' | 'notifications'>('auctions');
+  const [auctions, setAuctions] = useState<FarmerAuction[]>([]);
+  const [filteredAuctions, setFilteredAuctions] = useState<FarmerAuction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<string>('All');
+  const [showStatusFilter, setShowStatusFilter] = useState(false);
+  const [showAllStatusModal, setShowAllStatusModal] = useState(false);
 
-  // Mock data - sẽ được thay thế bằng API calls
-  const auctions: Auction[] = [
-    {
-      id: '1',
-      title: 'Cà chua cherry organic',
-      status: 'active',
-      currentBid: 45000,
-      startingPrice: 30000,
-      endDate: '2025-11-05T10:00:00Z',
-      bidCount: 8,
-    },
-    {
-      id: '2',
-      title: 'Rau xà lách thủy canh',
-      status: 'pending',
-      currentBid: 0,
-      startingPrice: 25000,
-      endDate: '2025-11-06T14:00:00Z',
-      bidCount: 0,
-    },
-    {
-      id: '3',
-      title: 'Dưa chuột Nhật Bản',
-      status: 'completed',
-      currentBid: 65000,
-      startingPrice: 40000,
-      endDate: '2025-11-02T18:00:00Z',
-      bidCount: 12,
-    },
+  const statusOptions = [
+    { value: 'All', label: 'Tất cả' },
+    { value: 'Draft', label: 'Nháp' },
+    { value: 'Pending', label: 'Chờ duyệt' },
+    { value: 'Rejected', label: 'Bị từ chối' },
+    { value: 'Approved', label: 'Đã duyệt' },
+    { value: 'OnGoing', label: 'Đang diễn ra' },
+    { value: 'Completed', label: 'Hoàn thành' },
+    { value: 'NoWinner', label: 'Không có người thắng' },
+    { value: 'Cancelled', label: 'Đã hủy' },
   ];
 
-  const notifications: Notification[] = [
-    {
-      id: '1',
-      title: 'Có lượt đấu giá mới',
-      message: 'Sản phẩm "Cà chua cherry organic" có lượt đấu giá 45,000 VND',
-      type: 'bid',
-      time: '5 phút trước',
-      read: false,
-    },
-    {
-      id: '2',
-      title: 'Phiên đấu giá kết thúc',
-      message: 'Sản phẩm "Dưa chuột Nhật Bản" đã kết thúc với giá 65,000 VND',
-      type: 'ended',
-      time: '2 giờ trước',
-      read: true,
-    },
-    {
-      id: '3',
-      title: 'Bạn đã thắng đấu giá',
-      message: 'Chúc mừng! Sản phẩm "Rau muống" đã được bán với giá 35,000 VND',
-      type: 'winner',
-      time: '1 ngày trước',
-      read: true,
-    },
-  ];
+  useEffect(() => {
+    loadAuctions();
+  }, []);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'completed':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+  // Auto refresh when screen comes to focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadAuctions();
+    }, [])
+  );
+
+  useEffect(() => {
+    // Filter auctions when status changes
+    const filtered = filterAuctionsByStatus(auctions, selectedStatus);
+    setFilteredAuctions(filtered);
+  }, [auctions, selectedStatus]);
+
+  const loadAuctions = async () => {
+    try {
+      setLoading(true);
+      const auctionData = await getFarmerAuctions();
+      setAuctions(auctionData);
+    } catch (error) {
+      console.error('Error loading auctions:', error);
+      Alert.alert('Lỗi', 'Không thể tải danh sách đấu giá');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'Đang đấu giá';
-      case 'pending':
-        return 'Chờ bắt đầu';
-      case 'completed':
-        return 'Đã kết thúc';
-      default:
-        return 'Không xác định';
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadAuctions();
+    setRefreshing(false);
+  };
+
+  const handleAuctionPress = (auction: FarmerAuction) => {
+    try {
+      router.push({
+        pathname: '/pages/farmer/auction-detail',
+        params: {
+          auctionData: JSON.stringify(auction)
+        }
+      });
+    } catch (error) {
+      console.error('Error navigating to auction detail:', error);
+      Alert.alert('Lỗi', 'Không thể mở chi tiết đấu giá');
     }
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-    }).format(price);
+  const handleStatusFilter = (status: string) => {
+    setSelectedStatus(status);
+    setShowStatusFilter(false);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
-  const renderAuction = ({ item }: { item: Auction }) => (
-    <View style={styles.auctionCard}>
-      <View style={styles.auctionHeader}>
-        <Text style={styles.auctionTitle}>{item.title}</Text>
-        <View style={styles.statusBadge}>
-          <Text style={styles.statusText}>
-            {getStatusText(item.status)}
-          </Text>
-        </View>
-      </View>
 
-      <View style={styles.priceRow}>
-        <View>
-          <Text style={styles.priceLabel}>Giá hiện tại</Text>
-          <Text style={styles.priceValue}>
-            {formatPrice(item.currentBid || item.startingPrice)}
-          </Text>
-        </View>
-        <View style={styles.bidCountContainer}>
-          <Text style={styles.priceLabel}>Số lượt đấu giá</Text>
-          <Text style={styles.bidCount}>
-            {item.bidCount}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.timeRow}>
-        <Clock size={16} color="#6B7280" />
-        <Text style={styles.timeText}>
-          Kết thúc: {formatDate(item.endDate)}
-        </Text>
-      </View>
-
-      <View style={styles.actionRow}>
-        <TouchableOpacity style={styles.viewButton}>
-          <Eye size={16} color="white" />
-          <Text style={styles.buttonText}>Xem chi tiết</Text>
-        </TouchableOpacity>
-        
-        {item.status !== 'completed' && (
-          <TouchableOpacity style={styles.editButton}>
-            <Edit size={16} color="white" />
-            <Text style={styles.buttonText}>Chỉnh sửa</Text>
-          </TouchableOpacity>
-        )}
-        
-        <TouchableOpacity style={styles.deleteButton}>
-          <Trash2 size={16} color="white" />
-        </TouchableOpacity>
-      </View>
-    </View>
+  const renderAuction = ({ item, index = 0 }: { item: FarmerAuction; index?: number }) => (
+    <AuctionCard 
+      auction={item} 
+      onPress={() => handleAuctionPress(item)}
+      isFirst={index === 0}
+      isLast={index === filteredAuctions.length - 1}
+    />
   );
 
-  const renderNotification = ({ item }: { item: Notification }) => (
-    <View className={`bg-white rounded-lg p-4 mb-3 shadow-sm ${!item.read ? 'border-l-4 border-green-500' : ''}`}>
-      <View className="flex-row items-start justify-between mb-2">
-        <Text className={`text-base font-semibold ${!item.read ? 'text-gray-800' : 'text-gray-600'} flex-1`}>
-          {item.title}
-        </Text>
-        <Text className="text-xs text-gray-500">{item.time}</Text>
-      </View>
-      
-      <Text className={`text-sm ${!item.read ? 'text-gray-700' : 'text-gray-500'} mb-2`}>
-        {item.message}
-      </Text>
-      
-      <View className="flex-row items-center">
-        <View className={`w-2 h-2 rounded-full mr-2 ${
-          item.type === 'bid' ? 'bg-blue-500' : 
-          item.type === 'winner' ? 'bg-green-500' : 'bg-gray-500'
-        }`} />
-        <Text className="text-xs text-gray-500 capitalize">
-          {item.type === 'bid' ? 'Đấu giá' : 
-           item.type === 'winner' ? 'Thắng cuộc' : 'Kết thúc'}
-        </Text>
-      </View>
-    </View>
-  );
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Header title="Quản lý Đấu giá" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#22C55E" />
+          <Text style={styles.loadingText}>Đang tải...</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <Header title="Quản lý Đấu giá" />
 
-      {/* Tab Navigation */}
-      <View style={styles.tabContainer}>
+      {/* Status Filter for Auctions */}
+      <View style={styles.filterContainer}>
         <TouchableOpacity
-          onPress={() => setActiveTab('auctions')}
-          style={[styles.tab, activeTab === 'auctions' && styles.activeTab]}
+          style={styles.filterButton}
+          onPress={() => setShowStatusFilter(!showStatusFilter)}
         >
-          <Text style={[styles.tabText, activeTab === 'auctions' && styles.activeTabText]}>
-            Đấu giá của tôi
+          <View><Filter size={16} color="#6B7280" /></View>
+          <Text style={styles.filterButtonText}>
+            {statusOptions.find(option => option.value === selectedStatus)?.label}
           </Text>
         </TouchableOpacity>
         
-        <TouchableOpacity
-          onPress={() => setActiveTab('notifications')}
-          style={[styles.tab, activeTab === 'notifications' && styles.activeTab]}
-        >
-          <View style={styles.notificationTab}>
-            <Bell size={16} color={activeTab === 'notifications' ? 'white' : '#6B7280'} />
-            <Text style={[styles.tabText, activeTab === 'notifications' && styles.activeTabText]}>
-              Thông báo
-            </Text>
-            {unreadCount > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{unreadCount}</Text>
-              </View>
-            )}
+        {showStatusFilter && (
+          <View style={styles.filterDropdown}>
+            {statusOptions.map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.filterOption,
+                  selectedStatus === option.value && styles.selectedFilterOption
+                ]}
+                onPress={() => handleStatusFilter(option.value)}
+              >
+                <Text style={[
+                  styles.filterOptionText,
+                  selectedStatus === option.value && styles.selectedFilterOptionText
+                ]}>
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
-        </TouchableOpacity>
+        )}
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {activeTab === 'auctions' ? (
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={['#22C55E']}
+          />
+        }
+      >
+        {filteredAuctions.length > 0 ? (
           <FlatList
-            data={auctions}
+            data={filteredAuctions}
             renderItem={renderAuction}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
             scrollEnabled={false}
           />
         ) : (
-          <FlatList
-            data={notifications}
-            renderItem={renderNotification}
-            keyExtractor={(item) => item.id}
-            showsVerticalScrollIndicator={false}
-            scrollEnabled={false}
-          />
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>
+              {auctions.length === 0 
+                ? 'Chưa có đấu giá nào' 
+                : `Không có đấu giá nào với trạng thái "${statusOptions.find(option => option.value === selectedStatus)?.label}"`}
+            </Text>
+          </View>
         )}
       </ScrollView>
 
       {/* Summary Stats */}
-      {activeTab === 'auctions' && (
+      {auctions.length > 0 && (
         <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {auctions.filter(a => a.status === 'active').length}
-            </Text>
-            <Text style={styles.statLabel}>Đang đấu giá</Text>
+          <View style={styles.statsRowHeader}>
+            <TouchableOpacity 
+              style={styles.showAllButton}
+              onPress={() => setShowAllStatusModal(true)}
+            >
+              <Text style={styles.showAllButtonText}>⋯</Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: '#F59E0B' }]}>
-              {auctions.filter(a => a.status === 'pending').length}
-            </Text>
-            <Text style={styles.statLabel}>Chờ bắt đầu</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: '#6B7280' }]}>
-              {auctions.filter(a => a.status === 'completed').length}
-            </Text>
-            <Text style={styles.statLabel}>Đã hoàn thành</Text>
+
+          <View style={styles.statsRow}>
+            <TouchableOpacity 
+              style={[styles.statItem, selectedStatus === 'Draft' && styles.activeStatItem]}
+              onPress={() => handleStatusFilter('Draft')}
+            >
+              <Text style={[styles.statValue, selectedStatus === 'Draft' ? { color: '#3B82F6' } : { color: '#1F2937' }]}>
+                {auctions.filter(a => a.status === 'Draft').length}
+              </Text>
+              <Text style={styles.statLabel}>Nháp</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.statItem, selectedStatus === 'Pending' && styles.activeStatItem]}
+              onPress={() => handleStatusFilter('Pending')}
+            >
+              <Text style={[styles.statValue, selectedStatus === 'Pending' ? { color: '#3B82F6' } : { color: '#F59E0B' }]}>
+                {auctions.filter(a => a.status === 'Pending').length}
+              </Text>
+              <Text style={styles.statLabel}>Chờ duyệt</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.statItem, selectedStatus === 'Completed' && styles.activeStatItem]}
+              onPress={() => handleStatusFilter('Completed')}
+            >
+              <Text style={[styles.statValue, selectedStatus === 'Completed' ? { color: '#3B82F6' } : { color: '#22C55E' }]}>
+                {auctions.filter(a => a.status === 'Completed').length}
+              </Text>
+              <Text style={styles.statLabel}>Hoàn thành</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
+
+      {/* All Status Modal */}
+      <Modal
+        visible={showAllStatusModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowAllStatusModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Tất cả trạng thái</Text>
+              <TouchableOpacity onPress={() => setShowAllStatusModal(false)}>
+                <Text style={styles.modalCloseButton}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalScroll}>
+              <View style={styles.statusGrid}>
+                {statusOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[styles.modalStatItem, selectedStatus === option.value && styles.activeModalStatItem]}
+                    onPress={() => {
+                      handleStatusFilter(option.value);
+                      setShowAllStatusModal(false);
+                    }}
+                  >
+                    <Text style={[
+                      styles.modalStatValue,
+                      selectedStatus === option.value ? { color: '#3B82F6' } :
+                      option.value === 'Draft' ? { color: '#1F2937' } :
+                      option.value === 'Pending' ? { color: '#F59E0B' } :
+                      option.value === 'Completed' ? { color: '#22C55E' } :
+                      option.value === 'OnGoing' ? { color: '#22C55E' } :
+                      option.value === 'Approved' ? { color: '#10B981' } :
+                      option.value === 'Rejected' ? { color: '#EF4444' } :
+                      option.value === 'NoWinner' ? { color: '#8B5CF6' } :
+                      option.value === 'Cancelled' ? { color: '#94A3B8' } :
+                      { color: '#22C55E' }
+                    ]}>
+                      {option.value === 'All' ? auctions.length : auctions.filter(a => a.status === option.value).length}
+                    </Text>
+                    <Text style={styles.modalStatLabel}>{option.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -300,49 +296,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
-  tabContainer: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    flexDirection: 'row',
-    marginTop: 120,
-  },
-  tab: {
+  loadingContainer: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginHorizontal: 4,
-    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  activeTab: {
-    backgroundColor: '#22C55E',
-  },
-  tabText: {
-    textAlign: 'center',
-    fontWeight: '500',
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
     color: '#6B7280',
-  },
-  activeTabText: {
-    color: '#fff',
-  },
-  notificationTab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badge: {
-    backgroundColor: '#EF4444',
-    borderRadius: 10,
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 4,
-  },
-  badgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
   },
   content: {
     flex: 1,
@@ -351,81 +313,127 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     backgroundColor: '#fff',
-    padding: 16,
+    padding: 12,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
+    flexDirection: 'column',
+  },
+  statsRowHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 8,
+  },
+  showAllButton: {
+    backgroundColor: 'transparent',
+    borderRadius: 8,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  showAllButtonText: {
+    fontSize: 16,
+    fontWeight: '300',
+    color: '#6B7280',
+  },
+  statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 12,
   },
   statItem: {
+    flex: 1,
     alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: '#F9FAFB',
+  },
+  activeStatItem: {
+    backgroundColor: '#EDF2F7',
+    borderWidth: 2,
+    borderColor: '#3B82F6',
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#22C55E',
   },
+  activeStatValue: {
+    color: '#3B82F6',
+  },
   statLabel: {
-    fontSize: 14,
+    fontSize: 10,
     color: '#6B7280',
+    marginTop: 2,
+    textAlign: 'center',
   },
-  auctionCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  auctionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  auctionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+  modalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
   },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    backgroundColor: '#F3F4F6',
-    marginLeft: 8,
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 16,
+    maxHeight: '80%',
   },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#374151',
-  },
-  priceRow: {
+  modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  modalCloseButton: {
+    fontSize: 24,
+    color: '#6B7280',
+    fontWeight: '300',
+  },
+  modalScroll: {
+    paddingVertical: 16,
+  },
+  statusGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingBottom: 16,
+  },
+  modalStatItem: {
+    width: '30%',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: '#F9FAFB',
     marginBottom: 12,
   },
-  priceLabel: {
-    fontSize: 14,
-    color: '#6B7280',
+  activeModalStatItem: {
+    backgroundColor: '#EDF2F7',
+    borderWidth: 2,
+    borderColor: '#3B82F6',
   },
-  priceValue: {
+  modalStatValue: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#22C55E',
+    marginBottom: 4,
   },
-  bidCountContainer: {
-    alignItems: 'flex-end',
+  activeModalStatValue: {
+    color: '#3B82F6',
   },
-  bidCount: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+  modalStatLabel: {
+    fontSize: 11,
+    color: '#6B7280',
+    textAlign: 'center',
   },
   timeRow: {
     flexDirection: 'row',
@@ -472,5 +480,75 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     marginLeft: 4,
+  },
+  filterContainer: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    position: 'relative',
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  filterButtonText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  filterDropdown: {
+    position: 'absolute',
+    top: 52,
+    left: 16,
+    right: 16,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+    zIndex: 1000,
+  },
+  filterOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  selectedFilterOption: {
+    backgroundColor: '#EDF2F7',
+  },
+  filterOptionText: {
+    fontSize: 14,
+    color: '#374151',
+  },
+  selectedFilterOptionText: {
+    color: '#22C55E',
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
   },
 });

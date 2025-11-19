@@ -14,6 +14,7 @@ export interface CustardAppleType {
 export interface Crop {
   id: string;
   farmID: string;
+  name: string; // Added: name field for crop
   area: number;
   cropType: string | null;
   custardAppleType: string; // Added: actual type name from API
@@ -28,9 +29,11 @@ export interface Crop {
 
 export interface CreateCropData {
   farmID?: string;
+  name: string; // Added: name field for crop
   area: number;
   custardAppleTypeID: string;
   farmingDuration: number;
+  status?: number; // 0: Mới trồng, 1: Đang phát triển, 2: Đang ra hoa, 3: Đã thu hoạch, 4: Ngừng canh tác
   startPlantingDate: string;
   nearestHarvestDate?: string; // Made optional
   note: string;
@@ -38,9 +41,11 @@ export interface CreateCropData {
 }
 
 export interface UpdateCropData {
+  name: string; // Added: name field for crop
   area: number;
   custardAppleTypeID: string;
   farmingDuration: number;
+  status?: number; // 0: Mới trồng, 1: Đang phát triển, 2: Đang ra hoa, 3: Đã thu hoạch, 4: Ngừng canh tác
   startPlantingDate: string;
   nearestHarvestDate?: string; // Made optional
   note: string;
@@ -103,6 +108,63 @@ export const getCustardAppleTypes = async (): Promise<CustardAppleType[]> => {
   } catch (error) {
     console.error('Get custard apple types error:', error);
     return []; // Return empty array instead of throwing error
+  }
+};
+
+/**
+ * Get crop by ID
+ */
+export const getCropById = async (cropId: string): Promise<Crop | null> => {
+  try {
+    const token = await AsyncStorage.getItem('accessToken');
+    
+    if (!token) {
+      throw new Error('No access token found');
+    }
+
+    const url = `${API_URL}/farm-service/crop/${cropId}`;
+    console.log('Fetching crop from URL:', url);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    console.log('Response status:', response.status);
+    console.log('Response ok:', response.ok);
+
+    const text = await response.text();
+    console.log('Response text:', text);
+    
+    if (!text || text.trim() === '') {
+      console.log('Empty response, returning null');
+      return null;
+    }
+
+    let result: ApiResponse<Crop>;
+    try {
+      result = JSON.parse(text);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      return null;
+    }
+
+    if (!response.ok) {
+      console.error('API error:', result.message || 'Failed to fetch crop');
+      return null;
+    }
+
+    if (result.isSuccess && result.data) {
+      return result.data;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Get crop error:', error);
+    return null;
   }
 };
 

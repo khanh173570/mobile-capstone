@@ -136,6 +136,8 @@ const AddressPicker: React.FC<AddressPickerProps> = ({
     title: string,
     isLoading: boolean
   ) => {
+    console.log('🎭 [UI] Rendering modal:', { visible, title, dataLength: data.length, isLoading });
+    
     return (
       <Modal visible={visible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
@@ -152,7 +154,7 @@ const AddressPicker: React.FC<AddressPickerProps> = ({
               <ActivityIndicator size="large" color="#22C55E" />
               <Text style={styles.loadingText}>Đang tải...</Text>
             </View>
-          ) : (
+          ) : data.length > 0 ? (
             <FlatList
               data={data}
               renderItem={renderDropdownItem}
@@ -164,12 +166,19 @@ const AddressPicker: React.FC<AddressPickerProps> = ({
               initialNumToRender={20}
               windowSize={10}
             />
+          ) : (
+            <View style={styles.loadingContainer}>
+              <Text style={styles.loadingText}>Không có dữ liệu</Text>
+            </View>
           )}
         </View>
       </View>
     </Modal>
     );
   }, [renderDropdownItem]);
+
+  console.log('🏗️ [UI] AddressPicker rendering, provinces:', provinces.length);
+  console.log('🎭 [UI] Modal states - Province:', showProvinceModal, 'Ward:', showWardModal);
 
   return (
     <View style={styles.container}>
