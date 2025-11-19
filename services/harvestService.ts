@@ -56,11 +56,16 @@ export const getHarvestsByCropId = async (cropId: string): Promise<Harvest[]> =>
       data = text ? JSON.parse(text) : {};
     } catch (e) {
       console.error('JSON parse error:', e);
+      console.error('Response text:', text);
       throw new Error('Invalid response format from server');
     }
 
+    console.log('Response status:', response.status);
+    console.log('Response data:', data);
+
     if (!response.ok) {
-      throw new Error(data.message || 'Failed to fetch harvests');
+      console.error('API Error:', data.message || response.statusText);
+      throw new Error(data.message || `Failed to fetch harvests (Status: ${response.status})`);
     }
 
     console.log('Harvests fetched successfully:', data.data?.length || 0);

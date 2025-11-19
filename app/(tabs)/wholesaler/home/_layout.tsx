@@ -10,6 +10,13 @@ export default function WholesalerHomeLayout() {
           headerShown: false 
         }} 
       />
+      <Stack.Screen 
+        name="auction-detail" 
+        options={{ 
+          title: 'Chi tiết đấu giá',
+          headerShown: false 
+        }} 
+      />
     </Stack>
   );
 }
