@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { X, Calendar, ChevronDown } from 'lucide-react-native';
 import { CreateCropData, getCustardAppleTypes, CustardAppleType } from '../../services/cropService';
+import { CROP_STATUSES } from '../../utils/cropStatusUtils';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 interface CreateCropModalProps {
@@ -28,11 +29,14 @@ export default function CreateCropModal({ visible, onClose, onSubmit }: CreateCr
   const [custardAppleTypes, setCustardAppleTypes] = useState<CustardAppleType[]>([]);
   const [loadingTypes, setLoadingTypes] = useState(true);
   const [showTypePicker, setShowTypePicker] = useState(false);
+  const [showStatusPicker, setShowStatusPicker] = useState(false);
   
   const [formData, setFormData] = useState<CreateCropData>({
+    name: '',
     area: 0,
     custardAppleTypeID: '',
     farmingDuration: 0,
+    status: 0, // Default to "Mới trồng"
     startPlantingDate: new Date().toISOString(),
     nearestHarvestDate: undefined, // Changed to undefined
     note: '',
@@ -79,6 +83,10 @@ export default function CreateCropModal({ visible, onClose, onSubmit }: CreateCr
 
   const handleSubmit = async () => {
     // Validation
+    if (!formData.name || formData.name.trim().length < 6) {
+      Alert.alert('Lỗi', 'Tên vườn phải có ít nhất 6 ký tự');
+      return;
+    }
     if (!formData.custardAppleTypeID) {
       Alert.alert('Lỗi', 'Vui lòng chọn loại mãng cầu');
       return;
@@ -139,9 +147,11 @@ export default function CreateCropModal({ visible, onClose, onSubmit }: CreateCr
       await onSubmit(submitData);
       // Reset form
       setFormData({
+        name: '',
         area: 0,
         custardAppleTypeID: custardAppleTypes.length > 0 ? custardAppleTypes[0].id : '',
         farmingDuration: 0,
+        status: 0, // Reset to default status
         startPlantingDate: new Date().toISOString(),
         nearestHarvestDate: undefined, // Changed to undefined
         note: '',
@@ -253,6 +263,82 @@ export default function CreateCropModal({ visible, onClose, onSubmit }: CreateCr
                 )}
               </>
             )}
+          </View>
+
+          {/* Crop Status Picker */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Trạng thái vườn *</Text>
+            <TouchableOpacity
+              style={styles.pickerButton}
+              onPress={() => setShowStatusPicker(!showStatusPicker)}
+              disabled={loading}
+            >
+              <View style={{ 
+                width: 16, 
+                height: 16, 
+                borderRadius: 8, 
+                backgroundColor: CROP_STATUSES[formData.status || 0].color,
+                marginRight: 8
+              }} />
+              <Text style={styles.pickerButtonText}>
+                {CROP_STATUSES[formData.status || 0].name}
+              </Text>
+              <ChevronDown size={20} color="#6B7280" />
+            </TouchableOpacity>
+
+            {/* Status Picker Dropdown */}
+            {showStatusPicker && (
+              <View style={styles.pickerDropdown}>
+                <ScrollView style={styles.pickerScrollView} nestedScrollEnabled>
+                  {CROP_STATUSES.map((status) => (
+                    <TouchableOpacity
+                      key={status.id}
+                      style={[
+                        styles.pickerItem,
+                        formData.status === status.id && styles.pickerItemSelected
+                      ]}
+                      onPress={() => {
+                        setFormData(prev => ({ ...prev, status: status.id }));
+                        setShowStatusPicker(false);
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                        <View style={{ 
+                          width: 12, 
+                          height: 12, 
+                          borderRadius: 6, 
+                          backgroundColor: status.color,
+                          marginRight: 10
+                        }} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={[
+                            styles.pickerItemName,
+                            formData.status === status.id && styles.pickerItemNameSelected
+                          ]}>
+                            {status.name}
+                          </Text>
+                          <Text style={styles.pickerItemDescription}>{status.description}</Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </View>
+
+          {/* Crop Name */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Tên vườn *</Text>
+            <Text style={styles.inputHint}>(Tối thiểu 6 ký tự)</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Nhập tên vườn"
+              value={formData.name}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
+              editable={!loading}
+              maxLength={50}
+            />
           </View>
 
           {/* Area */}

@@ -35,12 +35,10 @@ export default function TabLayout() {
   }
 
   const isFarmer = userRole === 'farmer';
-  const initialRouteName = isFarmer ? 'farmer/home' : 'wholesaler/home';
 
   return (
     <AuthWrapper>
       <Tabs
-        initialRouteName={initialRouteName}
         screenOptions={{
           headerShown: false,
           tabBarStyle: {

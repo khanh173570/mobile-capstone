@@ -51,6 +51,14 @@ export default function HarvestListPage() {
   const loadHarvests = async () => {
     try {
       setLoading(true);
+      
+      // Guard: check if cropId exists
+      if (!cropId) {
+        console.error('Crop ID is missing');
+        handleError(new Error('Crop ID không được xác định'), 'Lỗi tải dữ liệu');
+        return;
+      }
+
       const data = await getHarvestsByCropId(cropId);
       setHarvests(data);
     } catch (error) {
