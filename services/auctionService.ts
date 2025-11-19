@@ -36,6 +36,7 @@ export interface CreateAuctionData {
   enableAntiSniping: boolean;
   antiSnipingExtensionSeconds: number | null;
   enableReserveProxy: boolean;
+  status?: 0 | 1; // 0 = Draft, 1 = Pending
   note: string;
   expectedHarvestDate: string;
   expectedTotalQuantity: number;
@@ -121,17 +122,28 @@ export const createAuctionSession = async (auctionData: CreateAuctionData): Prom
       throw new Error('No authentication token found');
     }
 
-    console.log('Creating auction session:', auctionData);
+    // Remove null/undefined values from auctionData to avoid API validation errors
+    const cleanedData = Object.fromEntries(
+      Object.entries(auctionData).filter(([_, value]) => value !== null && value !== undefined)
+    );
+
+    console.log('Creating auction session with cleaned data:', JSON.stringify(cleanedData, null, 2));
+    console.log('Data fields:', Object.keys(cleanedData));
+    
     const response = await fetch(`${API_URL}/auction-service/englishauction`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(auctionData),
+      body: JSON.stringify(cleanedData),
     });
 
+    console.log('Response status:', response.status);
+    
     const text = await response.text();
+    console.log('Response text:', text);
+    
     let data;
     
     try {
@@ -142,7 +154,8 @@ export const createAuctionSession = async (auctionData: CreateAuctionData): Prom
     }
 
     if (!response.ok) {
-      throw new Error(data.message || 'Failed to create auction session');
+      console.error('API Error response:', data);
+      throw new Error(data.message || `Failed to create auction session: ${response.status}`);
     }
 
     console.log('Auction session created successfully:', data.data?.id);
@@ -193,7 +206,480 @@ export const createAuctionHarvest = async (auctionHarvestData: CreateAuctionHarv
   }
 };
 
+// Update auction session status
+export const updateAuctionSessionStatus = async (auctionSessionId: string, status: 'Draft' | 'Pending'): Promise<AuctionSession> => {
+  try {
+    const token = await AsyncStorage.getItem('accessToken');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const statusValue = status === 'Draft' ? 0 : 1; // 0 = Draft, 1 = Pending
+    console.log('Updating auction session status:', { auctionSessionId, status, statusValue });
+    const response = await fetch(`${API_URL}/auction-service/englishauction/${auctionSessionId}/status`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status: statusValue }),
+    });
+
+    const text = await response.text();
+    let data;
+    
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch (e) {
+      console.error('JSON parse error:', e);
+      throw new Error('Invalid response format from server');
+    }
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to update auction session status');
+    }
+
+    console.log('Auction session status updated successfully');
+    return data.data;
+  } catch (error) {
+    console.error('Error updating auction session status:', error);
+    throw error;
+  }
+};
+
 // Calculate total quantity from harvest grades
 export const calculateTotalQuantity = (harvestGradeDetails: CurrentHarvest['harvestGradeDetailDTOs']): number => {
   return harvestGradeDetails.reduce((total, grade) => total + grade.quantity, 0);
+};
+
+// New interfaces for farmer auction management
+export interface FarmerAuction {
+  id: string;
+  publishDate: string;
+  endDate: string;
+  farmerId: string;
+  sessionCode: string;
+  startingPrice: number;
+  currentPrice: number | null;
+  winningPrice: number | null;
+  minBidIncrement: number;
+  enableBuyNow: boolean;
+  buyNowPrice: number | null;
+  enableAntiSniping: boolean;
+  antiSnipingExtensionSeconds: number | null;
+  status: 'Draft' | 'Pending' | 'Rejected' | 'Approved' | 'OnGoing' | 'Completed' | 'NoWinner' | 'Cancelled';
+  winnerId: string | null;
+  note: string;
+  expectedHarvestDate: string;
+  expectedTotalQuantity: number;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface AuctionSessionHarvest {
+  auctionSessionId: string;
+  harvestId: string;
+}
+
+export interface HarvestDetail {
+  id: string;
+  farmId?: string;
+  cropId?: string;
+  cropID?: string; // Some APIs might use this format
+  harvestDate: string | null;
+  startDate?: string;
+  quantity?: number;
+  totalQuantity?: number;
+  quality?: string;
+  status?: number;
+  unit?: string;
+  note?: string;
+  salePrice?: number;
+  createdAt: string;
+  updatedAt: string | null;
+  harvestGradeDetailDTOs?: Array<{
+    id: string;
+    grade: 1 | 2 | 3;
+    quantity: number;
+    unit: string;
+    harvestID: string;
+    createdAt: string;
+    updatedAt: string | null;
+  }>;
+}
+
+export interface ApiResponse<T> {
+  isSuccess: boolean;
+  statusCode: number;
+  message: string;
+  errors: any;
+  data: T;
+}
+
+/**
+ * Get farmer's auctions
+ */
+export const getFarmerAuctions = async (): Promise<FarmerAuction[]> => {
+  try {
+    const token = await AsyncStorage.getItem('accessToken');
+    
+    if (!token) {
+      throw new Error('No access token found');
+    }
+
+    const response = await fetch(`${API_URL}/auction-service/englishauction/farmer/my-auctions`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const text = await response.text();
+    if (!text || text.trim() === '') {
+      console.log('Empty response, returning empty array');
+      return [];
+    }
+
+    let result: ApiResponse<FarmerAuction[]>;
+    try {
+      result = JSON.parse(text);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      return [];
+    }
+
+    if (!response.ok) {
+      console.error('API error:', result.message || 'Failed to fetch auctions');
+      return [];
+    }
+
+    if (result.isSuccess && result.data && Array.isArray(result.data)) {
+      return result.data;
+    }
+
+    return [];
+  } catch (error) {
+    console.error('Get farmer auctions error:', error);
+    return [];
+  }
+};
+
+/**
+ * Get auction session harvests
+ */
+export const getAuctionSessionHarvests = async (auctionSessionId: string): Promise<AuctionSessionHarvest[]> => {
+  try {
+    const token = await AsyncStorage.getItem('accessToken');
+    
+    if (!token) {
+      throw new Error('No access token found');
+    }
+
+    const response = await fetch(`${API_URL}/auction-service/auctionsession/${auctionSessionId}/harvest`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const text = await response.text();
+    if (!text || text.trim() === '') {
+      console.log('Empty response, returning empty array');
+      return [];
+    }
+
+    let result: ApiResponse<AuctionSessionHarvest[]>;
+    try {
+      result = JSON.parse(text);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      return [];
+    }
+
+    if (!response.ok) {
+      console.error('API error:', result.message || 'Failed to fetch auction session harvests');
+      return [];
+    }
+
+    if (result.isSuccess && result.data && Array.isArray(result.data)) {
+      return result.data;
+    }
+
+    return [];
+  } catch (error) {
+    console.error('Get auction session harvests error:', error);
+    return [];
+  }
+};
+
+/**
+ * Get harvest details by harvest ID
+ */
+export const getHarvestById = async (harvestId: string): Promise<HarvestDetail | null> => {
+  try {
+    const token = await AsyncStorage.getItem('accessToken');
+    
+    if (!token) {
+      throw new Error('No access token found');
+    }
+
+    console.log(`Fetching harvest details for ID: ${harvestId}`);
+    const response = await fetch(`${API_URL}/farm-service/harvest/${harvestId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    console.log(`Harvest API response status: ${response.status}`);
+    const text = await response.text();
+    console.log(`Harvest API response text length: ${text?.length || 0}`);
+    
+    if (!text || text.trim() === '') {
+      console.log('Empty response for harvest:', harvestId);
+      return null;
+    }
+
+    let result: ApiResponse<HarvestDetail>;
+    try {
+      result = JSON.parse(text);
+      console.log('Parsed harvest result:', {
+        isSuccess: result.isSuccess,
+        statusCode: result.statusCode,
+        hasData: !!result.data,
+        dataKeys: result.data ? Object.keys(result.data) : []
+      });
+    } catch (parseError) {
+      console.error('JSON parse error for harvest:', parseError);
+      console.error('Raw response text:', text);
+      return null;
+    }
+
+    if (!response.ok) {
+      console.error('Harvest API error:', result.message || 'Failed to fetch harvest');
+      console.error('Full error response:', result);
+      return null;
+    }
+
+    if (result.isSuccess && result.data) {
+      console.log('Harvest data retrieved successfully:', {
+        id: result.data.id,
+        cropId: result.data.cropId,
+        hasGradeDetails: !!result.data.harvestGradeDetailDTOs,
+        gradeDetailsCount: result.data.harvestGradeDetailDTOs?.length || 0
+      });
+      return result.data;
+    }
+
+    console.log('No harvest data in successful response:', result);
+    return null;
+  } catch (error) {
+    console.error('Get harvest by ID error:', error);
+    return null;
+  }
+};
+
+/**
+ * Helper function to get auction with its harvests
+ */
+export const getAuctionWithHarvests = async (auction: FarmerAuction) => {
+  try {
+    const sessionHarvests = await getAuctionSessionHarvests(auction.id);
+    const harvestDetails = await Promise.all(
+      sessionHarvests.map(sh => getHarvestById(sh.harvestId))
+    );
+    
+    return {
+      ...auction,
+      harvests: harvestDetails.filter(h => h !== null)
+    };
+  } catch (error) {
+    console.error('Error getting auction with harvests:', error);
+    return {
+      ...auction,
+      harvests: []
+    };
+  }
+};
+
+/**
+ * Helper function to format auction status for display
+ */
+export const getAuctionStatusInfo = (status: string) => {
+  switch (status) {
+    case 'Draft':
+      return {
+        name: 'Nháp',
+        color: '#6B7280',
+        backgroundColor: '#F3F4F6'
+      };
+    case 'Pending':
+      return {
+        name: 'Chờ duyệt',
+        color: '#F59E0B',
+        backgroundColor: '#FEF3C7'
+      };
+    case 'Rejected':
+      return {
+        name: 'Bị từ chối',
+        color: '#DC2626',
+        backgroundColor: '#FEE2E2'
+      };
+    case 'Approved':
+      return {
+        name: 'Đã duyệt',
+        color: '#059669',
+        backgroundColor: '#D1FAE5'
+      };
+    case 'OnGoing':
+      return {
+        name: 'Đang diễn ra',
+        color: '#0891B2',
+        backgroundColor: '#CFFAFE'
+      };
+    case 'Completed':
+      return {
+        name: 'Hoàn thành',
+        color: '#2563EB',
+        backgroundColor: '#DBEAFE'
+      };
+    case 'NoWinner':
+      return {
+        name: 'Không có người thắng',
+        color: '#7C3AED',
+        backgroundColor: '#EDE9FE'
+      };
+    case 'Cancelled':
+      return {
+        name: 'Đã hủy',
+        color: '#DC2626',
+        backgroundColor: '#FEE2E2'
+      };
+    default:
+      return {
+        name: status,
+        color: '#6B7280',
+        backgroundColor: '#F3F4F6'
+      };
+  }
+};
+
+/**
+ * Filter auctions by status
+ */
+export const filterAuctionsByStatus = (auctions: FarmerAuction[], status: string | null): FarmerAuction[] => {
+  if (!status || status === 'All') {
+    return auctions;
+  }
+  
+  return auctions.filter(auction => auction.status === status);
+};
+
+/**
+ * Get auctions by status for wholesaler (OnGoing auctions)
+ */
+export const getAuctionsByStatus = async (
+  status: string = 'OnGoing',
+  pageNumber: number = 1,
+  pageSize: number = 10
+): Promise<any> => {
+  try {
+    const token = await AsyncStorage.getItem('accessToken');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const url = `${API_URL}/auction-service/englishauction?status=${status}&pageNumber=${pageNumber}&pageSize=${pageSize}`;
+    console.log('Fetching auctions with status:', url);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch auctions: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('Auctions fetched successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching auctions by status:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get auction detail with farm, crop, harvest, and grade information
+ */
+export const getAuctionDetail = async (auctionId: string): Promise<any> => {
+  try {
+    const token = await AsyncStorage.getItem('accessToken');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    // Get auction session harvests to link with harvest ID
+    const harvestsResponse = await fetch(
+      `${API_URL}/auction-service/englishauction/${auctionId}/harvests`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    let auctionHarvests: any[] = [];
+    if (harvestsResponse.ok) {
+      const harvestsData = await harvestsResponse.json();
+      auctionHarvests = harvestsData.data || [];
+    }
+
+    // Get harvest details for each harvest ID
+    const harvestDetails = await Promise.all(
+      auctionHarvests.map(async (ah: any) => {
+        try {
+          const harvestResponse = await fetch(
+            `${API_URL}/farm-service/harvest/${ah.harvestId}`,
+            {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+
+          if (harvestResponse.ok) {
+            const harvestData = await harvestResponse.json();
+            return {
+              ...harvestData.data,
+              harvestId: ah.harvestId, // Ensure harvestId is included
+            };
+          }
+          return null;
+        } catch (error) {
+          console.error(`Error fetching harvest ${ah.harvestId}:`, error);
+          return null;
+        }
+      })
+    );
+
+    return {
+      auctionHarvests,
+      harvestDetails: harvestDetails.filter(h => h !== null),
+    };
+  } catch (error) {
+    console.error('Error getting auction detail:', error);
+    throw error;
+  }
 };

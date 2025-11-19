@@ -18,6 +18,7 @@ import {
   createAuctionHarvest,
   calculateTotalQuantity,
   CurrentHarvest,
+  updateAuctionSessionStatus,
 } from '../../../../services/auctionService';
 import { getCropsByFarmId } from '../../../../services/cropService';
 import { Crop } from '../../../../services/cropService';
@@ -39,6 +40,8 @@ export default function AddAuctionHarvestsScreen() {
   const [crops, setCrops] = useState<Crop[]>([]);
   const [loadingCrops, setLoadingCrops] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showLoadingModal, setShowLoadingModal] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
 
   useEffect(() => {
     loadCrops();
@@ -68,7 +71,8 @@ export default function AddAuctionHarvestsScreen() {
 
   const handleSelectCrop = async (crop: Crop) => {
     try {
-      setLoading(true);
+      setShowLoadingModal(true);
+      setLoadingMessage('Đang tải thông tin harvest...');
       const harvest = await getCurrentHarvest(crop.id);
       const totalQuantity = calculateTotalQuantity(harvest.harvestGradeDetailDTOs || []);
 
@@ -85,7 +89,7 @@ export default function AddAuctionHarvestsScreen() {
       Alert.alert('Lỗi', 'Không thể tải harvest cho crop này');
       console.error('Error loading harvest:', error);
     } finally {
-      setLoading(false);
+      setShowLoadingModal(false);
     }
   };
 
@@ -97,14 +101,16 @@ export default function AddAuctionHarvestsScreen() {
     return selectedCrops.reduce((total, item) => total + item.totalQuantity, 0);
   };
 
-  const handleCreateAuctionHarvests = async () => {
+  const createAuctionHarvests = async (status: 'Draft' | 'Pending') => {
     if (selectedCrops.length === 0) {
       Alert.alert('Lỗi', 'Vui lòng chọn ít nhất 1 crop');
       return;
     }
 
     try {
-      setLoading(true);
+      setShowLoadingModal(true);
+      setLoadingMessage(status === 'Draft' ? 'Đang tạo bản nháp...' : 'Đang tạo đấu giá...');
+      
       const totalQuantity = getTotalExpectedQuantity();
 
       // Create auction harvest for each selected crop
@@ -115,22 +121,36 @@ export default function AddAuctionHarvestsScreen() {
         });
       }
 
-      Alert.alert('Thành công', `Phiên đấu giá đã được tạo thành công!\nTổng số lượng: ${totalQuantity} kg`, [
+      // If status is Pending, update auction session status from Draft to Pending
+      if (status === 'Pending') {
+        await updateAuctionSessionStatus(auctionSessionId, 'Pending');
+      }
+
+      const successMessage = status === 'Draft' 
+        ? `Bản nháp đấu giá đã được lưu thành công!\nTổng số lượng: ${totalQuantity} kg`
+        : `Phiên đấu giá đã được tạo thành công!\nTổng số lượng: ${totalQuantity} kg`;
+
+      Alert.alert('Thành công', successMessage, [
         {
           text: 'OK',
           onPress: () => {
-            // Navigate back to auction management
             router.push('/farmer/auction-management');
           },
         },
       ]);
     } catch (error) {
-      Alert.alert('Lỗi', 'Không thể tạo phiên đấu giá. Vui lòng thử lại.');
+      const errorMessage = status === 'Draft'
+        ? 'Không thể lưu bản nháp. Vui lòng thử lại.'
+        : 'Không thể tạo phiên đấu giá. Vui lòng thử lại.';
+      Alert.alert('Lỗi', errorMessage);
       console.error('Error creating auction harvests:', error);
     } finally {
-      setLoading(false);
+      setShowLoadingModal(false);
     }
   };
+
+  const handleCreateDraft = () => createAuctionHarvests('Draft');
+  const handleCreatePending = () => createAuctionHarvests('Pending');
 
   return (
     <View style={styles.container}>
@@ -207,15 +227,27 @@ export default function AddAuctionHarvestsScreen() {
           )}
 
           {/* Nút tạo đấu giá */}
-          <TouchableOpacity
-            onPress={handleCreateAuctionHarvests}
-            style={[styles.createButton, loading && styles.createButtonDisabled]}
-            disabled={loading || selectedCrops.length === 0}
-          >
-            <Text style={styles.createButtonText}>
-              {loading ? 'Đang tạo...' : 'Tạo Phiên Đấu Giá'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              onPress={handleCreateDraft}
+              style={[styles.draftButton, selectedCrops.length === 0 && styles.buttonDisabled]}
+              disabled={selectedCrops.length === 0}
+            >
+              <Text style={styles.draftButtonText}>
+                Lưu Bản Nháp
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={handleCreatePending}
+              style={[styles.createButton, selectedCrops.length === 0 && styles.buttonDisabled]}
+              disabled={selectedCrops.length === 0}
+            >
+              <Text style={styles.createButtonText}>
+                Tạo Đấu Giá
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Note */}
@@ -250,7 +282,7 @@ export default function AddAuctionHarvestsScreen() {
                   <TouchableOpacity
                     style={styles.cropItem}
                     onPress={() => handleSelectCrop(item)}
-                    disabled={loading}
+                    disabled={showLoadingModal}
                   >
                     <View>
                       <Text style={styles.cropItemName}>
@@ -273,6 +305,16 @@ export default function AddAuctionHarvestsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Loading Modal */}
+      <Modal visible={showLoadingModal} transparent animationType="fade">
+        <View style={styles.loadingModalOverlay}>
+          <View style={styles.loadingModalContent}>
+            <ActivityIndicator size="large" color="#3B82F6" />
+            <Text style={styles.loadingModalText}>{loadingMessage}</Text>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -284,13 +326,12 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
-    marginTop: 120,
   },
   scrollContent: {
     paddingBottom: 20,
+    paddingHorizontal: 20,
   },
   headerInfo: {
-    marginHorizontal: 20,
     marginBottom: 20,
   },
   subtitle: {
@@ -301,7 +342,6 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     backgroundColor: '#fff',
-    marginHorizontal: 20,
     borderRadius: 16,
     padding: 20,
     shadowColor: '#000',
@@ -393,24 +433,59 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontWeight: '600',
   },
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  draftButton: {
+    flex: 1,
+    backgroundColor: '#6B7280',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
   createButton: {
+    flex: 1,
     backgroundColor: '#22C55E',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 16,
   },
-  createButtonDisabled: {
+  buttonDisabled: {
     opacity: 0.6,
+  },
+  draftButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   createButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
+  loadingModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    minWidth: 200,
+  },
+  loadingModalText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#374151',
+    textAlign: 'center',
+  },
   noteContainer: {
     marginTop: 16,
-    marginHorizontal: 20,
     backgroundColor: '#EFF6FF',
     padding: 16,
     borderRadius: 12,

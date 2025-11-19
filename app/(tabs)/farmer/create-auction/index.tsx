@@ -13,7 +13,7 @@ import {
   Switch,
   Platform,
 } from 'react-native';
-import { Calendar, DollarSign, ChevronDown, X, Plus } from 'lucide-react-native';
+import { Calendar, DollarSign, ChevronDown, X, Plus, Clock } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Header from '../../../../components/shared/Header';
@@ -38,8 +38,8 @@ interface SelectedCropHarvest {
 export default function CreateAuctionScreen() {
   const router = useRouter();
   const [auctionData, setAuctionData] = useState({
-    publishDate: new Date().toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
+    publishDate: new Date().toISOString(),
+    endDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     startingPrice: '',
     minBidIncrement: '',
     note: '',
@@ -52,14 +52,24 @@ export default function CreateAuctionScreen() {
   const [antiSnipingSeconds, setAntiSnipingSeconds] = useState('120');
   const [expectedHarvestDate, setExpectedHarvestDate] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showLoadingModal, setShowLoadingModal] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
 
   // Date picker states
   const [showPublishDatePicker, setShowPublishDatePicker] = useState(false);
+  const [showPublishTimePicker, setShowPublishTimePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [showExpectedHarvestPicker, setShowExpectedHarvestPicker] = useState(false);
+  const [showExpectedHarvestTimePicker, setShowExpectedHarvestTimePicker] = useState(false);
 
   // Crop selection modal states
   const [showCropModal, setShowCropModal] = useState(false);
+
+  // Price suggestion states
+  const [showStartingPriceSuggestions, setShowStartingPriceSuggestions] = useState(false);
+  const [showMinBidSuggestions, setShowMinBidSuggestions] = useState(false);
+  const [showAntiSnipingSuggestions, setShowAntiSnipingSuggestions] = useState(false);
   const [crops, setCrops] = useState<Crop[]>([]);
   const [loadingCrops, setLoadingCrops] = useState(false);
   const [farmId, setFarmId] = useState('');
@@ -103,18 +113,30 @@ export default function CreateAuctionScreen() {
     try {
       setLoading(true);
       const harvest = await getCurrentHarvest(crop.id);
+      
+      // Check if harvest exists and has grade details
+      if (!harvest || !harvest.harvestGradeDetailDTOs || harvest.harvestGradeDetailDTOs.length === 0) {
+        Alert.alert(
+          'Yêu cầu hoàn thiện',
+          `Vườn "${crop.name}" chưa có chi tiết phân loại đánh giá (harvest grade details). Vui lòng tạo chi tiết phân loại trước khi tạo đấu giá.`,
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
       const totalQuantity = calculateTotalQuantity(harvest.harvestGradeDetailDTOs || []);
 
       // Check if crop already selected
       const isAlreadySelected = selectedCrops.some((item) => item.crop.id === crop.id);
       if (isAlreadySelected) {
-        Alert.alert('Thông báo', 'Crop này đã được chọn');
+        Alert.alert('Thông báo', 'Vườn này đã được chọn');
         return;
       }
 
       setSelectedCrops([...selectedCrops, { crop, harvest, totalQuantity }]);
+      Alert.alert('Thành công', `Đã thêm vườn "${crop.name}" vào danh sách`);
     } catch (error) {
-      Alert.alert('Lỗi', 'Không thể tải harvest cho crop này');
+      Alert.alert('Lỗi', 'Không thể tải thông tin vườn. Vui lòng thử lại.');
       console.error('Error loading harvest:', error);
     } finally {
       setLoading(false);
@@ -131,12 +153,26 @@ export default function CreateAuctionScreen() {
 
   const validateForm = (): boolean => {
     if (selectedCrops.length === 0) {
-      Alert.alert('Lỗi', 'Vui lòng chọn ít nhất 1 crop');
+      Alert.alert('Lỗi', 'Vui lòng chọn ít nhất 1 vườn');
+      return false;
+    }
+
+    // Validate all selected crops have grade details
+    const cropsWithoutGradeDetails = selectedCrops.filter(
+      item => !item.harvest.harvestGradeDetailDTOs || item.harvest.harvestGradeDetailDTOs.length === 0
+    );
+
+    if (cropsWithoutGradeDetails.length > 0) {
+      const cropNames = cropsWithoutGradeDetails.map(item => `"${item.crop.name}"`).join(', ');
+      Alert.alert(
+        'Lỗi',
+        `Các vườn sau chưa có chi tiết phân loại đánh giá: ${cropNames}\n\nVui lòng hoàn thiện chi tiết phân loại trước khi tạo đấu giá.`
+      );
       return false;
     }
 
     if (!auctionData.endDate) {
-      Alert.alert('Lỗi', 'Vui lòng chọn ngày kết thúc');
+      Alert.alert('Lỗi', 'Vui lòng chọn ngày và giờ kết thúc');
       return false;
     }
 
@@ -169,7 +205,40 @@ export default function CreateAuctionScreen() {
       return false;
     }
 
+    // Validate endDate is after publishDate
+    const publishDate = new Date(auctionData.publishDate);
+    if (endDate <= publishDate) {
+      Alert.alert('Lỗi', 'Ngày kết thúc phải sau ngày công bố');
+      return false;
+    }
+
     return true;
+  };
+
+  // Handle Publish Date Change
+  const handlePublishDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowPublishDatePicker(false);
+    } 
+    if (selectedDate) {
+      const currentDateTime = new Date(auctionData.publishDate);
+      selectedDate.setHours(currentDateTime.getHours());
+      selectedDate.setMinutes(currentDateTime.getMinutes());
+      setAuctionData({ ...auctionData, publishDate: selectedDate.toISOString() });
+    }
+  };
+
+  // Handle Publish Time Change
+  const handlePublishTimeChange = (event: any, selectedTime?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowPublishTimePicker(false);
+    }
+    if (selectedTime) {
+      const currentDateTime = new Date(auctionData.publishDate);
+      currentDateTime.setHours(selectedTime.getHours());
+      currentDateTime.setMinutes(selectedTime.getMinutes());
+      setAuctionData({ ...auctionData, publishDate: currentDateTime.toISOString() });
+    }
   };
 
   // Handle End Date Change
@@ -178,8 +247,23 @@ export default function CreateAuctionScreen() {
       setShowEndDatePicker(false);
     }
     if (selectedDate) {
-      const dateString = selectedDate.toISOString().split('T')[0];
-      setAuctionData({ ...auctionData, endDate: dateString });
+      const currentDateTime = new Date(auctionData.endDate);
+      selectedDate.setHours(currentDateTime.getHours());
+      selectedDate.setMinutes(currentDateTime.getMinutes());
+      setAuctionData({ ...auctionData, endDate: selectedDate.toISOString() });
+    }
+  };
+
+  // Handle End Time Change
+  const handleEndTimeChange = (event: any, selectedTime?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowEndTimePicker(false);
+    }
+    if (selectedTime) {
+      const currentDateTime = new Date(auctionData.endDate);
+      currentDateTime.setHours(selectedTime.getHours());
+      currentDateTime.setMinutes(selectedTime.getMinutes());
+      setAuctionData({ ...auctionData, endDate: currentDateTime.toISOString() });
     }
   };
 
@@ -189,39 +273,45 @@ export default function CreateAuctionScreen() {
       setShowExpectedHarvestPicker(false);
     }
     if (selectedDate) {
-      const dateString = selectedDate.toISOString().split('T')[0];
-      setExpectedHarvestDate(dateString);
+      const currentDateTime = new Date(expectedHarvestDate || new Date());
+      selectedDate.setHours(currentDateTime.getHours());
+      selectedDate.setMinutes(currentDateTime.getMinutes());
+      setExpectedHarvestDate(selectedDate.toISOString());
     }
   };
 
-  // Handle Publish Date Change
-  const handlePublishDateChange = (event: any, selectedDate?: Date) => {
+  // Handle Expected Harvest Time Change
+  const handleExpectedHarvestTimeChange = (event: any, selectedTime?: Date) => {
     if (Platform.OS === 'android') {
-      setShowPublishDatePicker(false);
-    } 
-    if (selectedDate) {
-      const dateString = selectedDate.toISOString().split('T')[0];
-      setAuctionData({ ...auctionData, publishDate: dateString });
+      setShowExpectedHarvestTimePicker(false);
+    }
+    if (selectedTime) {
+      const currentDateTime = new Date(expectedHarvestDate || new Date());
+      currentDateTime.setHours(selectedTime.getHours());
+      currentDateTime.setMinutes(selectedTime.getMinutes());
+      setExpectedHarvestDate(currentDateTime.toISOString());
     }
   };
 
-  const handleCreateAuctionInfo = async () => {
+  const createAuctionWithStatus = async (status: 'Draft' | 'Pending') => {
     if (!validateForm()) return;
 
     try {
-      setLoading(true);
+      setShowLoadingModal(true);
+      setLoadingMessage(status === 'Draft' ? 'Đang lưu bản nháp...' : 'Đang tạo đấu giá...');
 
       // Get current user to get farmerId
       const user = await getCurrentUser();
       if (!user) {
         Alert.alert('Lỗi', 'Không thể lấy thông tin người dùng');
+        setShowLoadingModal(false);
         return;
       }
 
       // Create auction session
       const auctionSessionData: CreateAuctionData = {
-        publishDate: new Date(auctionData.publishDate).toISOString(),
-        endDate: new Date(auctionData.endDate).toISOString(),
+        publishDate: auctionData.publishDate,
+        endDate: auctionData.endDate,
         farmerId: user.id,
         startingPrice: parseFloat(auctionData.startingPrice),
         minBidIncrement: parseFloat(auctionData.minBidIncrement),
@@ -230,10 +320,13 @@ export default function CreateAuctionScreen() {
         enableAntiSniping,
         antiSnipingExtensionSeconds: enableAntiSniping ? parseInt(antiSnipingSeconds) : null,
         enableReserveProxy: true,
+        status: status === 'Draft' ? 0 : 1, // 0 = Draft, 1 = Pending
         note: auctionData.note,
         expectedHarvestDate: new Date(expectedHarvestDate).toISOString(),
-        expectedTotalQuantity: getTotalExpectedQuantity(), // Calculate from selected crops
+        expectedTotalQuantity: getTotalExpectedQuantity(),
       };
+
+      console.log('Creating auction with data:', JSON.stringify(auctionSessionData, null, 2));
 
       const auctionSession = await createAuctionSession(auctionSessionData);
 
@@ -245,14 +338,18 @@ export default function CreateAuctionScreen() {
         });
       }
 
-      Alert.alert('Thành công', `Phiên đấu giá đã được tạo!\nTổng số lượng: ${getTotalExpectedQuantity()} kg`, [
+      const successMessage = status === 'Draft'
+        ? `Bản nháp đấu giá đã được lưu thành công!\nTổng số lượng: ${getTotalExpectedQuantity()} kg`
+        : `Phiên đấu giá đã được tạo thành công!\nTổng số lượng: ${getTotalExpectedQuantity()} kg`;
+
+      Alert.alert('Thành công', successMessage, [
         {
           text: 'OK',
           onPress: () => {
             // Reset form
             setAuctionData({
-              publishDate: new Date().toISOString().split('T')[0],
-              endDate: new Date().toISOString().split('T')[0],
+              publishDate: new Date().toISOString(),
+              endDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
               startingPrice: '',
               minBidIncrement: '',
               note: '',
@@ -269,11 +366,35 @@ export default function CreateAuctionScreen() {
         },
       ]);
     } catch (error) {
-      Alert.alert('Lỗi', 'Không thể tạo phiên đấu giá. Vui lòng thử lại.');
+      const errorMessage = status === 'Draft'
+        ? 'Không thể lưu bản nháp. Vui lòng thử lại.'
+        : 'Không thể tạo phiên đấu giá. Vui lòng thử lại.';
+      Alert.alert('Lỗi', errorMessage);
       console.error('Error creating auction:', error);
     } finally {
-      setLoading(false);
+      setShowLoadingModal(false);
     }
+  };
+
+  const handleCreateDraft = () => createAuctionWithStatus('Draft');
+  const handleCreatePending = () => {
+    Alert.alert(
+      'Xác nhận tạo đấu giá',
+      `Bạn chắc chắn muốn tạo phiên đấu giá với:\n• Số vườn: ${selectedCrops.length}\n• Tổng số lượng: ${getTotalExpectedQuantity()} kg\n\nHành động này không thể hoàn tác?`,
+      [
+        {
+          text: 'Hủy',
+          onPress: () => {},
+          style: 'cancel',
+        },
+        {
+          text: 'Tạo đấu giá',
+          onPress: () => createAuctionWithStatus('Pending'),
+          style: 'default',
+        },
+      ],
+      { cancelable: true }
+    );
   };
 
   return (
@@ -287,7 +408,7 @@ export default function CreateAuctionScreen() {
       >
         <View style={styles.headerInfo}>
           <Text style={styles.subtitle}>
-            Nhập thông tin phiên đấu giá và chọn sản phẩm
+        Vui lòng nhập thông tin phiên đấu giá 
           </Text>
         </View>
 
@@ -316,7 +437,7 @@ export default function CreateAuctionScreen() {
               selectedCrops.map((item, index) => (
                 <View key={index} style={styles.selectedCropItem}>
                   <View style={styles.selectedCropInfo}>
-                    <Text style={styles.selectedCropName}>{item.crop.custardAppleType}</Text>
+                    <Text style={styles.selectedCropName}>{item.crop.name}</Text>
                     <Text style={styles.selectedCropQuantity}>
                       Số lượng: {item.totalQuantity} kg
                     </Text>
@@ -335,18 +456,29 @@ export default function CreateAuctionScreen() {
               </View>
             )}
           </View>
-          {/* Publish Date */}
+          {/* Publish Date & Time */}
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>Ngày công bố *</Text>
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => setShowPublishDatePicker(true)}
-            >
-              <Calendar size={20} color="#6B7280" />
-              <Text style={styles.dateButtonText}>
-                {auctionData.publishDate || 'Chọn ngày công bố'}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.dateTimeContainer}>
+              <TouchableOpacity
+                style={[styles.dateButton, { flex: 1 }]}
+                onPress={() => setShowPublishDatePicker(true)}
+              >
+                <Calendar size={20} color="#6B7280" />
+                <Text style={styles.dateButtonText}>
+                  {auctionData.publishDate ? new Date(auctionData.publishDate).toLocaleDateString('vi-VN') : 'Chọn ngày'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.dateButton, { flex: 0.8, marginLeft: 8 }]}
+                onPress={() => setShowPublishTimePicker(true)}
+              >
+                <Clock size={20} color="#6B7280" />
+                <Text style={styles.dateButtonText}>
+                  {auctionData.publishDate ? new Date(auctionData.publishDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Giờ'}
+                </Text>
+              </TouchableOpacity>
+            </View>
             {showPublishDatePicker && (
               <DateTimePicker
                 value={auctionData.publishDate ? new Date(auctionData.publishDate) : new Date()}
@@ -356,27 +488,54 @@ export default function CreateAuctionScreen() {
                 minimumDate={new Date()}
               />
             )}
+            {showPublishTimePicker && (
+              <DateTimePicker
+                value={auctionData.publishDate ? new Date(auctionData.publishDate) : new Date()}
+                mode="time"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handlePublishTimeChange}
+              />
+            )}
           </View>
 
-          {/* End Date */}
+          {/* End Date & Time */}
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>Ngày kết thúc *</Text>
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => setShowEndDatePicker(true)}
-            >
-              <Calendar size={20} color="#6B7280" />
-              <Text style={styles.dateButtonText}>
-                {auctionData.endDate || 'Chọn ngày kết thúc'}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.dateTimeContainer}>
+              <TouchableOpacity
+                style={[styles.dateButton, { flex: 1 }]}
+                onPress={() => setShowEndDatePicker(true)}
+              >
+                <Calendar size={20} color="#6B7280" />
+                <Text style={styles.dateButtonText}>
+                  {auctionData.endDate ? new Date(auctionData.endDate).toLocaleDateString('vi-VN') : 'Chọn ngày'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.dateButton, { flex: 0.8, marginLeft: 8 }]}
+                onPress={() => setShowEndTimePicker(true)}
+              >
+                <Clock size={20} color="#6B7280" />
+                <Text style={styles.dateButtonText}>
+                  {auctionData.endDate ? new Date(auctionData.endDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Giờ'}
+                </Text>
+              </TouchableOpacity>
+            </View>
             {showEndDatePicker && (
               <DateTimePicker
                 value={auctionData.endDate ? new Date(auctionData.endDate) : new Date()}
                 mode="date"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={handleEndDateChange}
-                minimumDate={new Date()}
+                minimumDate={auctionData.publishDate ? new Date(auctionData.publishDate) : new Date()}
+              />
+            )}
+            {showEndTimePicker && (
+              <DateTimePicker
+                value={auctionData.endDate ? new Date(auctionData.endDate) : new Date()}
+                mode="time"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleEndTimeChange}
               />
             )}
           </View>
@@ -393,9 +552,72 @@ export default function CreateAuctionScreen() {
                 onChangeText={(text) =>
                   setAuctionData({ ...auctionData, startingPrice: text })
                 }
+                onFocus={() => setShowStartingPriceSuggestions(true)}
                 keyboardType="numeric"
               />
             </View>
+            {showStartingPriceSuggestions && (
+              <View style={styles.suggestionsContainer}>
+                <View style={styles.suggestionsRow}>
+                  <TouchableOpacity
+                    style={styles.suggestionButton}
+                    onPress={() => {
+                      setAuctionData({ ...auctionData, startingPrice: '1000000' });
+                      setShowStartingPriceSuggestions(false);
+                    }}
+                  >
+                    <Text style={styles.suggestionButtonText}>1.000.000</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.suggestionButton}
+                    onPress={() => {
+                      setAuctionData({ ...auctionData, startingPrice: '1500000' });
+                      setShowStartingPriceSuggestions(false);
+                    }}
+                  >
+                    <Text style={styles.suggestionButtonText}>1.500.000</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.suggestionButton}
+                    onPress={() => {
+                      setAuctionData({ ...auctionData, startingPrice: '2000000' });
+                      setShowStartingPriceSuggestions(false);
+                    }}
+                  >
+                    <Text style={styles.suggestionButtonText}>2.000.000</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.suggestionsRow}>
+                  <TouchableOpacity
+                    style={styles.suggestionButton}
+                    onPress={() => {
+                      setAuctionData({ ...auctionData, startingPrice: '3000000' });
+                      setShowStartingPriceSuggestions(false);
+                    }}
+                  >
+                    <Text style={styles.suggestionButtonText}>3.000.000</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.suggestionButton}
+                    onPress={() => {
+                      setAuctionData({ ...auctionData, startingPrice: '50000000' });
+                      setShowStartingPriceSuggestions(false);
+                    }}
+                  >
+                    <Text style={styles.suggestionButtonText}>5.000.000</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.suggestionButton}
+                    onPress={() => {
+                      setAuctionData({ ...auctionData, startingPrice: '90000000' });
+                      setShowStartingPriceSuggestions(false);
+                    }}
+                  >
+                    <Text style={styles.suggestionButtonText}>9.000.000</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
           </View>
 
           {/* Min Bid Increment */}
@@ -410,9 +632,72 @@ export default function CreateAuctionScreen() {
                 onChangeText={(text) =>
                   setAuctionData({ ...auctionData, minBidIncrement: text })
                 }
+                onFocus={() => setShowMinBidSuggestions(true)}
                 keyboardType="numeric"
               />
             </View>
+            {showMinBidSuggestions && (
+              <View style={styles.suggestionsContainer}>
+                <View style={styles.suggestionsRow}>
+                  <TouchableOpacity
+                    style={styles.suggestionButton}
+                    onPress={() => {
+                      setAuctionData({ ...auctionData, minBidIncrement: '10000' });
+                      setShowMinBidSuggestions(false);
+                    }}
+                  >
+                    <Text style={styles.suggestionButtonText}>10.000</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.suggestionButton}
+                    onPress={() => {
+                      setAuctionData({ ...auctionData, minBidIncrement: '50000' });
+                      setShowMinBidSuggestions(false);
+                    }}
+                  >
+                    <Text style={styles.suggestionButtonText}>50.000</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.suggestionButton}
+                    onPress={() => {
+                      setAuctionData({ ...auctionData, minBidIncrement: '100000' });
+                      setShowMinBidSuggestions(false);
+                    }}
+                  >
+                    <Text style={styles.suggestionButtonText}>100.000</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.suggestionsRow}>
+                  <TouchableOpacity
+                    style={styles.suggestionButton}
+                    onPress={() => {
+                      setAuctionData({ ...auctionData, minBidIncrement: '150000' });
+                      setShowMinBidSuggestions(false);
+                    }}
+                  >
+                    <Text style={styles.suggestionButtonText}>150.000</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.suggestionButton}
+                    onPress={() => {
+                      setAuctionData({ ...auctionData, minBidIncrement: '200000' });
+                      setShowMinBidSuggestions(false);
+                    }}
+                  >
+                    <Text style={styles.suggestionButtonText}>200.000</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.suggestionButton}
+                    onPress={() => {
+                      setAuctionData({ ...auctionData, minBidIncrement: '250000' });
+                      setShowMinBidSuggestions(false);
+                    }}
+                  >
+                    <Text style={styles.suggestionButtonText}>250.000</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
           </View>
 
           {/* Enable Buy Now */}
@@ -469,8 +754,42 @@ export default function CreateAuctionScreen() {
                 placeholder="120"
                 value={antiSnipingSeconds}
                 onChangeText={setAntiSnipingSeconds}
+                onFocus={() => setShowAntiSnipingSuggestions(true)}
                 keyboardType="numeric"
               />
+              {showAntiSnipingSuggestions && (
+                <View style={styles.suggestionsContainer}>
+                  <View style={styles.suggestionsRow}>
+                    <TouchableOpacity
+                      style={styles.suggestionButton}
+                      onPress={() => {
+                        setAntiSnipingSeconds('60');
+                        setShowAntiSnipingSuggestions(false);
+                      }}
+                    >
+                      <Text style={styles.suggestionButtonText}>60 giây</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.suggestionButton}
+                      onPress={() => {
+                        setAntiSnipingSeconds('120');
+                        setShowAntiSnipingSuggestions(false);
+                      }}
+                    >
+                      <Text style={styles.suggestionButtonText}>120 giây</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.suggestionButton}
+                      onPress={() => {
+                        setAntiSnipingSeconds('180');
+                        setShowAntiSnipingSuggestions(false);
+                      }}
+                    >
+                      <Text style={styles.suggestionButtonText}>180 giây</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
             </View>
           )}
 
@@ -478,15 +797,26 @@ export default function CreateAuctionScreen() {
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>Ngày thu hoạch dự kiến *</Text>
             <Text style={styles.fieldNote}>( Sau 10 ngày kể từ ngày kết thúc đấu giá )</Text>
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => setShowExpectedHarvestPicker(true)}
-            >
-              <Calendar size={20} color="#6B7280" />
-              <Text style={styles.dateButtonText}>
-                {expectedHarvestDate || 'Chọn ngày thu hoạch dự kiến'}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.dateTimeContainer}>
+              <TouchableOpacity
+                style={[styles.dateButton, { flex: 1 }]}
+                onPress={() => setShowExpectedHarvestPicker(true)}
+              >
+                <Calendar size={20} color="#6B7280" />
+                <Text style={styles.dateButtonText}>
+                  {expectedHarvestDate ? new Date(expectedHarvestDate).toLocaleDateString('vi-VN') : 'Chọn ngày'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.dateButton, { flex: 0.8, marginLeft: 8 }]}
+                onPress={() => setShowExpectedHarvestTimePicker(true)}
+              >
+                <Clock size={20} color="#6B7280" />
+                <Text style={styles.dateButtonText}>
+                  {expectedHarvestDate ? new Date(expectedHarvestDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Giờ'}
+                </Text>
+              </TouchableOpacity>
+            </View>
             {showExpectedHarvestPicker && (
               <DateTimePicker
                 value={expectedHarvestDate ? new Date(expectedHarvestDate) : new Date()}
@@ -494,6 +824,14 @@ export default function CreateAuctionScreen() {
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={handleExpectedHarvestDateChange}
                 minimumDate={auctionData.endDate ? new Date(new Date(auctionData.endDate).getTime() + 10 * 24 * 60 * 60 * 1000) : new Date()}
+              />
+            )}
+            {showExpectedHarvestTimePicker && (
+              <DateTimePicker
+                value={expectedHarvestDate ? new Date(expectedHarvestDate) : new Date()}
+                mode="time"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleExpectedHarvestTimeChange}
               />
             )}
           </View>
@@ -514,22 +852,36 @@ export default function CreateAuctionScreen() {
           </View>
 
           {/* Nút tạo thông tin đấu giá */}
-          <TouchableOpacity
-            onPress={handleCreateAuctionInfo}
-            style={[styles.createButton, loading && styles.createButtonDisabled]}
-            disabled={loading || selectedCrops.length === 0}
-          >
-            <Text style={styles.createButtonText}>
-              {loading ? 'Đang tạo...' : 'Tạo Phiên Đấu Giá'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              onPress={handleCreateDraft}
+              style={[styles.draftButton, selectedCrops.length === 0 && styles.buttonDisabled]}
+              disabled={selectedCrops.length === 0}
+            >
+              <Text style={styles.draftButtonText}>
+                Lưu Bản Nháp
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={handleCreatePending}
+              style={[styles.createButton, selectedCrops.length === 0 && styles.buttonDisabled]}
+              disabled={selectedCrops.length === 0}
+            >
+              <Text style={styles.createButtonText}>
+                Tạo Đấu Giá
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Note */}
         <View style={styles.noteContainer}>
           <Text style={styles.noteText}>
-            📝 <Text style={styles.noteTextBold}>Lưu ý:</Text> Chọn ít nhất 1 vườn để tạo phiên đấu giá. 
-            Tổng số lượng ước tính sẽ được tính tự động .
+            📝 <Text style={styles.noteTextBold}>Lưu ý:</Text> 
+            {'\n'}• Chỉ có thể chọn vườn có chi tiết phân loại đánh giá
+            {'\n'}• Tổng số lượng dự kiến sẽ được tính tự động
+            {'\n'}• Mỗi vườn phải được hoàn thiện trước khi tạo đấu giá
           </Text>
         </View>
       </ScrollView>
@@ -560,9 +912,9 @@ export default function CreateAuctionScreen() {
                     disabled={loading}
                   >
                     <View>
-                      <Text style={styles.cropItemName}>{item.custardAppleType}</Text>
+                      <Text style={styles.cropItemName}>{item.name}</Text>
                       <Text style={styles.cropItemDate}>
-                        Trồng từ: {new Date(item.startPlantingDate).toLocaleDateString('vi-VN')}
+                        Loại: {item.custardAppleType} • Trồng từ: {new Date(item.startPlantingDate).toLocaleDateString('vi-VN')}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -574,6 +926,16 @@ export default function CreateAuctionScreen() {
                 }
               />
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Loading Modal */}
+      <Modal visible={showLoadingModal} transparent animationType="fade">
+        <View style={styles.loadingModalOverlay}>
+          <View style={styles.loadingModalContent}>
+            <ActivityIndicator size="large" color="#3B82F6" />
+            <Text style={styles.loadingModalText}>{loadingMessage}</Text>
           </View>
         </View>
       </Modal>
@@ -755,6 +1117,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: '#fff',
   },
+  dateTimeContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   dateButtonText: {
     marginLeft: 8,
     fontSize: 16,
@@ -775,19 +1141,58 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   createButton: {
+    flex: 1,
     backgroundColor: '#22C55E',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
+  },
+  draftButton: {
+    flex: 1,
+    backgroundColor: '#6B7280',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 12,
     marginTop: 16,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   createButtonDisabled: {
     opacity: 0.6,
+  },
+  draftButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   createButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  loadingModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    minWidth: 200,
+  },
+  loadingModalText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#374151',
+    textAlign: 'center',
   },
   noteContainer: {
     marginTop: 16,
@@ -859,5 +1264,32 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     color: '#6B7280',
+  },
+  suggestionsContainer: {
+    marginTop: 8,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    padding: 12,
+    gap: 8,
+  },
+  suggestionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'space-between',
+  },
+  suggestionButton: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+  },
+  suggestionButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#3B82F6',
   },
 });
