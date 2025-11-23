@@ -8,17 +8,20 @@ import {
   Alert,
   ScrollView,
   Image,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Mail, MapPin, Phone, LogOut, User, MapPinned, Building2 } from 'lucide-react-native';
+import { Mail, MapPin, Phone, LogOut, User, MapPinned, Building2, FileText, X } from 'lucide-react-native';
 import { getCurrentUser, logout } from '../../../../services/authService';
 import Header from '../../../../components/shared/Header';
+import ReportHistoryScreen from '../../../../components/wholesaler/ReportHistoryScreen';
 
 export default function WholesalerProfileScreen() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [logoutLoading, setLogoutLoading] = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
 
   useEffect(() => {
     loadUserData();
@@ -179,6 +182,18 @@ export default function WholesalerProfileScreen() {
           </View>
         </View>
 
+        {/* Reports Section */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Báo cáo</Text>
+          <TouchableOpacity
+            style={styles.reportButton}
+            onPress={() => setReportModalVisible(true)}
+          >
+            <FileText size={20} color="#FFFFFF" />
+            <Text style={styles.reportButtonText}>Xem lịch sử báo cáo</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Account Information */}
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>Thông tin tài khoản</Text>
@@ -214,6 +229,24 @@ export default function WholesalerProfileScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Report Modal */}
+      <Modal
+        visible={reportModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setReportModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Lịch sử báo cáo</Text>
+            <TouchableOpacity onPress={() => setReportModalVisible(false)} style={styles.closeButton}>
+              <X size={24} color="#111827" />
+            </TouchableOpacity>
+          </View>
+          <ReportHistoryScreen isTab={true} />
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -226,11 +259,11 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 60,
+    paddingTop: 100,
     paddingBottom: 120,
   },
   scrollContent: {
-    paddingBottom: 80,
+    paddingBottom: 120,
   },
   loadingContainer: {
     flex: 1,
@@ -257,7 +290,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
-    marginTop: 40,
+    marginTop: 8,
     marginBottom: 20,
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -291,7 +324,6 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     backgroundColor: '#FFFFFF',
-
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -338,6 +370,20 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginBottom: 12,
   },
+  reportButton: {
+    backgroundColor: '#16A34A',
+    borderRadius: 12,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  reportButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
   accountInfoCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -379,5 +425,28 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+    paddingTop: 50,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
   },
 });

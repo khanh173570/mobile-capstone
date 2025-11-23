@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Alert } from 'react-native';
 import { FarmerAuction, getAuctionStatusInfo } from '../../services/auctionService';
+import { getReportsByAuction } from '../../services/reportService';
 import { 
   Calendar, 
   DollarSign, 
@@ -8,7 +9,9 @@ import {
   Package,
   User,
   ArrowRight,
-  CheckCircle
+  CheckCircle,
+  MoreVertical,
+  X
 } from 'lucide-react-native';
 
 // Icon wrapper component that renders icons safely
@@ -28,6 +31,11 @@ interface AuctionCardProps {
 }
 
 export default function AuctionCard({ auction, onPress, isFirst, isLast }: AuctionCardProps) {
+  const [showMenu, setShowMenu] = useState(false);
+  const [reports, setReports] = useState<any[]>([]);
+  const [showReportsModal, setShowReportsModal] = useState(false);
+  const [loadingReports, setLoadingReports] = useState(false);
+  
   const statusInfo = getAuctionStatusInfo(auction.status);
   
   const formatDate = (dateString: string) => {
@@ -62,6 +70,21 @@ export default function AuctionCard({ auction, onPress, isFirst, isLast }: Aucti
   const isExpired = new Date(auction.endDate) < new Date();
   const isActive = auction.status === 'OnGoing';
 
+  const handleViewReports = async () => {
+    setShowMenu(false);
+    setLoadingReports(true);
+    try {
+      const fetchedReports = await getReportsByAuction(auction.id);
+      setReports(fetchedReports);
+      setShowReportsModal(true);
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+      Alert.alert('Lỗi', 'Không thể tải báo cáo');
+    } finally {
+      setLoadingReports(false);
+    }
+  };
+
   return (
     <TouchableOpacity 
       style={[
@@ -81,7 +104,25 @@ export default function AuctionCard({ auction, onPress, isFirst, isLast }: Aucti
             </Text>
           </View>
         </View>
+        <TouchableOpacity 
+          style={styles.menuButton}
+          onPress={() => setShowMenu(!showMenu)}
+        >
+          <MoreVertical size={20} color="#6B7280" />
+        </TouchableOpacity>
       </View>
+
+      {/* Menu Dropdown */}
+      {showMenu && (
+        <View style={styles.menuDropdown}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={handleViewReports}
+          >
+            <Text style={styles.menuItemText}>📋 Xem báo cáo</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <View style={styles.cardContent}>
         {/* Price Information */}
@@ -168,6 +209,61 @@ export default function AuctionCard({ auction, onPress, isFirst, isLast }: Aucti
           </View>
         )}
       </View>
+
+      {/* Reports Modal */}
+      <Modal
+        visible={showReportsModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowReportsModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Báo cáo đấu giá</Text>
+            <TouchableOpacity onPress={() => setShowReportsModal(false)}>
+              <X size={24} color="#111827" />
+            </TouchableOpacity>
+          </View>
+          
+          {loadingReports ? (
+            <View style={styles.loadingContainer}>
+              <Text>Đang tải...</Text>
+            </View>
+          ) : reports.length > 0 ? (
+            <View style={styles.reportsList}>
+              {reports.map((report) => (
+                <View key={report.id} style={styles.reportCard}>
+                  <View style={styles.reportHeader}>
+                    <Text style={styles.reportType}>
+                      {report.reportType === 'Fraud' ? 'Gian lận' :
+                       report.reportType === 'FalseInformation' ? 'Thông tin sai lệch' :
+                       report.reportType === 'TechnicalIssue' ? 'Vấn đề kỹ thuật' :
+                       report.reportType === 'PolicyViolated' ? 'Vi phạm chính sách' : 'Khác'}
+                    </Text>
+                    <Text style={[styles.reportStatus, 
+                      report.reportStatus === 'Pending' ? { color: '#F59E0B' } :
+                      report.reportStatus === 'InReview' ? { color: '#3B82F6' } :
+                      report.reportStatus === 'Resolved' ? { color: '#10B981' } : {}
+                    ]}>
+                      {report.reportStatus === 'Pending' ? 'Chờ xử lý' :
+                       report.reportStatus === 'InReview' ? 'Đang xem xét' :
+                       report.reportStatus === 'Resolved' ? 'Đã giải quyết' : report.reportStatus}
+                    </Text>
+                  </View>
+                  <Text style={styles.reportNote}>{report.note}</Text>
+                  <Text style={styles.reportDate}>
+                    {new Date(report.createdAt).toLocaleDateString('vi-VN')}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Không có báo cáo nào</Text>
+            </View>
+          )}
+        </View>
+      </Modal>
     </TouchableOpacity>
   );
 }
@@ -331,5 +427,101 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#059669',
     fontWeight: '600',
+  },
+  menuButton: {
+    padding: 8,
+  },
+  menuDropdown: {
+    position: 'absolute',
+    top: 50,
+    right: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 100,
+  },
+  menuItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  menuItemText: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '500',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+    paddingTop: 50,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reportsList: {
+    padding: 16,
+  },
+  reportCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  reportHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  reportType: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  reportStatus: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  reportNote: {
+    fontSize: 14,
+    color: '#374151',
+    marginBottom: 8,
+  },
+  reportDate: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#6B7280',
   },
 });
