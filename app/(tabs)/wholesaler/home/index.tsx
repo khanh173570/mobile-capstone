@@ -9,12 +9,14 @@ import {
   Alert,
   RefreshControl,
   Image,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MapPin, DollarSign, Calendar, Package, User } from 'lucide-react-native';
+import { MapPin, DollarSign, Calendar, Package, User, MoreVertical } from 'lucide-react-native';
 import { getAuctionsByStatus, getAuctionStatusInfo } from '../../../../services/auctionService';
 import { getCurrentUser } from '../../../../services/authService';
 import Header from '../../../../components/shared/Header';
+import ReportAuctionModal from '../../../../components/shared/ReportAuctionModal';
 
 interface Auction {
   id: string;
@@ -38,6 +40,9 @@ export default function WholesalerHomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [selectedAuctionId, setSelectedAuctionId] = useState<string>('');
+  const [menuVisibleFor, setMenuVisibleFor] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -108,102 +113,128 @@ export default function WholesalerHomeScreen() {
     } as any);
   };
 
+  const handleReportPress = (auctionId: string) => {
+    setSelectedAuctionId(auctionId);
+    setReportModalVisible(true);
+    setMenuVisibleFor(null);
+  };
+
   const renderAuctionCard = ({ item }: { item: Auction }) => {
     const statusInfo = getStatusInfo(item.status);
     const currentPrice = item.currentPrice || item.startingPrice;
 
     return (
-      <TouchableOpacity
-        style={styles.auctionCard}
-        onPress={() => handleAuctionPress(item.id)}
-      >
-        <View style={styles.cardHeader}>
-          <View style={styles.sessionCodeContainer}>
-            <Text style={styles.sessionCode}>{item.sessionCode}</Text>
-          </View>
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: statusInfo.backgroundColor }
-            ]}
-          >
-            <Text style={[styles.statusText, { color: statusInfo.color }]}>
-              {statusInfo.name}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.cardContent}>
-          {/* Price & Quantity Row */}
-          <View style={styles.twoColumnRow}>
-            <View style={[styles.infoBox, { flex: 1, marginRight: 8 }]}>
-              <View style={styles.infoBoxHeader}>
-                <DollarSign size={16} color="#16A34A" />
-                <Text style={styles.infoBoxLabel}>Giá hiện tại</Text>
-              </View>
-              <Text style={styles.priceValue}>
-                {formatCurrency(currentPrice)}
-              </Text>
-              <Text style={styles.minBidText}>
-                Tối thiểu: {formatCurrency(item.minBidIncrement)}
+      <View style={styles.auctionCardWrapper}>
+        <TouchableOpacity
+          style={styles.auctionCard}
+          onPress={() => handleAuctionPress(item.id)}
+        >
+          <View style={styles.cardHeader}>
+            <View style={styles.sessionCodeContainer}>
+              <Text style={styles.sessionCode}>{item.sessionCode}</Text>
+            </View>
+            <View
+              style={[
+                styles.statusBadge,
+                { backgroundColor: statusInfo.backgroundColor }
+              ]}
+            >
+              <Text style={[styles.statusText, { color: statusInfo.color }]}>
+                {statusInfo.name}
               </Text>
             </View>
+            <TouchableOpacity
+              style={styles.menuButtonInline}
+              onPress={() => setMenuVisibleFor(menuVisibleFor === item.id ? null : item.id)}
+            >
+              <MoreVertical size={20} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
 
-            <View style={[styles.infoBox, { flex: 1 }]}>
-              <View style={styles.infoBoxHeader}>
-                <Package size={16} color="#F59E0B" />
-                <Text style={styles.infoBoxLabel}>Dự kiến</Text>
+          <View style={styles.cardContent}>
+            {/* Price & Quantity Row */}
+            <View style={styles.twoColumnRow}>
+              <View style={[styles.infoBox, { flex: 1, marginRight: 8 }]}>
+                <View style={styles.infoBoxHeader}>
+                  <DollarSign size={16} color="#16A34A" />
+                  <Text style={styles.infoBoxLabel}>Giá hiện tại</Text>
+                </View>
+                <Text style={styles.priceValue}>
+                  {formatCurrency(currentPrice)}
+                </Text>
+                <Text style={styles.minBidText}>
+                  Tối thiểu: {formatCurrency(item.minBidIncrement)}
+                </Text>
               </View>
-              <View style={styles.quantityRow}>
-                <Text style={styles.quantityValue}>{item.expectedTotalQuantity}</Text>
-                <Text style={styles.quantityUnit}>kg</Text>
+
+              <View style={[styles.infoBox, { flex: 1 }]}>
+                <View style={styles.infoBoxHeader}>
+                  <Package size={16} color="#F59E0B" />
+                  <Text style={styles.infoBoxLabel}>Dự kiến</Text>
+                </View>
+                <View style={styles.quantityRow}>
+                  <Text style={styles.quantityValue}>{item.expectedTotalQuantity}</Text>
+                  <Text style={styles.quantityUnit}>kg</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Date Information - Highlighted */}
+            <View style={styles.dateHighlight}>
+              <View style={styles.dateItem}>
+                <Calendar size={16} color="#059669" />
+                <View style={styles.dateContent}>
+                  <Text style={styles.dateLabel}>Bắt đầu:</Text>
+                  <Text style={styles.dateValue}>
+                    {formatDate(item.publishDate)}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.dateDivider} />
+              <View style={styles.dateItem}>
+                <Calendar size={16} color="#3B82F6" />
+                <View style={styles.dateContent}>
+                  <Text style={styles.dateLabel}>Kết thúc:</Text>
+                  <Text style={styles.dateValue}>
+                    {formatDate(item.endDate)}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.dateDivider} />
+              <View style={styles.dateItem}>
+                <Calendar size={16} color="#059669" />
+                <View style={styles.dateContent}>
+                  <Text style={styles.dateLabel}>Thu hoạch:</Text>
+                  <Text style={styles.dateValue}>
+                    {formatDate(item.expectedHarvestDate)}
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
 
-          {/* Date Information - Highlighted */}
-          <View style={styles.dateHighlight}>
-            <View style={styles.dateItem}>
-              <Calendar size={16} color="#059669" />
-              <View style={styles.dateContent}>
-                <Text style={styles.dateLabel}>Bắt đầu:</Text>
-                <Text style={styles.dateValue}>
-                  {formatDate(item.publishDate)}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.dateDivider} />
-            <View style={styles.dateItem}>
-              <Calendar size={16} color="#3B82F6" />
-              <View style={styles.dateContent}>
-                <Text style={styles.dateLabel}>Kết thúc:</Text>
-                <Text style={styles.dateValue}>
-                  {formatDate(item.endDate)}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.dateDivider} />
-            <View style={styles.dateItem}>
-              <Calendar size={16} color="#059669" />
-              <View style={styles.dateContent}>
-                <Text style={styles.dateLabel}>Thu hoạch:</Text>
-                <Text style={styles.dateValue}>
-                  {formatDate(item.expectedHarvestDate)}
-                </Text>
-              </View>
-            </View>
+          <View style={styles.cardFooter}>
+            <TouchableOpacity
+              style={styles.viewDetailButton}
+              onPress={() => handleAuctionPress(item.id)}
+            >
+              <Text style={styles.viewDetailButtonText}>Xem chi tiết →</Text>
+            </TouchableOpacity>
           </View>
-        </View>
+        </TouchableOpacity>
 
-        <View style={styles.cardFooter}>
-          <TouchableOpacity
-            style={styles.viewDetailButton}
-            onPress={() => handleAuctionPress(item.id)}
-          >
-            <Text style={styles.viewDetailButtonText}>Xem chi tiết →</Text>
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
+        {/* Dropdown Menu */}
+        {menuVisibleFor === item.id && (
+          <View style={styles.menuDropdown}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleReportPress(item.id)}
+            >
+              <Text style={styles.menuItemText}>📢 Báo cáo đấu giá</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
     );
   };
 
@@ -259,6 +290,13 @@ export default function WholesalerHomeScreen() {
           />
         )}
       </View>
+
+      {/* Report Modal */}
+      <ReportAuctionModal
+        visible={reportModalVisible}
+        auctionId={selectedAuctionId}
+        onClose={() => setReportModalVisible(false)}
+      />
     </View>
   );
 }
@@ -299,11 +337,14 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     paddingTop: 8,
   },
+  auctionCardWrapper: {
+    marginBottom: 12,
+    position: 'relative',
+  },
   auctionCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
     borderWidth: 2,
     borderColor: '#D1D5DB',
     shadowColor: '#000',
@@ -312,6 +353,45 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 5,
   },
+  menuButtonInline: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    backgroundColor: '#F9FAFB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    flexShrink: 0,
+  },
+  menuDropdown: {
+    position: 'absolute',
+    top: 48,
+    right: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    overflow: 'hidden',
+    zIndex: 20,
+    minWidth: 160,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  menuItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  menuItemText: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '500',
+  },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -319,12 +399,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 0,
     borderBottomWidth: 0,
+    gap: 8,
   },
   sessionCodeContainer: {
     flex: 1,
+    minWidth: 0,
   },
   sessionCode: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: '#16A34A',
   },
@@ -332,6 +414,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    flexShrink: 0,
   },
   statusText: {
     fontSize: 13,
