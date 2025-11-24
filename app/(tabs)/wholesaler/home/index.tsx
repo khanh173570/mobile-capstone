@@ -43,10 +43,52 @@ export default function WholesalerHomeScreen() {
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [selectedAuctionId, setSelectedAuctionId] = useState<string>('');
   const [menuVisibleFor, setMenuVisibleFor] = useState<string | null>(null);
+  const [countdowns, setCountdowns] = useState<{ [key: string]: any }>({});
 
   useEffect(() => {
     loadData();
   }, []);
+
+  const calculateCountdown = (endDate: string) => {
+    const end = new Date(endDate).getTime();
+    const now = new Date().getTime();
+    const diff = end - now;
+
+    if (diff <= 0) {
+      return {
+        days: '00',
+        hours: '00',
+        minutes: '00',
+        seconds: '00',
+        isEnded: true,
+      };
+    }
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    return {
+      days: String(days).padStart(2, '0'),
+      hours: String(hours).padStart(2, '0'),
+      minutes: String(minutes).padStart(2, '0'),
+      seconds: String(seconds).padStart(2, '0'),
+      isEnded: false,
+    };
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const newCountdowns: { [key: string]: any } = {};
+      auctions.forEach((auction) => {
+        newCountdowns[auction.id] = calculateCountdown(auction.endDate);
+      });
+      setCountdowns(newCountdowns);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [auctions]);
 
   const loadData = async () => {
     try {
@@ -129,6 +171,32 @@ export default function WholesalerHomeScreen() {
           style={styles.auctionCard}
           onPress={() => handleAuctionPress(item.id)}
         >
+          {/* Countdown Section - Top */}
+          <View style={styles.countdownTopSection}>
+            {countdowns[item.id] && !countdowns[item.id].isEnded ? (
+              <View style={styles.countdownContainer}>
+                <View style={styles.countdownBox}>
+                  <Text style={styles.countdownValue}>{countdowns[item.id].days}</Text>
+                  <Text style={styles.countdownLabel}>Ngày</Text>
+                </View>
+                <View style={styles.countdownBox}>
+                  <Text style={styles.countdownValue}>{countdowns[item.id].hours}</Text>
+                  <Text style={styles.countdownLabel}>Giờ</Text>
+                </View>
+                <View style={styles.countdownBox}>
+                  <Text style={styles.countdownValue}>{countdowns[item.id].minutes}</Text>
+                  <Text style={styles.countdownLabel}>Phút</Text>
+                </View>
+                <View style={styles.countdownBox}>
+                  <Text style={styles.countdownValue}>{countdowns[item.id].seconds}</Text>
+                  <Text style={styles.countdownLabel}>Giây</Text>
+                </View>
+              </View>
+            ) : (
+              <Text style={styles.endedText}>Đã kết thúc</Text>
+            )}
+          </View>
+
           <View style={styles.cardHeader}>
             <View style={styles.sessionCodeContainer}>
               <Text style={styles.sessionCode}>{item.sessionCode}</Text>
@@ -419,6 +487,47 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  countdownTopSection: {
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  countdownContainer: {
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
+  },
+  countdownBox: {
+    backgroundColor: '#1F2937',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    width: 72,
+    height: 70,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  countdownValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  countdownLabel: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#F59E0B',
+    textAlign: 'center',
+  },
+  endedText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#EF4444',
   },
   cardContent: {
     marginBottom: 12,

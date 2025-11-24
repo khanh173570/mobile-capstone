@@ -45,6 +45,21 @@ interface Auction {
   expectedTotalQuantity: number;
   createdAt: string;
   updatedAt: string;
+  harvests?: Array<{
+    id: string;
+    harvestDate: string | null;
+    startDate: string;
+    totalQuantity: number;
+    unit: string;
+    note: string;
+    salePrice: number;
+    harvestGradeDetails: Array<{
+      id: string;
+      grade: string;
+      quantity: number;
+      unit: string;
+    }>;
+  }>;
 }
 
 export default function WholesalerAuctionDetailScreen() {
@@ -65,82 +80,61 @@ export default function WholesalerAuctionDetailScreen() {
     try {
       setLoading(true);
       
-      // Get auction details
-      const auctionData = await getAuctionsByStatus('OnGoing', 1, 50);
-      const foundAuction = auctionData.data?.items?.find((a: Auction) => a.id === auctionId);
+      // Get full auction detail including harvests
+      const auctionDetailData = await getAuctionDetail(auctionId as string);
+      console.log('Auction detail:', auctionDetailData);
       
-      if (foundAuction) {
-        setAuction(foundAuction);
-        console.log('Found auction:', foundAuction.id);
+      if (auctionDetailData) {
+        setAuction(auctionDetailData);
 
-        // Get auction detail with harvests
-        try {
-          const auctionDetailData = await getAuctionDetail(auctionId as string);
-          console.log('Auction detail:', auctionDetailData);
-          const harvestDetails = auctionDetailData.harvestDetails || [];
-          
-          if (!harvestDetails || harvestDetails.length === 0) {
-            console.warn('No harvest details found for auction:', auctionId);
-            setLoading(false);
-            return;
-          }
-
-          // Extract unique crop IDs - handle both cropId and cropID
-          const cropIds = [...new Set(
-            harvestDetails
-              .filter((h: any) => h !== null)
-              .map((h: any) => h.cropID || (h as any).cropId)
-              .filter((id: any) => id !== undefined)
-          )] as string[];
-
-          console.log('Unique crop IDs:', cropIds);
-
-          if (cropIds.length === 0) {
-            console.warn('No crop IDs found in harvests');
-            setLoading(false);
-            return;
-          }
-
-          // Fetch crop details, farms, and current harvests
+        // Get farm and crop info from harvests
+        const harvests = auctionDetailData.harvests || [];
+        
+        if (harvests.length > 0) {
           const farmsMap = new Map<string, Farm>();
-          const harvestsMap: { [key: string]: CurrentHarvest } = {};
-          
-          const cropPromises = cropIds.map(async (cropId: string) => {
-            const crop = await getCropById(cropId);
-            if (crop) {
-              // Get farm for this crop
-              if (crop.farmID) {
-                const farmDataResponse = await getFarmById(crop.farmID);
-                if (farmDataResponse && 'data' in farmDataResponse) {
-                  farmsMap.set(crop.farmID, farmDataResponse.data);
+          const cropsArray: Crop[] = [];
+
+          // For each harvest, try to get farm and crop info
+          for (const harvest of harvests) {
+            try {
+              // Try to get harvest details by ID which should have cropID
+              const harvestDetail = await getHarvestById(harvest.id);
+              console.log('Harvest detail:', harvestDetail);
+              
+              if (harvestDetail && harvestDetail.cropID) {
+                // Get crop info
+                try {
+                  const cropData = await getCropById(harvestDetail.cropID);
+                  if (cropData) {
+                    cropsArray.push(cropData);
+                    
+                    // Get farm info from crop
+                    if (cropData.farmID) {
+                      try {
+                        const farmData = await getFarmById(cropData.farmID);
+                        if (farmData && 'data' in farmData && farmData.data) {
+                          farmsMap.set(farmData.data.id, farmData.data);
+                        }
+                      } catch (error) {
+                        console.log('Error getting farm:', error);
+                      }
+                    }
+                  }
+                } catch (error) {
+                  console.log('Error getting crop:', error);
                 }
               }
-
-              // Get current harvest for this crop
-              try {
-                const currentHarvest = await getCurrentHarvest(cropId);
-                harvestsMap[cropId] = currentHarvest;
-                console.log(`Current harvest for crop ${cropId}:`, currentHarvest);
-              } catch (error) {
-                console.log(`No current harvest for crop ${cropId}:`, error);
-              }
+            } catch (error) {
+              console.log('Error getting harvest detail:', error);
             }
-            return crop;
-          });
+          }
 
-          const cropDetails = await Promise.all(cropPromises);
-          const validCrops = cropDetails.filter(c => c !== null) as Crop[];
-          
-          console.log('Loaded crops:', validCrops.length);
-          console.log('Loaded farms:', farmsMap.size);
-          console.log('Loaded harvests:', Object.keys(harvestsMap).length);
-          
-          setCrops(validCrops);
-          setFarms(farmsMap);
-          setCurrentHarvests(harvestsMap);
-        } catch (error) {
-          console.error('Error getting auction detail:', error);
-          // Even if we can't get harvests, show auction info
+          if (cropsArray.length > 0) {
+            setCrops(cropsArray);
+          }
+          if (farmsMap.size > 0) {
+            setFarms(farmsMap);
+          }
         }
       }
     } catch (error) {
@@ -270,14 +264,14 @@ export default function WholesalerAuctionDetailScreen() {
             <Text style={styles.subsectionTitle}>Thông tin giá</Text>
             <View style={styles.subsectionContent}>
               <View style={styles.infoRow}>
-                <DollarSign size={20} color="#059669" />
+                {/* <DollarSign size={20} color="#059669" /> */}
                 <Text style={styles.infoLabel}>Giá khởi điểm</Text>
                 <Text style={styles.infoValue}>{formatCurrency(auction.startingPrice)}</Text>
               </View>
 
               {currentPrice > 0 && (
                 <View style={styles.infoRow}>
-                  <DollarSign size={20} color="#DC2626" />
+                  {/* <DollarSign size={20} color="#DC2626" /> */}
                   <Text style={styles.infoLabel}>Giá hiện tại</Text>
                   <Text style={[styles.infoValue, { color: '#DC2626', fontWeight: 'bold' }]}>
                     {formatCurrency(currentPrice)}
@@ -300,7 +294,7 @@ export default function WholesalerAuctionDetailScreen() {
             <Text style={styles.subsectionTitle}>Thời gian</Text>
             <View style={styles.subsectionContent}>
               <View style={styles.infoRow}>
-                <Clock size={20} color="#16A34A" />
+                {/* <Clock size={20} color="#16A34A" /> */}
                 <Text style={[styles.infoLabel, { color: '#16A34A', fontWeight: '600' }]}>Thời gian còn lại</Text>
                 <Text style={[styles.infoValue, { color: '#16A34A' }]}>
                   {getTimeRemaining(auction.endDate)}
@@ -308,7 +302,7 @@ export default function WholesalerAuctionDetailScreen() {
               </View>
 
               <View style={styles.infoRow}>
-                <Calendar size={20} color="#16A34A" />
+                {/* <Calendar size={20} color="#16A34A" /> */}
                 <Text style={[styles.infoLabel, { color: '#16A34A', fontWeight: '600' }]}>Kết thúc</Text>
                 <Text style={styles.infoValue}>
                   {formatDate(auction.endDate)}
@@ -316,7 +310,7 @@ export default function WholesalerAuctionDetailScreen() {
               </View>
 
               <View style={styles.infoRow}>
-                <Calendar size={20} color="#16A34A" />
+                {/* <Calendar size={20} color="#16A34A" /> */}
                 <Text style={[styles.infoLabel, { color: '#16A34A', fontWeight: '600' }]}>Thu hoạch dự kiến</Text>
                 <Text style={styles.infoValue}>
                   {formatDate(auction.expectedHarvestDate)}
@@ -332,7 +326,7 @@ export default function WholesalerAuctionDetailScreen() {
             <Text style={styles.subsectionTitle}>Thông tin sản phẩm</Text>
             <View style={styles.subsectionContent}>
               <View style={styles.infoRow}>
-                <Package size={20} color="#16A34A" />
+                {/* <Package size={20} color="#16A34A" /> */}
                 <Text style={[styles.infoLabel, { color: '#16A34A', fontWeight: '600' }]}>Số lượng dự kiến</Text>
                 <Text style={styles.infoValue}>
                   {auction.expectedTotalQuantity > 0 
@@ -344,34 +338,118 @@ export default function WholesalerAuctionDetailScreen() {
           </View>
         </View>
 
-        {/* Farm Information */}
-        {farms.size > 0 && Array.from(farms.values()).map((farm) => (
-          <View key={farm.id} style={styles.section}>
-            <Text style={styles.sectionTitle}>Thông tin trang trại</Text>
-            <View style={styles.farmCard}>
-              <View style={styles.farmHeader}>
-                <View style={styles.farmIcon}>
-                  <MapPin size={20} color="#22C55E" />
+        {/* Harvest Information */}
+        {auction.harvests && auction.harvests.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Thông tin vụ thu hoạch</Text>
+            {auction.harvests.map((harvest, index) => (
+              <View key={harvest.id} style={styles.harvestCard}>
+                {/* <View style={styles.harvestHeader}>
+                  <Text style={styles.harvestTitle}>Vụ {index + 1}</Text>
+                </View> */}
+
+                <View style={styles.currentHarvestDetails}>
+                  {harvest.harvestDate ? (
+                    <View style={styles.harvestDetailRow}>
+                      {/* <Calendar size={16} color="#059669" /> */}
+                      <Text style={styles.harvestDetailLabel}>Ngày thu hoạch:</Text>
+                      <Text style={styles.harvestDetailValue}>
+                        {formatDate(harvest.harvestDate)}
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={styles.harvestDetailRow}>
+                      {/* <Calendar size={16} color="#F59E0B" /> */}
+                      <Text style={styles.harvestDetailLabel}>Bắt đầu:</Text>
+                      <Text style={styles.harvestDetailValue}>
+                        {formatDate(harvest.startDate)}
+                      </Text>
+                    </View>
+                  )}
+
+                  <View style={styles.harvestDetailRow}>
+                    {/* <Package size={16} color="#059669" /> */}
+                    <Text style={styles.harvestDetailLabel}>Tổng số lượng:</Text>
+                    <Text style={styles.harvestDetailValue}>
+                      {harvest.totalQuantity} {harvest.unit}
+                    </Text>
+                  </View>
+
+                  {harvest.salePrice > 0 && (
+                    <View style={styles.harvestDetailRow}>
+                      {/* <DollarSign size={16} color="#059669" /> */}
+                      <Text style={styles.harvestDetailLabel}>Giá bán:</Text>
+                      <Text style={styles.harvestDetailValue}>
+                        {formatCurrency(harvest.salePrice)}
+                      </Text>
+                    </View>
+                  )}
+
+                  {harvest.note && harvest.note !== 'Không có' && (
+                    <View style={styles.harvestDetailRow}>
+                      <Text style={styles.harvestNote}>Ghi chú: {harvest.note}</Text>
+                    </View>
+                  )}
                 </View>
-                <View style={styles.farmInfo}>
-                  <Text style={styles.farmTitle}>{farm.name}</Text>
-                  <Text style={styles.farmSubtitle}>ID: {farm.id.substring(0, 8)}...</Text>
-                </View>
+
+                {/* Harvest Grade Details */}
+                {harvest.harvestGradeDetails && harvest.harvestGradeDetails.length > 0 && (
+                  <View style={styles.gradeDetailsSection}>
+                    <Text style={styles.gradeDetailsSectionTitle}>
+                      Chi tiết phân loại chất lượng:
+                    </Text>
+                    {harvest.harvestGradeDetails.map((gradeDetail) => {
+                      const gradeMap: { [key: string]: { name: string; color: string } } = {
+                        'Grade1': { name: 'Hàng Loại 1', color: '#10B981' },
+                        'Grade2': { name: 'Hàng Loại 2', color: '#F59E0B' },
+                        'Grade3': { name: 'Hàng Loại 3', color: '#EF4444' },
+                      };
+                      const gradeInfo = gradeMap[gradeDetail.grade] || { name: gradeDetail.grade, color: '#6B7280' };
+                      
+                      return (
+                        <View key={gradeDetail.id} style={styles.gradeDetailRow}>
+                          <View style={styles.gradeDetailContent}>
+                            <Text style={[styles.gradeName, { color: gradeInfo.color }]}>
+                              {gradeInfo.name}
+                            </Text>
+                            <Text style={styles.gradeQuantity}>
+                              {gradeDetail.quantity} {gradeDetail.unit || 'kg'}
+                            </Text>
+                          </View>
+                          <View style={styles.gradeBadge}>
+                            <View style={[styles.gradeIndicator, { backgroundColor: gradeInfo.color }]} />
+                          </View>
+                        </View>
+                      );
+                    })}
+
+                    {/* Total calculation */}
+                    <View style={styles.gradeTotalRow}>
+                      <Text style={styles.gradeTotalLabel}>Tổng cộng:</Text>
+                      <Text style={styles.gradeTotalValue}>
+                        {harvest.harvestGradeDetails.reduce((sum, grade) => sum + grade.quantity, 0)} kg
+                      </Text>
+                    </View>
+                  </View>
+                )}
               </View>
-            </View>
+            ))}
           </View>
-        ))}
+        )}
 
         {/* Crop Information */}
-        {crops.length > 0 && crops.map((crop) => {
+        {crops.length > 0 && crops.map((crop, cropIndex) => {
           const farm = crop.farmID ? farms.get(crop.farmID) : null;
           const currentHarvest = currentHarvests[crop.id];
           
           return (
             <View key={crop.id} style={styles.section}>
+              {/* <Text style={styles.sectionTitle}>Chi tiết vườn</Text> */}
+
+              {/* Farm Information */}
               {farm && (
                 <>
-                  <Text style={styles.sectionTitle}>Thông tin trang trại</Text>
+                  <Text style={styles.subsectionTitle}>Thông tin Nông trại</Text>
                   <View style={styles.farmCard}>
                     <View style={styles.farmHeader}>
                       <View style={styles.farmIcon}>
@@ -379,14 +457,16 @@ export default function WholesalerAuctionDetailScreen() {
                       </View>
                       <View style={styles.farmInfo}>
                         <Text style={styles.farmTitle}>{farm.name}</Text>
-                        <Text style={styles.farmSubtitle}>ID: {farm.id.substring(0, 8)}...</Text>
+                        <Text style={styles.farmSubtitle}>Mã vườn: {farm.id.substring(0, 8)}...</Text>
                       </View>
                     </View>
                   </View>
                 </>
               )}
 
-              <Text style={styles.sectionTitle}>Chi tiết vườn</Text>
+              {/* Crop Details */}
+              <View style={styles.miniDivider} />
+              <Text style={styles.subsectionTitle}>Thông tin vườn trồng</Text>
               <View style={styles.cropCard}>
                 <View style={styles.cropHeader}>
                   <View style={styles.cropIcon}>
@@ -420,8 +500,8 @@ export default function WholesalerAuctionDetailScreen() {
 
               {/* Current Harvest Section */}
               {currentHarvest && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Vụ thu hoạch hiện tại</Text>
+                <>
+                  <Text style={styles.subsectionTitle}>Vụ thu hoạch hiện tại</Text>
                   <View style={styles.harvestCard}>
                     <View style={styles.currentHarvestDetails}>
                       {currentHarvest.harvestDate ? (
@@ -452,7 +532,7 @@ export default function WholesalerAuctionDetailScreen() {
 
                       {currentHarvest.salePrice > 0 && (
                         <View style={styles.harvestDetailRow}>
-                          <DollarSign size={16} color="#059669" />
+                          {/* <DollarSign size={16} color="#059669" /> */}
                           <Text style={styles.harvestDetailLabel}>Giá bán:</Text>
                           <Text style={styles.harvestDetailValue}>
                             {formatCurrency(currentHarvest.salePrice)}
@@ -511,7 +591,7 @@ export default function WholesalerAuctionDetailScreen() {
                       </View>
                     )}
                   </View>
-                </View>
+                </>
               )}
             </View>
           );
@@ -607,6 +687,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#374151',
     marginBottom: 12,
+    marginTop: 4,
   },
   subsectionContent: {
     paddingLeft: 8,
@@ -763,8 +844,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     backgroundColor: '#F9FAFB',
+    marginBottom: 12,
+  },
+  harvestHeader: {
+    marginBottom: 12,
+  },
+  harvestTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#16A34A',
   },
   currentHarvestDetails: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 12,
     marginBottom: 12,
   },
   harvestDetailRow: {
@@ -809,7 +902,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F3F4F6',
     borderRadius: 8,
     marginBottom: 6,
   },

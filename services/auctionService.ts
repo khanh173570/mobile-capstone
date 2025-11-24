@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { fetchWithTokenRefresh } from './authService';
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl;
 
@@ -626,58 +627,23 @@ export const getAuctionDetail = async (auctionId: string): Promise<any> => {
       throw new Error('No authentication token found');
     }
 
-    // Get auction session harvests to link with harvest ID
-    const harvestsResponse = await fetch(
-      `${API_URL}/auction-service/englishauction/${auctionId}/harvests`,
+    // Get full auction detail including harvests using fetchWithTokenRefresh
+    const response = await fetchWithTokenRefresh(
+      `${API_URL}/auction-service/englishauction/${auctionId}`,
       {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       }
     );
 
-    let auctionHarvests: any[] = [];
-    if (harvestsResponse.ok) {
-      const harvestsData = await harvestsResponse.json();
-      auctionHarvests = harvestsData.data || [];
+    if (!response.ok) {
+      throw new Error(`Failed to get auction detail: ${response.status}`);
     }
 
-    // Get harvest details for each harvest ID
-    const harvestDetails = await Promise.all(
-      auctionHarvests.map(async (ah: any) => {
-        try {
-          const harvestResponse = await fetch(
-            `${API_URL}/farm-service/harvest/${ah.harvestId}`,
-            {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-            }
-          );
-
-          if (harvestResponse.ok) {
-            const harvestData = await harvestResponse.json();
-            return {
-              ...harvestData.data,
-              harvestId: ah.harvestId, // Ensure harvestId is included
-            };
-          }
-          return null;
-        } catch (error) {
-          console.error(`Error fetching harvest ${ah.harvestId}:`, error);
-          return null;
-        }
-      })
-    );
-
-    return {
-      auctionHarvests,
-      harvestDetails: harvestDetails.filter(h => h !== null),
-    };
+    const data = await response.json();
+    return data.data; // Returns full auction object including harvests array
   } catch (error) {
     console.error('Error getting auction detail:', error);
     throw error;

@@ -673,3 +673,157 @@ export const clearFarmUpdateStatus = async (): Promise<void> => {
     console.error('Error clearing farm update status:', error);
   }
 };
+
+// Refresh access token using refresh token
+export const refreshAccessToken = async (): Promise<boolean> => {
+  try {
+    const refreshToken = await AsyncStorage.getItem('refreshToken');
+    
+    if (!refreshToken) {
+      console.log('No refresh token available');
+      return false;
+    }
+
+    console.log('Attempting to refresh access token...');
+    
+    const response = await fetch(`${API_URL}/Auth/RefreshToken`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${refreshToken}`,
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!response.ok) {
+      console.error('Failed to refresh token:', response.status);
+      // Refresh token has expired, clear tokens
+      await AsyncStorage.removeItem('accessToken');
+      await AsyncStorage.removeItem('refreshToken');
+      return false;
+    }
+
+    const data = await response.json();
+
+    if (data.isSuccess && data.data.accessToken) {
+      // Store new access token
+      await AsyncStorage.setItem('accessToken', data.data.accessToken);
+      
+      // Update refresh token if provided
+      if (data.data.refreshToken) {
+        await AsyncStorage.setItem('refreshToken', data.data.refreshToken);
+      }
+
+      console.log('Access token refreshed successfully');
+      return true;
+    } else {
+      console.error('Refresh token response invalid:', data);
+      await AsyncStorage.removeItem('accessToken');
+      await AsyncStorage.removeItem('refreshToken');
+      return false;
+    }
+  } catch (error) {
+    console.error('Error refreshing access token:', error);
+    await AsyncStorage.removeItem('accessToken');
+    await AsyncStorage.removeItem('refreshToken');
+    return false;
+  }
+};
+
+// Helper function to check if token is expired
+export const isTokenExpired = (token: string): boolean => {
+  try {
+    // JWT token format: header.payload.signature
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+
+    // Decode payload
+    let decoded = parts[1];
+    
+    // Add padding if needed
+    const padding = 4 - (decoded.length % 4);
+    if (padding !== 4) {
+      decoded += '='.repeat(padding);
+    }
+
+    const payload = JSON.parse(atob(decoded));
+    
+    // Check if exp claim exists and token is expired
+    if (payload.exp) {
+      const expirationTime = payload.exp * 1000; // Convert to milliseconds
+      const currentTime = Date.now();
+      
+      // Consider token expired if it expires in less than 1 minute
+      const isExpired = currentTime >= (expirationTime - 60000);
+      
+      if (isExpired) {
+        console.log('Token will expire soon:', new Date(expirationTime));
+      }
+      
+      return isExpired;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error checking token expiration:', error);
+    return true; // Consider expired on error
+  }
+};
+
+// Wrapper to handle token refresh on 401 errors
+export const fetchWithTokenRefresh = async (
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> => {
+  try {
+    let accessToken = await AsyncStorage.getItem('accessToken');
+    
+    // Check if token is expired and refresh if needed
+    if (accessToken && isTokenExpired(accessToken)) {
+      console.log('Token expired, attempting refresh...');
+      const refreshed = await refreshAccessToken();
+      
+      if (!refreshed) {
+        throw new Error('Failed to refresh token');
+      }
+      
+      accessToken = await AsyncStorage.getItem('accessToken');
+    }
+
+    // Add authorization header
+    const headers = {
+      ...options.headers,
+      'Authorization': `Bearer ${accessToken}`,
+    } as HeadersInit;
+
+    let response = await fetch(url, {
+      ...options,
+      headers,
+    });
+
+    // If we get 401, try refreshing token and retry
+    if (response.status === 401) {
+      console.log('Got 401, attempting to refresh token...');
+      const refreshed = await refreshAccessToken();
+      
+      if (refreshed) {
+        accessToken = await AsyncStorage.getItem('accessToken');
+        
+        const retryHeaders = {
+          ...options.headers,
+          'Authorization': `Bearer ${accessToken}`,
+        } as HeadersInit;
+
+        response = await fetch(url, {
+          ...options,
+          headers: retryHeaders,
+        });
+      }
+    }
+
+    return response;
+  } catch (error) {
+    console.error('Error in fetchWithTokenRefresh:', error);
+    throw error;
+  }
+};
