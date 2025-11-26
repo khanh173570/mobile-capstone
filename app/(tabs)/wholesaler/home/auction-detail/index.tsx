@@ -680,7 +680,7 @@ export default function WholesalerAuctionDetailScreen() {
               // Send notification to trigger home screen refresh
               sendLocalNotification({
                 title: 'Cập nhật bid mới',
-                body: 'Đang làm mới dữ liệu đấu giá...',
+                body: 'Đang làm mới dữ liệu đấu giá..',
                 type: 'auction_log',
                 auctionId: auctionId as string,
                 data: {
