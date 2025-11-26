@@ -30,6 +30,11 @@ import {
 import { getCropById, Crop, getCropsByFarmId } from '../../../../../services/cropService';
 import { getFarmById, Farm } from '../../../../../services/farmService';
 import { getHarvestById } from '../../../../../services/harvestService';
+import CreateBidModal from '../../../../../components/wholesaler/BidModalV2';
+import BidListDisplay from '../../../../../components/wholesaler/BidListDisplay';
+import { useAuctionContext } from '../../../../../hooks/useAuctionContext';
+import { getBidsForAuction, BidResponse } from '../../../../../services/bidService';
+import { sendLocalNotification } from '../../../../../services/notificationService';
 
 interface Auction {
   id: string;
@@ -64,17 +69,29 @@ interface Auction {
 
 export default function WholesalerAuctionDetailScreen() {
   const { auctionId } = useLocalSearchParams();
+  const { setCurrentAuctionId } = useAuctionContext();
   const [auction, setAuction] = useState<Auction | null>(null);
   const [farms, setFarms] = useState<Map<string, Farm>>(new Map());
   const [crops, setCrops] = useState<Crop[]>([]);
   const [currentHarvests, setCurrentHarvests] = useState<{ [key: string]: CurrentHarvest }>({});
   const [loading, setLoading] = useState(true);
+  const [showBidModal, setShowBidModal] = useState(false);
+  const [bids, setBids] = useState<BidResponse[]>([]);
+  const [loadingBids, setLoadingBids] = useState(false);
+  const [selectedBidForEdit, setSelectedBidForEdit] = useState<BidResponse | undefined>(undefined);
 
   useEffect(() => {
     if (auctionId) {
+      // Set current auction ID for global polling
+      setCurrentAuctionId(auctionId as string);
       loadAuctionDetail();
     }
-  }, [auctionId]);
+
+    // Cleanup: Reset auction ID when leaving
+    return () => {
+      setCurrentAuctionId(null);
+    };
+  }, [auctionId, setCurrentAuctionId]);
 
   const loadAuctionDetail = async () => {
     try {
@@ -142,6 +159,25 @@ export default function WholesalerAuctionDetailScreen() {
       Alert.alert('Lỗi', 'Không thể tải thông tin đấu giá');
     } finally {
       setLoading(false);
+    }
+
+    // Fetch bids for this auction if loaded successfully
+    if (auctionId) {
+      await loadBids(auctionId as string);
+    }
+  };
+
+  const loadBids = async (auctionSessionId: string) => {
+    try {
+      setLoadingBids(true);
+      const bidsList = await getBidsForAuction(auctionSessionId);
+      console.log('Fetched bids:', bidsList);
+      setBids(bidsList);
+    } catch (error) {
+      console.error('Error loading bids:', error);
+      // Silently fail - bids not loading shouldn't block UI
+    } finally {
+      setLoadingBids(false);
     }
   };
 
@@ -597,11 +633,69 @@ export default function WholesalerAuctionDetailScreen() {
           );
         })}
 
-        {/* Bidding Button */}
-        <TouchableOpacity style={styles.bidButton}>
-          <Text style={styles.bidButtonText}>Đặt giá</Text>
-        </TouchableOpacity>
+        {/* Bid List Display */}
+        <BidListDisplay
+          bids={bids}
+          loading={loadingBids}
+          minBidIncrement={auction?.minBidIncrement || 0}
+          onEditBid={(bid) => {
+            setSelectedBidForEdit(bid);
+            setShowBidModal(true);
+          }}
+        />
+
+        {/* Bidding Button - Only show if no bids yet */}
+        {bids.length === 0 && (
+          <TouchableOpacity 
+            style={[
+              styles.bidButton,
+              (!auction || auction.status !== '3') && styles.bidButtonDisabled
+            ]}
+            onPress={() => {
+              console.log('Bid button pressed, current auction status:', auction?.status);
+              setSelectedBidForEdit(undefined);
+              setShowBidModal(true);
+            }}
+            disabled={!auction}
+          >
+            <Text style={styles.bidButtonText}>Tham gia đấu giá</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
+
+      {/* Create Bid Modal */}
+      {auction && (
+        <CreateBidModal
+          visible={showBidModal}
+          onClose={() => {
+            console.log('Closing bid modal');
+            setShowBidModal(false);
+            setSelectedBidForEdit(undefined);
+          }}
+          onBidCreated={() => {
+            // Reload bids after creating/updating
+            if (auctionId) {
+              loadBids(auctionId as string);
+              
+              // Send notification to trigger home screen refresh
+              sendLocalNotification({
+                title: 'Cập nhật bid mới',
+                body: 'Đang làm mới dữ liệu đấu giá...',
+                type: 'auction_log',
+                auctionId: auctionId as string,
+                data: {
+                  action: 'refresh_bids',
+                },
+              });
+            }
+          }}
+          currentPrice={auction.currentPrice || auction.startingPrice}
+          minBidIncrement={auction.minBidIncrement}
+          auctionSessionId={auction.id}
+          sessionCode={auction.sessionCode}
+          existingBid={selectedBidForEdit}
+        />
+      )}
     </View>
   );
 }
@@ -953,13 +1047,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingVertical: 14,
     paddingHorizontal: 24,
-    backgroundColor: '#16A34A',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#16A34A',
+  },
+  bidButtonDisabled: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#D1D5DB',
   },
   bidButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#1F2937',
   },
 });

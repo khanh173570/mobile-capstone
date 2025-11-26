@@ -10,8 +10,10 @@ import {
   RefreshControl,
   Image,
   Modal,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { MapPin, DollarSign, Calendar, Package, User, MoreVertical } from 'lucide-react-native';
 import { getAuctionsByStatus, getAuctionStatusInfo } from '../../../../services/auctionService';
 import { getCurrentUser } from '../../../../services/authService';
@@ -48,6 +50,13 @@ export default function WholesalerHomeScreen() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('WholesalerHomeScreen focused - reloading auctions');
+      loadData();
+    }, [])
+  );
 
   const calculateCountdown = (endDate: string) => {
     const end = new Date(endDate).getTime();
