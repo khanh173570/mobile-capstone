@@ -17,9 +17,11 @@ import {
   Package, 
   Clock,
   Leaf,
-  Eye
+  Eye,
+  History
 } from 'lucide-react-native';
 import Header from '../../../../components/shared/Header';
+import AuctionLogModal from '../../../../components/farmer/AuctionLogModal';
 import { 
   FarmerAuction, 
   getAuctionSessionHarvests, 
@@ -30,6 +32,8 @@ import {
   CurrentHarvest
 } from '../../../../services/auctionService';
 import { getCropById, Crop } from '../../../../services/cropService';
+import { getAuctionLogs, AuctionLog } from '../../../../services/auctionLogService';
+import { useAuctionContext } from '../../../../hooks/useAuctionContext';
 
 interface AuctionDetailScreenProps {
   auction: FarmerAuction;
@@ -37,6 +41,7 @@ interface AuctionDetailScreenProps {
 
 export default function AuctionDetailScreen() {
   const { auctionData } = useLocalSearchParams();
+  const { setCurrentAuctionId } = useAuctionContext();
   const [auction, setAuction] = useState<FarmerAuction | null>(null);
   const [harvests, setHarvests] = useState<HarvestDetail[]>([]);
   const [crops, setCrops] = useState<Crop[]>([]);
@@ -44,12 +49,17 @@ export default function AuctionDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [harvestsLoading, setHarvestsLoading] = useState(false);
   const [cropsLoading, setCropsLoading] = useState(false);
+  const [logs, setLogs] = useState<AuctionLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [showLogsModal, setShowLogsModal] = useState(false);
 
   useEffect(() => {
     if (auctionData) {
       try {
         const parsedAuction = JSON.parse(auctionData as string);
         setAuction(parsedAuction);
+        // Set current auction ID for global polling
+        setCurrentAuctionId(parsedAuction.id);
         loadAuctionHarvests(parsedAuction.id);
         loadAuctionCrops(parsedAuction.id);
       } catch (error) {
@@ -59,7 +69,27 @@ export default function AuctionDetailScreen() {
       }
     }
     setLoading(false);
-  }, [auctionData]);
+
+    // Cleanup: Reset auction ID when leaving detail page
+    return () => {
+      setCurrentAuctionId(null);
+    };
+  }, [auctionData, setCurrentAuctionId]);
+
+  const loadAuctionLogs = async () => {
+    if (!auction?.id) return;
+    setLogsLoading(true);
+    try {
+      const logsData = await getAuctionLogs(auction.id);
+      setLogs(logsData);
+      setShowLogsModal(true);
+    } catch (error) {
+      console.error('Error loading auction logs:', error);
+      Alert.alert('Lỗi', 'Không thể tải lịch sử thay đổi');
+    } finally {
+      setLogsLoading(false);
+    }
+  };
 
   const loadAuctionHarvests = async (auctionId: string) => {
     setHarvestsLoading(true);
@@ -321,7 +351,17 @@ export default function AuctionDetailScreen() {
           <ArrowLeft size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Chi tiết đấu giá</Text>
-        <View style={styles.headerSpace} />
+        <TouchableOpacity 
+          style={styles.historyButton}
+          onPress={loadAuctionLogs}
+          disabled={logsLoading}
+        >
+          {logsLoading ? (
+            <ActivityIndicator size="small" color="#6B7280" />
+          ) : (
+            <History size={24} color="#6B7280" />
+          )}
+        </TouchableOpacity>
       </View>
       
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -644,6 +684,13 @@ export default function AuctionDetailScreen() {
 
         <View style={{ height: 20 }} />
       </ScrollView>
+
+      <AuctionLogModal
+        visible={showLogsModal}
+        logs={logs}
+        loading={logsLoading}
+        onClose={() => setShowLogsModal(false)}
+      />
     </View>
   );
 }
@@ -667,15 +714,15 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
   },
+  historyButton: {
+    padding: 8,
+  },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1F2937',
     flex: 1,
     textAlign: 'center',
-  },
-  headerSpace: {
-    width: 40,
   },
   content: {
     flex: 1,
