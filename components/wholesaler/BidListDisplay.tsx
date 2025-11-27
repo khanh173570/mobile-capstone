@@ -103,7 +103,7 @@ export default function BidListDisplay({
                 onPress={() => onEditBid?.(bid)}
               >
                 <Edit2 size={14} color="#2563EB" />
-                <Text style={styles.editButtonText}>Mua với giá mới </Text>
+                <Text style={styles.editButtonText}>Mua với giá mới</Text>
               </TouchableOpacity>
             )}
           </View>
