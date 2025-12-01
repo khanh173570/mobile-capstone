@@ -44,7 +44,7 @@ export default function BidListDisplay({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>💰 Bids của bạn</Text>
+        <Text style={styles.title}> Bids của bạn</Text>
         <Text style={styles.count}>{bids.length} bid{bids.length > 1 ? 's' : ''}</Text>
       </View>
 

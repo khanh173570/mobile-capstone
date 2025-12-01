@@ -49,7 +49,7 @@ export default function CreateAuctionScreen() {
   const [enableBuyNow, setEnableBuyNow] = useState(false);
   const [buyNowPrice, setBuyNowPrice] = useState('');
   const [enableAntiSniping, setEnableAntiSniping] = useState(false);
-  const [antiSnipingSeconds, setAntiSnipingSeconds] = useState('120');
+  const [antiSnipingMinutes, setAntiSnipingMinutes] = useState('2'); // UI displays minutes, send as seconds
   const [expectedHarvestDate, setExpectedHarvestDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [showLoadingModal, setShowLoadingModal] = useState(false);
@@ -61,7 +61,6 @@ export default function CreateAuctionScreen() {
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [showExpectedHarvestPicker, setShowExpectedHarvestPicker] = useState(false);
-  const [showExpectedHarvestTimePicker, setShowExpectedHarvestTimePicker] = useState(false);
 
   // Crop selection modal states
   const [showCropModal, setShowCropModal] = useState(false);
@@ -100,7 +99,10 @@ export default function CreateAuctionScreen() {
         return;
       }
       const allCrops = await getCropsByFarmId(farmId);
-      setCrops(allCrops);
+      // Filter out crops with OpenForBidding status (2)
+      // Only show crops that can create auction
+      const eligibleCrops = allCrops.filter(crop => crop.status !== 2);
+      setCrops(eligibleCrops);
     } catch (error) {
       console.error('Error loading crops:', error);
       Alert.alert('Lỗi', 'Không thể tải danh sách sản phẩm');
@@ -112,6 +114,17 @@ export default function CreateAuctionScreen() {
   const handleSelectCrop = async (crop: Crop) => {
     try {
       setLoading(true);
+
+      // Check if crop status is OpenForBidding (2)
+      if (crop.status === 2) {
+        Alert.alert(
+          'Không thể tạo đấu giá',
+          `Vườn "${crop.name}" đang ở trạng thái "Đang trên sàn đấu giá".\n\nMỗi vườn chỉ được tạo 1 đấu giá. Vườn này đã có đấu giá rồi.`,
+          [{ text: 'Đóng' }]
+        );
+        return;
+      }
+
       const harvest = await getCurrentHarvest(crop.id);
       
       // Check if harvest exists and has grade details
@@ -171,8 +184,25 @@ export default function CreateAuctionScreen() {
       return false;
     }
 
+    // Validate publish date is at least 60 minutes from now
+    const now = new Date();
+    const publishDate = new Date(auctionData.publishDate);
+    const diffMinutesFromNow = (publishDate.getTime() - now.getTime()) / (1000 * 60);
+    if (diffMinutesFromNow < 60) {
+      Alert.alert('Lỗi', 'Ngày công bố phải sau thời điểm hiện tại ít nhất 60 phút để admin có thời gian duyệt');
+      return false;
+    }
+
     if (!auctionData.endDate) {
       Alert.alert('Lỗi', 'Vui lòng chọn ngày và giờ kết thúc');
+      return false;
+    }
+
+    // Validate endDate is at least 15 minutes after publishDate
+    const endDate = new Date(auctionData.endDate);
+    const diffMinutes = (endDate.getTime() - publishDate.getTime()) / (1000 * 60);
+    if (diffMinutes < 15) {
+      Alert.alert('Lỗi', 'Ngày kết thúc phải sau ngày công bố ít nhất 15 phút');
       return false;
     }
 
@@ -196,19 +226,11 @@ export default function CreateAuctionScreen() {
       return false;
     }
 
-    // Check expectedHarvestDate is at least 10 days after endDate
-    const endDate = new Date(auctionData.endDate);
+    // Check expectedHarvestDate is at least 3 days after endDate
     const expectedDate = new Date(expectedHarvestDate);
     const diffDays = (expectedDate.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24);
-    if (diffDays < 10) {
-      Alert.alert('Lỗi', 'Ngày thu hoạch dự kiến phải sau ngày kết thúc ít nhất 10 ngày');
-      return false;
-    }
-
-    // Validate endDate is after publishDate
-    const publishDate = new Date(auctionData.publishDate);
-    if (endDate <= publishDate) {
-      Alert.alert('Lỗi', 'Ngày kết thúc phải sau ngày công bố');
+    if (diffDays < 3) {
+      Alert.alert('Lỗi', 'Ngày thu hoạch dự kiến phải sau ngày kết thúc ít nhất 3 ngày');
       return false;
     }
 
@@ -267,29 +289,15 @@ export default function CreateAuctionScreen() {
     }
   };
 
-  // Handle Expected Harvest Date Change
+  // Handle Expected Harvest Date Change (only date, no time)
   const handleExpectedHarvestDateChange = (event: any, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
       setShowExpectedHarvestPicker(false);
     }
     if (selectedDate) {
-      const currentDateTime = new Date(expectedHarvestDate || new Date());
-      selectedDate.setHours(currentDateTime.getHours());
-      selectedDate.setMinutes(currentDateTime.getMinutes());
+      // Set time to start of day (00:00:00)
+      selectedDate.setHours(0, 0, 0, 0);
       setExpectedHarvestDate(selectedDate.toISOString());
-    }
-  };
-
-  // Handle Expected Harvest Time Change
-  const handleExpectedHarvestTimeChange = (event: any, selectedTime?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowExpectedHarvestTimePicker(false);
-    }
-    if (selectedTime) {
-      const currentDateTime = new Date(expectedHarvestDate || new Date());
-      currentDateTime.setHours(selectedTime.getHours());
-      currentDateTime.setMinutes(selectedTime.getMinutes());
-      setExpectedHarvestDate(currentDateTime.toISOString());
     }
   };
 
@@ -318,7 +326,7 @@ export default function CreateAuctionScreen() {
         enableBuyNow,
         buyNowPrice: enableBuyNow ? parseFloat(buyNowPrice) : null,
         enableAntiSniping,
-        antiSnipingExtensionSeconds: enableAntiSniping ? parseInt(antiSnipingSeconds) : null,
+        antiSnipingExtensionSeconds: enableAntiSniping ? parseInt(antiSnipingMinutes) * 60 : null, // Convert minutes to seconds
         enableReserveProxy: true,
         status: status === 'Draft' ? 0 : 1, // 0 = Draft, 1 = Pending
         note: auctionData.note,
@@ -358,7 +366,7 @@ export default function CreateAuctionScreen() {
             setEnableBuyNow(false);
             setBuyNowPrice('');
             setEnableAntiSniping(false);
-            setAntiSnipingSeconds('120');
+            setAntiSnipingMinutes('2');
             setExpectedHarvestDate('');
             // Navigate to auction management
             router.push('/farmer/auction-management');
@@ -745,15 +753,15 @@ export default function CreateAuctionScreen() {
             />
           </View>
 
-          {/* Anti Sniping Extension Seconds (conditional) */}
+          {/* Anti Sniping Extension Minutes (conditional) */}
           {enableAntiSniping && (
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>Thời gian gia hạn (giây) *</Text>
+              <Text style={styles.fieldLabel}>Thời gian gia hạn (phút) *</Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="120"
-                value={antiSnipingSeconds}
-                onChangeText={setAntiSnipingSeconds}
+                placeholder="2"
+                value={antiSnipingMinutes}
+                onChangeText={setAntiSnipingMinutes}
                 onFocus={() => setShowAntiSnipingSuggestions(true)}
                 keyboardType="numeric"
               />
@@ -763,29 +771,40 @@ export default function CreateAuctionScreen() {
                     <TouchableOpacity
                       style={styles.suggestionButton}
                       onPress={() => {
-                        setAntiSnipingSeconds('60');
+                        setAntiSnipingMinutes('1');
                         setShowAntiSnipingSuggestions(false);
                       }}
                     >
-                      <Text style={styles.suggestionButtonText}>60 giây</Text>
+                      <Text style={styles.suggestionButtonText}>1 phút</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.suggestionButton}
                       onPress={() => {
-                        setAntiSnipingSeconds('120');
+                        setAntiSnipingMinutes('2');
                         setShowAntiSnipingSuggestions(false);
                       }}
                     >
-                      <Text style={styles.suggestionButtonText}>120 giây</Text>
+                      <Text style={styles.suggestionButtonText}>2 phút</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.suggestionButton}
                       onPress={() => {
-                        setAntiSnipingSeconds('180');
+                        setAntiSnipingMinutes('3');
                         setShowAntiSnipingSuggestions(false);
                       }}
                     >
-                      <Text style={styles.suggestionButtonText}>180 giây</Text>
+                      <Text style={styles.suggestionButtonText}>3 phút</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.suggestionsRow}>
+                    <TouchableOpacity
+                      style={styles.suggestionButton}
+                      onPress={() => {
+                        setAntiSnipingMinutes('5');
+                        setShowAntiSnipingSuggestions(false);
+                      }}
+                    >
+                      <Text style={styles.suggestionButtonText}>5 phút</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -796,42 +815,23 @@ export default function CreateAuctionScreen() {
           {/* Expected Harvest Date */}
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>Ngày thu hoạch dự kiến *</Text>
-            <Text style={styles.fieldNote}>( Sau 10 ngày kể từ ngày kết thúc đấu giá )</Text>
-            <View style={styles.dateTimeContainer}>
-              <TouchableOpacity
-                style={[styles.dateButton, { flex: 1 }]}
-                onPress={() => setShowExpectedHarvestPicker(true)}
-              >
-                <Calendar size={20} color="#6B7280" />
-                <Text style={styles.dateButtonText}>
-                  {expectedHarvestDate ? new Date(expectedHarvestDate).toLocaleDateString('vi-VN') : 'Chọn ngày'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.dateButton, { flex: 0.8, marginLeft: 8 }]}
-                onPress={() => setShowExpectedHarvestTimePicker(true)}
-              >
-                <Clock size={20} color="#6B7280" />
-                <Text style={styles.dateButtonText}>
-                  {expectedHarvestDate ? new Date(expectedHarvestDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Giờ'}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.fieldNote}>( Sau 3 ngày kể từ ngày kết thúc đấu giá )</Text>
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => setShowExpectedHarvestPicker(true)}
+            >
+              <Calendar size={20} color="#6B7280" />
+              <Text style={styles.dateButtonText}>
+                {expectedHarvestDate ? new Date(expectedHarvestDate).toLocaleDateString('vi-VN') : 'Chọn ngày'}
+              </Text>
+            </TouchableOpacity>
             {showExpectedHarvestPicker && (
               <DateTimePicker
                 value={expectedHarvestDate ? new Date(expectedHarvestDate) : new Date()}
                 mode="date"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={handleExpectedHarvestDateChange}
-                minimumDate={auctionData.endDate ? new Date(new Date(auctionData.endDate).getTime() + 10 * 24 * 60 * 60 * 1000) : new Date()}
-              />
-            )}
-            {showExpectedHarvestTimePicker && (
-              <DateTimePicker
-                value={expectedHarvestDate ? new Date(expectedHarvestDate) : new Date()}
-                mode="time"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={handleExpectedHarvestTimeChange}
+                minimumDate={auctionData.endDate ? new Date(new Date(auctionData.endDate).getTime() + 3 * 24 * 60 * 60 * 1000) : new Date()}
               />
             )}
           </View>
@@ -879,9 +879,12 @@ export default function CreateAuctionScreen() {
         <View style={styles.noteContainer}>
           <Text style={styles.noteText}>
             📝 <Text style={styles.noteTextBold}>Lưu ý:</Text> 
+            {'\n'}• Ngày công bố phải sau thời điểm hiện tại ít nhất 60 phút (để admin duyệt)
+            {'\n'}• Ngày kết thúc phải sau ngày công bố ít nhất 15 phút
+            {'\n'}• Ngày thu hoạch dự kiến phải sau ngày kết thúc ít nhất 3 ngày
             {'\n'}• Chỉ có thể chọn vườn có chi tiết phân loại đánh giá
-            {'\n'}• Tổng số lượng dự kiến sẽ được tính tự động
-            {'\n'}• Mỗi vườn phải được hoàn thiện trước khi tạo đấu giá
+            {'\n'}• Mỗi vườn chỉ được tạo 1 đấu giá duy nhất
+            {'\n'}• Vườn đang ở trạng thái "Đang trên sàn đấu giá" không thể tạo đấu giá mới
           </Text>
         </View>
       </ScrollView>

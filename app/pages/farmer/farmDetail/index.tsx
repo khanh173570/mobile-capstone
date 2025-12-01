@@ -100,6 +100,7 @@ export default function FarmDetailScreen() {
   };
 
   const handleEditCrop = (crop: Crop) => {
+    // Always allow opening the modal, but it will be in view-only mode if status is 2
     setSelectedCrop(crop);
     setShowEditModal(true);
   };
@@ -259,10 +260,11 @@ export default function FarmDetailScreen() {
                     console.log('=== Navigate to Harvest List ===');
                     console.log('Crop ID:', crop.id);
                     console.log('Crop custardAppleType:', crop.custardAppleType);
+                    console.log('Crop status:', crop.status);
                     
                     try {
-                      // Using relative path with query params
-                      const path = `/pages/farmer/harvestList?cropId=${crop.id}&cropName=${encodeURIComponent(crop.custardAppleType || 'Vườn mãng cầu')}&cropPlantingDate=${encodeURIComponent(crop.startPlantingDate)}`;
+                      // Using relative path with query params, pass crop status
+                      const path = `/pages/farmer/harvestList?cropId=${crop.id}&cropName=${encodeURIComponent(crop.custardAppleType || 'Vườn mãng cầu')}&cropPlantingDate=${encodeURIComponent(crop.startPlantingDate)}&cropStatus=${crop.status}`;
                       console.log('Navigation path:', path);
                       router.push(path as any);
                       console.log('Navigation called successfully');

@@ -3,11 +3,13 @@ import { Home, Plus, Bell, User, Eye, ShoppingCart } from 'lucide-react-native';
 import AuthWrapper from '../../components/shared/AuthWrapper';
 import { useState, useEffect } from 'react';
 import { getCurrentUser } from '../../services/authService';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     const getUserRole = async () => {
@@ -45,8 +47,8 @@ export default function TabLayout() {
             backgroundColor: '#FFFFFF',
             borderTopWidth: 1,
             borderTopColor: '#E5E7EB',
-            height: 90,
-            paddingBottom: 20,
+            height: 60 + insets.bottom, // Dynamic height based on safe area
+            paddingBottom: insets.bottom > 0 ? insets.bottom : 10, // Use safe area bottom or default
             paddingTop: 10,
           },
           tabBarActiveTintColor: '#22C55E',

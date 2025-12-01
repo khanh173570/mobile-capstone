@@ -130,7 +130,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* Profile Stats */}
-        <View style={styles.statsSection}>
+        {/* <View style={styles.statsSection}>
           <View style={styles.statItem}>
             <View style={styles.statIcon}>
               <Activity size={20} color="#22C55E" />
@@ -152,10 +152,10 @@ export default function ProfileScreen() {
             <Text style={styles.statValue}>24</Text>
             <Text style={styles.statLabel}>Thành công</Text>
           </View>
-        </View>
+        </View> */}
 
         {/* Achievements */}
-        <View style={styles.achievementsSection}>
+        {/* <View style={styles.achievementsSection}>
           <Text style={styles.sectionTitle}>Thành tích</Text>
           <View style={styles.achievementsList}>
             <View style={styles.achievementItem}>
@@ -173,7 +173,7 @@ export default function ProfileScreen() {
               </View>
             </View>
           </View>
-        </View>
+        </View> */}
 
         {/* Profile Information */}
         <View style={styles.infoSection}>
