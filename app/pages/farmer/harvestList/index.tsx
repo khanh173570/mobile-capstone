@@ -29,12 +29,18 @@ export default function HarvestListPage() {
   const cropId = params.cropId as string;
   const cropName = params.cropName as string;
   const cropPlantingDate = params.cropPlantingDate as string;
+  const cropStatus = parseInt(params.cropStatus as string) || 0;
+
+  // Check if harvest list should be in view-only mode
+  const isViewOnly = cropStatus === 2;
 
   console.log('=== HarvestListPage Loaded ===');
   console.log('Params:', params);
   console.log('Crop ID:', cropId);
   console.log('Crop Name:', cropName);
   console.log('Crop Planting Date:', cropPlantingDate);
+  console.log('Crop Status:', cropStatus);
+  console.log('Is View Only:', isViewOnly);
 
   const [harvests, setHarvests] = useState<Harvest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,6 +92,7 @@ export default function HarvestListPage() {
   };
 
   const handleEditHarvest = (harvest: Harvest) => {
+    // Always allow opening the modal, but it will be in view-only mode if cropStatus is 2
     setSelectedHarvest(harvest);
     setShowEditModal(true);
   };
@@ -154,10 +161,16 @@ export default function HarvestListPage() {
         <View style={styles.headerTextContainer}>
           <Text style={styles.headerTitle}>Danh sách mùa vụ</Text>
           <Text style={styles.headerSubtitle}>{cropName}</Text>
+          {isViewOnly && (
+            <View style={styles.viewOnlyBadge}>
+              <Text style={styles.viewOnlyBadgeText}>Đang có đấu giá - Chỉ xem</Text>
+            </View>
+          )}
         </View>
         <TouchableOpacity 
-          style={styles.addButton}
+          style={[styles.addButton, isViewOnly && styles.addButtonDisabled]}
           onPress={() => setShowCreateModal(true)}
+          disabled={isViewOnly}
         >
           <Plus size={24} color="#fff" />
         </TouchableOpacity>
@@ -199,6 +212,7 @@ export default function HarvestListPage() {
       <EditHarvestModal
         visible={showEditModal}
         harvest={selectedHarvest}
+        isViewOnly={isViewOnly}
         onClose={() => {
           setShowEditModal(false);
           setSelectedHarvest(null);
@@ -254,6 +268,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#22C55E',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  addButtonDisabled: {
+    backgroundColor: '#E5E7EB',
+  },
+  viewOnlyBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  viewOnlyBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#92400E',
   },
   listContent: {
     padding: 20,

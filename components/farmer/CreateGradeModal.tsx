@@ -6,13 +6,14 @@ import { CreateHarvestGradeDetailData, GRADE_LABELS, createHarvestGradeDetail } 
 interface CreateGradeModalProps {
   visible: boolean;
   harvestId: string;
+  existingGrades?: number[]; // Array of existing grade types (1, 2, 3)
   onClose: () => void;
   onSuccess: () => void;
 }
 
 type GradeType = 1 | 2 | 3;
 
-export default function CreateGradeModal({ visible, harvestId, onClose, onSuccess }: CreateGradeModalProps) {
+export default function CreateGradeModal({ visible, harvestId, existingGrades = [], onClose, onSuccess }: CreateGradeModalProps) {
   const [selectedGrade, setSelectedGrade] = useState<GradeType | null>(null);
   const [quantity, setQuantity] = useState('');
   const [loading, setLoading] = useState(false);
@@ -30,6 +31,16 @@ export default function CreateGradeModal({ visible, harvestId, onClose, onSucces
   const validateForm = (): boolean => {
     if (!selectedGrade) {
       Alert.alert('Lỗi', 'Vui lòng chọn loại quả');
+      return false;
+    }
+
+    // Check if grade already exists
+    if (existingGrades.includes(selectedGrade)) {
+      Alert.alert(
+        'Đã tồn tại',
+        `Loại "${GRADE_LABELS[selectedGrade]}" đã được tạo rồi.\n\nMỗi loại quả chỉ được tạo 1 lần duy nhất.`,
+        [{ text: 'Đóng' }]
+      );
       return false;
     }
 
@@ -105,6 +116,7 @@ export default function CreateGradeModal({ visible, harvestId, onClose, onSucces
                 {grades.map((grade) => {
                   const colors = GRADE_COLORS[grade];
                   const isSelected = selectedGrade === grade;
+                  const isExisting = existingGrades.includes(grade);
                   
                   return (
                     <TouchableOpacity
@@ -112,17 +124,24 @@ export default function CreateGradeModal({ visible, harvestId, onClose, onSucces
                       style={[
                         styles.gradeButton,
                         { 
-                          backgroundColor: colors.bg,
-                          borderColor: isSelected ? colors.text : colors.border,
+                          backgroundColor: isExisting ? '#F3F4F6' : colors.bg,
+                          borderColor: isSelected ? colors.text : (isExisting ? '#D1D5DB' : colors.border),
                           borderWidth: isSelected ? 2 : 1,
+                          opacity: isExisting ? 0.5 : 1,
                         },
                       ]}
-                      onPress={() => setSelectedGrade(grade)}
+                      onPress={() => !isExisting && setSelectedGrade(grade)}
+                      disabled={isExisting}
                     >
-                      <Text style={[styles.gradeButtonText, { color: colors.text }]}>
-                        {GRADE_LABELS[grade]}
-                      </Text>
-                      {isSelected && (
+                      <View style={styles.gradeButtonContent}>
+                        <Text style={[styles.gradeButtonText, { color: isExisting ? '#9CA3AF' : colors.text }]}>
+                          {GRADE_LABELS[grade]}
+                        </Text>
+                        {isExisting && (
+                          <Text style={styles.existingBadge}>Đã tạo</Text>
+                        )}
+                      </View>
+                      {isSelected && !isExisting && (
                         <View style={[styles.checkmark, { backgroundColor: colors.text }]}>
                           <Text style={styles.checkmarkText}>✓</Text>
                         </View>
@@ -235,9 +254,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  gradeButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   gradeButtonText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  existingBadge: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#6B7280',
+    backgroundColor: '#E5E7EB',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   checkmark: {
     width: 20,

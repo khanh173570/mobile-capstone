@@ -261,3 +261,42 @@ export const deleteFarm = async (farmId: string): Promise<ApiResponse<void>> => 
     throw new Error('Đã xảy ra lỗi khi xóa trang trại');
   }
 };
+
+/**
+ * Get farms by farmer user ID (for viewing other farmers' info)
+ */
+export const getFarmsByUserId = async (userId: string): Promise<Farm[]> => {
+  try {
+    const token = await AsyncStorage.getItem('accessToken');
+    
+    const response = await fetch(`${API_URL}/farm-service/farm/user/${userId}/farm`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+      },
+    });
+
+    // Check if response has content
+    const responseText = await response.text();
+    
+    if (!response.ok) {
+      return [];
+    }
+
+    // Parse only if there's content
+    if (!responseText) {
+      return [];
+    }
+
+    try {
+      const data = JSON.parse(responseText);
+      return Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
+    } catch (parseError) {
+      return [];
+    }
+  } catch (error) {
+    console.error('Error getting farms by user ID:', error);
+    return [];
+  }
+};

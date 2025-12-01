@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,8 +17,10 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { MapPin, DollarSign, Calendar, Package, User, MoreVertical } from 'lucide-react-native';
 import { getAuctionsByStatus, getAuctionStatusInfo } from '../../../../services/auctionService';
 import { getCurrentUser } from '../../../../services/authService';
+import { getFarmsByUserId } from '../../../../services/farmService';
 import Header from '../../../../components/shared/Header';
 import ReportAuctionModal from '../../../../components/shared/ReportAuctionModal';
+import FarmerProfileModal from '../../../../components/shared/FarmerProfileModal';
 
 interface Auction {
   id: string;
@@ -46,10 +48,28 @@ export default function WholesalerHomeScreen() {
   const [selectedAuctionId, setSelectedAuctionId] = useState<string>('');
   const [menuVisibleFor, setMenuVisibleFor] = useState<string | null>(null);
   const [countdowns, setCountdowns] = useState<{ [key: string]: any }>({});
+  const [farmerProfileModalVisible, setFarmerProfileModalVisible] = useState(false);
+  const [selectedFarmerId, setSelectedFarmerId] = useState<string>('');
+  const [farmerFarmImages, setFarmerFarmImages] = useState<{ [farmerId: string]: string }>({});
+  const [farmerFarmNames, setFarmerFarmNames] = useState<{ [farmerId: string]: string }>({});
+  const [farmerLoadingState, setFarmerLoadingState] = useState<{ [farmerId: string]: boolean }>({});
 
   useEffect(() => {
     loadData();
   }, []);
+
+  // Preload farmer images when auctions change
+  useEffect(() => {
+    if (auctions.length > 0) {
+      const uniqueFarmerIds = [...new Set(auctions.map(a => a.farmerId))];
+      
+      uniqueFarmerIds.forEach((farmerId) => {
+        if (!farmerFarmImages.hasOwnProperty(farmerId) && !farmerLoadingState[farmerId]) {
+          loadFarmerFarmImage(farmerId);
+        }
+      });
+    }
+  }, [auctions]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -136,14 +156,14 @@ export default function WholesalerHomeScreen() {
     }
   };
 
-  const formatCurrency = (price: number) => {
+  const formatCurrency = useCallback((price: number) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
       currency: 'VND',
     }).format(price);
-  };
+  }, []);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = useCallback((dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN', {
       year: 'numeric',
       month: '2-digit',
@@ -151,28 +171,90 @@ export default function WholesalerHomeScreen() {
       hour: '2-digit',
       minute: '2-digit',
     });
-  };
+  }, []);
 
-  const getStatusInfo = (status: string) => {
+  const getStatusInfo = useCallback((status: string) => {
     return getAuctionStatusInfo(status);
-  };
+  }, []);
 
-  const handleAuctionPress = (auctionId: string) => {
+  const handleAuctionPress = useCallback((auctionId: string) => {
     router.push({
       pathname: '/(tabs)/wholesaler/home/auction-detail',
       params: { auctionId },
     } as any);
-  };
+  }, [router]);
 
-  const handleReportPress = (auctionId: string) => {
+  const handleReportPress = useCallback((auctionId: string) => {
     setSelectedAuctionId(auctionId);
     setReportModalVisible(true);
     setMenuVisibleFor(null);
+  }, []);
+
+  const loadFarmerFarmImage = async (farmerId: string) => {
+    // Don't call if invalid farmerId
+    if (!farmerId || farmerId.trim() === '') {
+      return;
+    }
+
+    // Don't call if already have image or already loading
+    if (farmerFarmImages[farmerId] || farmerLoadingState[farmerId]) {
+      return;
+    }
+
+    // Mark as loading to prevent multiple calls
+    setFarmerLoadingState((prev) => ({
+      ...prev,
+      [farmerId]: true,
+    }));
+
+    try {
+      const farms = await getFarmsByUserId(farmerId);
+      
+      if (farms.length > 0 && farms[0].farmImage) {
+        setFarmerFarmImages((prev) => ({
+          ...prev,
+          [farmerId]: farms[0].farmImage,
+        }));
+        setFarmerFarmNames((prev) => ({
+          ...prev,
+          [farmerId]: farms[0].name || '',
+        }));
+      } else {
+        // Mark as loaded even if no image found to prevent retrying
+        setFarmerFarmImages((prev) => ({
+          ...prev,
+          [farmerId]: '', // Empty string indicates "no image found"
+        }));
+        setFarmerFarmNames((prev) => ({
+          ...prev,
+          [farmerId]: '',
+        }));
+      }
+    } catch (error) {
+      // Mark as loaded to prevent infinite retries
+      setFarmerFarmImages((prev) => ({
+        ...prev,
+        [farmerId]: '',
+      }));
+    } finally {
+      setFarmerLoadingState((prev) => ({
+        ...prev,
+        [farmerId]: false,
+      }));
+    }
   };
 
-  const renderAuctionCard = ({ item }: { item: Auction }) => {
+  const handleFarmerImagePress = useCallback((farmerId: string) => {
+    setSelectedFarmerId(farmerId);
+    setFarmerProfileModalVisible(true);
+  }, []);
+
+  // Memoized render function to prevent unnecessary re-renders
+  const renderAuctionCard = useCallback(({ item }: { item: Auction }) => {
     const statusInfo = getStatusInfo(item.status);
     const currentPrice = item.currentPrice || item.startingPrice;
+    const farmerImage = farmerFarmImages[item.farmerId];
+    const farmName = farmerFarmNames[item.farmerId];
 
     return (
       <View style={styles.auctionCardWrapper}>
@@ -180,8 +262,51 @@ export default function WholesalerHomeScreen() {
           style={styles.auctionCard}
           onPress={() => handleAuctionPress(item.id)}
         >
-          {/* Countdown Section - Top */}
-          <View style={styles.countdownTopSection}>
+          {/* Header: Avatar | Session Code | Status | Menu */}
+          <View style={styles.cardHeader}>
+            {/* Farmer Avatar + Farm Name */}
+            {farmerImage && farmerImage !== '' && (
+              <View style={styles.avatarSection}>
+                <TouchableOpacity
+                  style={styles.farmerAvatarContainer}
+                  onPress={() => handleFarmerImagePress(item.farmerId)}
+                >
+                  <Image
+                    source={{ uri: farmerImage }}
+                    style={styles.farmerAvatar}
+                  />
+                </TouchableOpacity>
+                {farmName && farmName !== '' && (
+                  <Text style={styles.farmNameText}>{farmName}</Text>
+                )}
+              </View>
+            )}
+            
+            <View style={styles.middleSection}>
+              <View style={styles.sessionCodeContainer}>
+                <Text style={styles.sessionCode}>{item.sessionCode}</Text>
+              </View>
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: statusInfo.backgroundColor }
+                ]}
+              >
+                <Text style={[styles.statusText, { color: statusInfo.color }]}>
+                  {statusInfo.name}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.menuButtonInline}
+              onPress={() => setMenuVisibleFor(menuVisibleFor === item.id ? null : item.id)}
+            >
+              <MoreVertical size={20} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Countdown Section - Moved Below */}
+          <View style={styles.countdownSection}>
             {countdowns[item.id] && !countdowns[item.id].isEnded ? (
               <View style={styles.countdownContainer}>
                 <View style={styles.countdownBox}>
@@ -206,34 +331,12 @@ export default function WholesalerHomeScreen() {
             )}
           </View>
 
-          <View style={styles.cardHeader}>
-            <View style={styles.sessionCodeContainer}>
-              <Text style={styles.sessionCode}>{item.sessionCode}</Text>
-            </View>
-            <View
-              style={[
-                styles.statusBadge,
-                { backgroundColor: statusInfo.backgroundColor }
-              ]}
-            >
-              <Text style={[styles.statusText, { color: statusInfo.color }]}>
-                {statusInfo.name}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.menuButtonInline}
-              onPress={() => setMenuVisibleFor(menuVisibleFor === item.id ? null : item.id)}
-            >
-              <MoreVertical size={20} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
-
           <View style={styles.cardContent}>
             {/* Price & Quantity Row */}
             <View style={styles.twoColumnRow}>
               <View style={[styles.infoBox, { flex: 1, marginRight: 8 }]}>
                 <View style={styles.infoBoxHeader}>
-                  <DollarSign size={16} color="#16A34A" />
+                  {/* <DollarSign size={16} color="#16A34A" /> */}
                   <Text style={styles.infoBoxLabel}>Giá hiện tại</Text>
                 </View>
                 <Text style={styles.priceValue}>
@@ -246,8 +349,8 @@ export default function WholesalerHomeScreen() {
 
               <View style={[styles.infoBox, { flex: 1 }]}>
                 <View style={styles.infoBoxHeader}>
-                  <Package size={16} color="#F59E0B" />
-                  <Text style={styles.infoBoxLabel}>Dự kiến</Text>
+                  {/* <Package size={16} color="#F59E0B" /> */}
+                  <Text style={styles.infoBoxLabel}>Sản lượng dự kiến</Text>
                 </View>
                 <View style={styles.quantityRow}>
                   <Text style={styles.quantityValue}>{item.expectedTotalQuantity}</Text>
@@ -313,7 +416,7 @@ export default function WholesalerHomeScreen() {
         )}
       </View>
     );
-  };
+  }, [farmerFarmImages, farmerFarmNames, countdowns, handleAuctionPress, handleFarmerImagePress, formatCurrency, formatDate, menuVisibleFor, handleReportPress, getStatusInfo]);
 
   if (loading) {
     return (
@@ -356,6 +459,11 @@ export default function WholesalerHomeScreen() {
             renderItem={renderAuctionCard}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={3}
+            updateCellsBatchingPeriod={50}
+            initialNumToRender={3}
+            scrollEventThrottle={16}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -373,6 +481,13 @@ export default function WholesalerHomeScreen() {
         visible={reportModalVisible}
         auctionId={selectedAuctionId}
         onClose={() => setReportModalVisible(false)}
+      />
+
+      {/* Farmer Profile Modal */}
+      <FarmerProfileModal
+        visible={farmerProfileModalVisible}
+        farmerId={selectedFarmerId}
+        onClose={() => setFarmerProfileModalVisible(false)}
       />
     </View>
   );
@@ -478,14 +593,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
     gap: 8,
   },
-  sessionCodeContainer: {
+  middleSection: {
     flex: 1,
-    minWidth: 0,
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sessionCodeContainer: {
+    marginBottom: 4,
   },
   sessionCode: {
     fontSize: 14,
     fontWeight: '700',
     color: '#16A34A',
+    textAlign: 'center',
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -497,8 +618,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  countdownTopSection: {
-    paddingBottom: 16,
+  farmNameText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#16A34A',
+    textAlign: 'center',
+    maxWidth: 60,
+  },
+  countdownSection: {
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
     marginBottom: 12,
@@ -541,6 +671,25 @@ const styles = StyleSheet.create({
   cardContent: {
     marginBottom: 12,
     gap: 8,
+  },
+  avatarSection: {
+    alignItems: 'center',
+    marginRight: 10,
+    minWidth: 60,
+  },
+  farmerAvatarContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+   
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  farmerAvatar: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#F3F4F6',
   },
   twoColumnRow: {
     flexDirection: 'row',

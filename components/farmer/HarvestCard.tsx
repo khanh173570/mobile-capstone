@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Harvest } from '../../services/harvestService';
-import { Calendar, TrendingUp, DollarSign, Package, MoreVertical, Edit3, Trash2, Eye } from 'lucide-react-native';
+import { Calendar, TrendingUp, DollarSign, Package, MoreVertical, Edit3, Trash2, Eye, Image as ImageIcon } from 'lucide-react-native';
+import HarvestImagesModal from './HarvestImagesModal';
 
 interface HarvestCardProps {
   harvest: Harvest;
@@ -12,6 +13,8 @@ interface HarvestCardProps {
 
 export default function HarvestCard({ harvest, onEdit, onDelete, onViewGrades }: HarvestCardProps) {
   const [showMenu, setShowMenu] = useState(false);
+  const [showImagesModal, setShowImagesModal] = useState(false);
+  
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Chưa có';
     return new Date(dateString).toLocaleDateString('vi-VN');
@@ -22,13 +25,6 @@ export default function HarvestCard({ harvest, onEdit, onDelete, onViewGrades }:
       style: 'currency',
       currency: 'VND',
     }).format(amount);
-  };
-
-  const getStatus = () => {
-    if (harvest.harvestDate) {
-      return { text: 'Đã hoàn thành', color: '#22C55E', bg: '#D1FAE5' };
-    }
-    return { text: 'Đang tiến hành', color: '#F59E0B', bg: '#FEF3C7' };
   };
 
   const handleDelete = () => {
@@ -52,16 +48,9 @@ export default function HarvestCard({ harvest, onEdit, onDelete, onViewGrades }:
     );
   };
 
-  const status = getStatus();
-
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
-          <Text style={[styles.statusText, { color: status.color }]}>
-            {status.text}
-          </Text>
-        </View>
         {(onEdit || onDelete) && (
           <View style={styles.menuContainer}>
             <TouchableOpacity 
@@ -157,7 +146,24 @@ export default function HarvestCard({ harvest, onEdit, onDelete, onViewGrades }:
           <Eye size={16} color="#fff" />
           <Text style={styles.gradesButtonText}>Xem đánh giá mùa vụ</Text>
         </TouchableOpacity>
+
+        {/* Images Button */}
+        <TouchableOpacity
+          style={styles.imagesButton}
+          onPress={() => setShowImagesModal(true)}
+        >
+          <ImageIcon size={16} color="#fff" />
+          <Text style={styles.imagesButtonText}>Quản lý ảnh mùa vụ</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Harvest Images Modal */}
+      <HarvestImagesModal
+        visible={showImagesModal}
+        harvestId={harvest.id}
+        harvestName={`Thu hoạch từ ${formatDate(harvest.startDate)}`}
+        onClose={() => setShowImagesModal(false)}
+      />
     </View>
   );
 }
@@ -176,21 +182,12 @@ const styles = StyleSheet.create({
   },
   cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
-  },
-  statusBadge: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
   },
   menuContainer: {
     position: 'relative',
@@ -297,6 +294,22 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   gradesButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  imagesButton: {
+    flexDirection: 'row',
+    backgroundColor: '#22C55E',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  imagesButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#fff',
