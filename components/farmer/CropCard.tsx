@@ -12,6 +12,7 @@ import {
   MoreVertical,
   Trash2,
   CheckCircle,
+  Eye,
 } from 'lucide-react-native';
 
 interface CropCardProps {
@@ -84,13 +85,22 @@ export default function CropCard({ crop, cropIndex, onPress, onEdit, onDelete, o
                   <TouchableOpacity 
                     style={styles.dropdownItem}
                     onPress={() => {
-                      console.log('Edit clicked');
+                      console.log('Edit/View clicked');
                       setShowDropdown(false);
                       onEdit();
                     }}
                   >
-                    <Edit3 size={16} color="#6B7280" />
-                    <Text style={styles.dropdownText}>Chỉnh sửa</Text>
+                    {crop.status === 2 ? (
+                      <>
+                        <Eye size={16} color="#6B7280" />
+                        <Text style={styles.dropdownText}>Xem chi tiết</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Edit3 size={16} color="#6B7280" />
+                        <Text style={styles.dropdownText}>Chỉnh sửa</Text>
+                      </>
+                    )}
                   </TouchableOpacity>
                 )}
                 
@@ -168,11 +178,17 @@ export default function CropCard({ crop, cropIndex, onPress, onEdit, onDelete, o
         )}
 
         <TouchableOpacity 
-          style={styles.createHarvestButton}
+          style={[
+            styles.createHarvestButton,
+            crop.status === 2 && styles.createHarvestButtonViewOnly
+          ]}
           onPress={(e) => {
             console.log('=== CropCard: Create Harvest Button Pressed ===');
             console.log('onCreateHarvest callback exists?', !!onCreateHarvest);
             e.stopPropagation();
+            
+            // Allow navigation even if crop has auction (status 2)
+            // The harvest list page will handle view-only mode
             if (onCreateHarvest) {
               console.log('Calling onCreateHarvest...');
               onCreateHarvest();
@@ -181,8 +197,14 @@ export default function CropCard({ crop, cropIndex, onPress, onEdit, onDelete, o
             }
           }}
         >
-          <Text style={styles.createHarvestText}>
-            Tạo thông tin mùa vụ
+          <Text style={[
+            styles.createHarvestText,
+            crop.status === 2 && styles.createHarvestTextViewOnly
+          ]}>
+            {crop.status === 2 
+              ? 'Xem thông tin mùa vụ' 
+              : 'Tạo thông tin mùa vụ'
+            }
           </Text>
         </TouchableOpacity>
       </View>
@@ -312,9 +334,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
+  createHarvestButtonDisabled: {
+    backgroundColor: '#E5E7EB',
+  },
+  createHarvestButtonViewOnly: {
+    backgroundColor: '#3B82F6',
+  },
   createHarvestText: {
     fontSize: 14,
     fontWeight: '600',
+    color: '#fff',
+  },
+  createHarvestTextDisabled: {
+    color: '#9CA3AF',
+  },
+  createHarvestTextViewOnly: {
     color: '#fff',
   },
   daysRemaining: {

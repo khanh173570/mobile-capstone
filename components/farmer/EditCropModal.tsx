@@ -11,10 +11,11 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { X, Calendar, ChevronDown } from 'lucide-react-native';
+import { X, Calendar, ChevronDown, MapPin } from 'lucide-react-native';
 import { UpdateCropData, getCustardAppleTypes, CustardAppleType, Crop } from '../../services/cropService';
 import { CROP_STATUSES } from '../../utils/cropStatusUtils';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { getProvinces, getWardsFromProvince, Province, Ward } from '../../services/addressService';
 
 interface EditCropModalProps {
   visible: boolean;
@@ -32,6 +33,14 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
   const [showTypePicker, setShowTypePicker] = useState(false);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   
+  // Address selection states
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [wards, setWards] = useState<Ward[]>([]);
+  const [selectedProvince, setSelectedProvince] = useState<Province | null>(null);
+  const [selectedWard, setSelectedWard] = useState<Ward | null>(null);
+  const [showWardPicker, setShowWardPicker] = useState(false);
+  const [loadingWards, setLoadingWards] = useState(false);
+  
   const [formData, setFormData] = useState<UpdateCropData>({
     name: '',
     area: 0,
@@ -42,12 +51,16 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
     nearestHarvestDate: undefined, // Changed to undefined
     note: '',
     treeCount: 0,
+    address: '',
+    district: '',
+    province: '',
   });
 
-  // Load custard apple types when modal opens
+  // Load custard apple types and provinces when modal opens
   useEffect(() => {
     if (visible) {
       loadCustardAppleTypes();
+      loadProvinces();
     }
   }, [visible]);
 
@@ -64,9 +77,22 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
         nearestHarvestDate: crop.nearestHarvestDate || undefined, // Handle null value
         note: crop.note || '',
         treeCount: crop.treeCount,
+        address: crop.address || '',
+        district: crop.district || '',
+        province: crop.province || '',
       });
     }
   }, [visible, crop]);
+
+  // Match existing ward after wards are loaded
+  useEffect(() => {
+    if (visible && crop && wards.length > 0 && !loadingWards && !selectedWard) {
+      const matchingWard = wards.find(w => w.full_name === crop.district);
+      if (matchingWard) {
+        setSelectedWard(matchingWard);
+      }
+    }
+  }, [visible, crop, wards, loadingWards, selectedWard]);
 
   // Ensure custardAppleTypeID is set after types are loaded (only if not already set)
   useEffect(() => {
@@ -103,6 +129,37 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
       Alert.alert('Lỗi', 'Không thể tải danh sách loại mãng cầu');
     } finally {
       setLoadingTypes(false);
+    }
+  };
+
+  const loadProvinces = async () => {
+    try {
+      const provincesData = await getProvinces();
+      setProvinces(provincesData);
+      
+      // Find and set Tây Ninh as default
+      const tayNinh = provincesData.find(p => p.full_name.includes('Tây Ninh'));
+      if (tayNinh) {
+        setSelectedProvince(tayNinh);
+        setFormData(prev => ({ ...prev, province: tayNinh.full_name }));
+        loadWards(tayNinh.id);
+      }
+    } catch (error) {
+      console.error('Error loading provinces:', error);
+      Alert.alert('Lỗi', 'Không thể tải danh sách tỉnh thành');
+    }
+  };
+
+  const loadWards = async (provinceId: string) => {
+    setLoadingWards(true);
+    try {
+      const wardsData = await getWardsFromProvince(provinceId);
+      setWards(wardsData);
+    } catch (error) {
+      console.error('Error loading wards:', error);
+      Alert.alert('Lỗi', 'Không thể tải danh sách xã/phường');
+    } finally {
+      setLoadingWards(false);
     }
   };
 
@@ -144,6 +201,18 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
       Alert.alert('Lỗi', 'Vui lòng nhập số lượng cây (phải lớn hơn 0)');
       return;
     }
+    if (!formData.address.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập địa chỉ chi tiết');
+      return;
+    }
+    if (!selectedWard) {
+      Alert.alert('Lỗi', 'Vui lòng chọn xã/phường');
+      return;
+    }
+    if (!selectedProvince) {
+      Alert.alert('Lỗi', 'Tỉnh/thành phố chưa được chọn');
+      return;
+    }
     if (!formData.startPlantingDate || formData.startPlantingDate.trim() === '') {
       console.log('Validation failed: startPlantingDate');
       Alert.alert('Lỗi', 'Vui lòng chọn ngày bắt đầu trồng');
@@ -183,6 +252,8 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
         ...formData,
         farmingDuration, // Always recalculate
         note: formData.note.trim() || 'không có',
+        province: selectedProvince?.full_name || formData.province,
+        district: selectedWard?.full_name || formData.district,
       };
       
       await onSubmit(submitData);
@@ -220,6 +291,9 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
 
   if (!crop) return null;
 
+  // Check if modal should be in view-only mode
+  const isViewOnly = crop.status === 2;
+
   return (
     <Modal
       visible={visible}
@@ -229,7 +303,14 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
     >
       <View style={styles.modalContainer}>
         <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>Cập nhật vườn</Text>
+          <Text style={styles.modalTitle}>
+            {isViewOnly ? 'Xem chi tiết vườn' : 'Cập nhật vườn'}
+          </Text>
+          {isViewOnly && (
+            <View style={styles.viewOnlyBadge}>
+              <Text style={styles.viewOnlyBadgeText}>Đang có đấu giá</Text>
+            </View>
+          )}
           <TouchableOpacity 
             style={styles.closeButton}
             onPress={onClose}
@@ -253,7 +334,7 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
                 <TouchableOpacity
                   style={styles.pickerButton}
                   onPress={() => setShowTypePicker(!showTypePicker)}
-                  disabled={loading}
+                  disabled={loading || isViewOnly}
                 >
                   <Text style={styles.pickerButtonText}>
                     {(() => {
@@ -319,7 +400,7 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
             <TouchableOpacity
               style={styles.pickerButton}
               onPress={() => setShowStatusPicker(!showStatusPicker)}
-              disabled={loading}
+              disabled={loading || isViewOnly}
             >
               <View style={{ 
                 width: 16, 
@@ -384,7 +465,7 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
               placeholder="Nhập tên vườn"
               value={formData.name}
               onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
-              editable={!loading}
+              editable={!loading && !isViewOnly}
               maxLength={50}
             />
           </View>
@@ -427,7 +508,7 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
             <TouchableOpacity
               style={styles.dateButton}
               onPress={() => setShowHarvestDatePicker(true)}
-              disabled={loading}
+              disabled={loading || isViewOnly}
             >
               <Calendar size={20} color="#6B7280" />
               <Text style={[
@@ -465,7 +546,7 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
               keyboardType="numeric"
               value={formData.area > 0 ? formData.area.toString() : ''}
               onChangeText={(text) => setFormData(prev => ({ ...prev, area: parseInt(text) || 0 }))}
-              editable={!loading}
+              editable={!loading && !isViewOnly}
             />
           </View>
 
@@ -478,11 +559,92 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
               keyboardType="numeric"
               value={formData.treeCount > 0 ? formData.treeCount.toString() : ''}
               onChangeText={(text) => setFormData(prev => ({ ...prev, treeCount: parseInt(text) || 0 }))}
-              editable={!loading}
+              editable={!loading && !isViewOnly}
             />
           </View>
 
+          {/* Province - Read only (Tây Ninh) */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Tỉnh/Thành phố *</Text>
+            <View style={styles.readOnlyField}>
+              <MapPin size={20} color="#22C55E" />
+              <Text style={styles.readOnlyFieldText}>
+                {selectedProvince?.full_name || formData.province || 'Đang tải...'}
+              </Text>
+            </View>
+          </View>
 
+          {/* Ward Picker */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Xã/Phường *</Text>
+            {loadingWards ? (
+              <View style={styles.wardLoadingContainer}>
+                <ActivityIndicator size="small" color="#22C55E" />
+                <Text style={styles.wardLoadingText}>Đang tải xã/phường...</Text>
+              </View>
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={styles.pickerButton}
+                  onPress={() => setShowWardPicker(!showWardPicker)}
+                  disabled={loading || wards.length === 0 || isViewOnly}
+                >
+                  <Text style={[
+                    styles.pickerButtonText,
+                    !selectedWard && { color: '#9CA3AF' }
+                  ]}>
+                    {selectedWard?.full_name || formData.district || 'Chọn xã/phường'}
+                  </Text>
+                  <ChevronDown size={20} color="#6B7280" />
+                </TouchableOpacity>
+
+                {showWardPicker && (
+                  <View style={styles.pickerDropdown}>
+                    <ScrollView style={styles.pickerScrollView} nestedScrollEnabled>
+                      {wards.map((ward) => (
+                        <TouchableOpacity
+                          key={ward.id}
+                          style={[
+                            styles.pickerItem,
+                            selectedWard?.id === ward.id && styles.pickerItemSelected
+                          ]}
+                          onPress={() => {
+                            setSelectedWard(ward);
+                            setFormData(prev => ({ 
+                              ...prev, 
+                              district: ward.full_name 
+                            }));
+                            setShowWardPicker(false);
+                          }}
+                        >
+                          <Text style={[
+                            styles.pickerItemName,
+                            selectedWard?.id === ward.id && styles.pickerItemNameSelected
+                          ]}>
+                            {ward.full_name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+              </>
+            )}
+          </View>
+
+          {/* Detail Address */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Địa chỉ chi tiết *</Text>
+            <Text style={styles.inputHint}>(Số nhà, tên đường, ấp/khu phố)</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Ví dụ: 123 Đường Nguyễn Trãi, Ấp 3"
+              value={formData.address}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, address: text }))}
+              editable={!loading && !isViewOnly}
+              maxLength={200}
+            />
+          </View>
 
           {/* Note */}
           <View style={styles.inputGroup}>
@@ -495,31 +657,42 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
               multiline
               numberOfLines={4}
               textAlignVertical="top"
-              editable={!loading}
+              editable={!loading && !isViewOnly}
             />
           </View>
         </ScrollView>
 
         <View style={styles.modalFooter}>
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={onClose}
-            disabled={loading}
-          >
-            <Text style={styles.cancelButtonText}>Hủy</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-            onPress={handleSubmit}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.submitButtonText}>Cập nhật</Text>
-            )}
-          </TouchableOpacity>
+          {isViewOnly ? (
+            <TouchableOpacity
+              style={[styles.submitButton, { flex: 1 }]}
+              onPress={onClose}
+            >
+              <Text style={styles.submitButtonText}>Đóng</Text>
+            </TouchableOpacity>
+          ) : (
+            <>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={onClose}
+                disabled={loading}
+              >
+                <Text style={styles.cancelButtonText}>Hủy</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+                onPress={handleSubmit}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.submitButtonText}>Cập nhật</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </View>
     </Modal>
@@ -545,6 +718,19 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#111827',
+  },
+  viewOnlyBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  viewOnlyBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#92400E',
   },
   closeButton: {
     width: 40,
@@ -751,5 +937,36 @@ const styles = StyleSheet.create({
   readOnlyDateButtonText: {
     color: '#059669',
     fontWeight: '600',
+  },
+  readOnlyField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  readOnlyFieldText: {
+    fontSize: 16,
+    color: '#6B7280',
+    flex: 1,
+  },
+  wardLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  wardLoadingText: {
+    fontSize: 16,
+    color: '#6B7280',
   },
 });

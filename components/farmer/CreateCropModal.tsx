@@ -11,9 +11,9 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { X, Calendar, ChevronDown } from 'lucide-react-native';
-import { CreateCropData, getCustardAppleTypes, CustardAppleType } from '../../services/cropService';
-import { CROP_STATUSES } from '../../utils/cropStatusUtils';
+import { X, Calendar, ChevronDown, MapPin } from 'lucide-react-native';
+import { CreateCropData, getCustardAppleTypes, CustardAppleType, CropStatusEnum } from '../../services/cropService';
+import { getProvinces, getWardsFromProvince, Province, Ward } from '../../services/addressService';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 interface CreateCropModalProps {
@@ -29,26 +29,71 @@ export default function CreateCropModal({ visible, onClose, onSubmit }: CreateCr
   const [custardAppleTypes, setCustardAppleTypes] = useState<CustardAppleType[]>([]);
   const [loadingTypes, setLoadingTypes] = useState(true);
   const [showTypePicker, setShowTypePicker] = useState(false);
-  const [showStatusPicker, setShowStatusPicker] = useState(false);
+  
+  // Address states
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [wards, setWards] = useState<Ward[]>([]);
+  const [selectedProvince, setSelectedProvince] = useState<Province | null>(null);
+  const [selectedWard, setSelectedWard] = useState<Ward | null>(null);
+  const [showWardPicker, setShowWardPicker] = useState(false);
+  const [loadingWards, setLoadingWards] = useState(false);
   
   const [formData, setFormData] = useState<CreateCropData>({
     name: '',
     area: 0,
     custardAppleTypeID: '',
     farmingDuration: 0,
-    status: 0, // Default to "Mới trồng"
+    status: CropStatusEnum.PreSeason,
     startPlantingDate: new Date().toISOString(),
-    nearestHarvestDate: undefined, // Changed to undefined
+    nearestHarvestDate: undefined,
+    address: '',
+    district: '',
+    province: '',
     note: '',
     treeCount: 0,
   });
 
-  // Load custard apple types when modal opens
+  // Load custard apple types and address data when modal opens
   useEffect(() => {
     if (visible) {
       loadCustardAppleTypes();
+      loadProvinces();
     }
   }, [visible]);
+
+  const loadProvinces = async () => {
+    try {
+      const provincesData = await getProvinces();
+      setProvinces(provincesData);
+      
+      // Find and set Tây Ninh as default
+      const tayNinh = provincesData.find(p => 
+        p.full_name.includes('Tây Ninh') || p.name.includes('Tây Ninh')
+      );
+      
+      if (tayNinh) {
+        setSelectedProvince(tayNinh);
+        setFormData(prev => ({ ...prev, province: tayNinh.full_name }));
+        // Load wards for Tây Ninh
+        loadWards(tayNinh.id);
+      }
+    } catch (error) {
+      console.error('Error loading provinces:', error);
+    }
+  };
+
+  const loadWards = async (provinceId: string) => {
+    setLoadingWards(true);
+    try {
+      const wardsData = await getWardsFromProvince(provinceId);
+      setWards(wardsData);
+    } catch (error) {
+      console.error('Error loading wards:', error);
+      Alert.alert('Lỗi', 'Không thể tải danh sách xã/phường');
+    } finally {
+      setLoadingWards(false);
+    }
+  };
 
   const loadCustardAppleTypes = async () => {
     setLoadingTypes(true);
@@ -100,6 +145,22 @@ export default function CreateCropModal({ visible, onClose, onSubmit }: CreateCr
       return;
     }
 
+    // Validate address fields
+    if (!formData.address.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập địa chỉ chi tiết');
+      return;
+    }
+
+    if (!selectedWard) {
+      Alert.alert('Lỗi', 'Vui lòng chọn xã/phường');
+      return;
+    }
+
+    if (!selectedProvince) {
+      Alert.alert('Lỗi', 'Vui lòng chọn tỉnh/thành phố');
+      return;
+    }
+
     // Validate dates
     const plantingDate = new Date(formData.startPlantingDate);
     const today = new Date();
@@ -142,6 +203,8 @@ export default function CreateCropModal({ visible, onClose, onSubmit }: CreateCr
         ...formData,
         farmingDuration,
         note: formData.note.trim() || 'không có',
+        province: selectedProvince?.full_name || formData.province,
+        district: selectedWard?.full_name || '',
       };
       
       await onSubmit(submitData);
@@ -151,12 +214,16 @@ export default function CreateCropModal({ visible, onClose, onSubmit }: CreateCr
         area: 0,
         custardAppleTypeID: custardAppleTypes.length > 0 ? custardAppleTypes[0].id : '',
         farmingDuration: 0,
-        status: 0, // Reset to default status
+        status: CropStatusEnum.PreSeason,
         startPlantingDate: new Date().toISOString(),
-        nearestHarvestDate: undefined, // Changed to undefined
+        nearestHarvestDate: undefined,
         note: '',
         treeCount: 0,
+        address: '',
+        district: '',
+        province: selectedProvince?.full_name || '',
       });
+      setSelectedWard(null);
     } catch (error) {
       // Error handled in parent
     } finally {
@@ -265,68 +332,6 @@ export default function CreateCropModal({ visible, onClose, onSubmit }: CreateCr
             )}
           </View>
 
-          {/* Crop Status Picker */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Trạng thái vườn *</Text>
-            <TouchableOpacity
-              style={styles.pickerButton}
-              onPress={() => setShowStatusPicker(!showStatusPicker)}
-              disabled={loading}
-            >
-              <View style={{ 
-                width: 16, 
-                height: 16, 
-                borderRadius: 8, 
-                backgroundColor: CROP_STATUSES[formData.status || 0].color,
-                marginRight: 8
-              }} />
-              <Text style={styles.pickerButtonText}>
-                {CROP_STATUSES[formData.status || 0].name}
-              </Text>
-              <ChevronDown size={20} color="#6B7280" />
-            </TouchableOpacity>
-
-            {/* Status Picker Dropdown */}
-            {showStatusPicker && (
-              <View style={styles.pickerDropdown}>
-                <ScrollView style={styles.pickerScrollView} nestedScrollEnabled>
-                  {CROP_STATUSES.map((status) => (
-                    <TouchableOpacity
-                      key={status.id}
-                      style={[
-                        styles.pickerItem,
-                        formData.status === status.id && styles.pickerItemSelected
-                      ]}
-                      onPress={() => {
-                        setFormData(prev => ({ ...prev, status: status.id }));
-                        setShowStatusPicker(false);
-                      }}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                        <View style={{ 
-                          width: 12, 
-                          height: 12, 
-                          borderRadius: 6, 
-                          backgroundColor: status.color,
-                          marginRight: 10
-                        }} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={[
-                            styles.pickerItemName,
-                            formData.status === status.id && styles.pickerItemNameSelected
-                          ]}>
-                            {status.name}
-                          </Text>
-                          <Text style={styles.pickerItemDescription}>{status.description}</Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-          </View>
-
           {/* Crop Name */}
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Tên vườn *</Text>
@@ -364,6 +369,89 @@ export default function CreateCropModal({ visible, onClose, onSubmit }: CreateCr
               value={formData.treeCount > 0 ? formData.treeCount.toString() : ''}
               onChangeText={(text) => setFormData(prev => ({ ...prev, treeCount: parseInt(text) || 0 }))}
               editable={!loading}
+            />
+          </View>
+
+          {/* Province - Read only (Tây Ninh) */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Tỉnh/Thành phố *</Text>
+            <View style={styles.readOnlyField}>
+              <MapPin size={20} color="#22C55E" />
+              <Text style={styles.readOnlyFieldText}>
+                {selectedProvince?.full_name || 'Đang tải...'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Ward Picker */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Xã/Phường *</Text>
+            {loadingWards ? (
+              <View style={styles.wardLoadingContainer}>
+                <ActivityIndicator size="small" color="#22C55E" />
+                <Text style={styles.wardLoadingText}>Đang tải xã/phường...</Text>
+              </View>
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={styles.pickerButton}
+                  onPress={() => setShowWardPicker(!showWardPicker)}
+                  disabled={loading || wards.length === 0}
+                >
+                  <Text style={[
+                    styles.pickerButtonText,
+                    !selectedWard && { color: '#9CA3AF' }
+                  ]}>
+                    {selectedWard?.full_name || 'Chọn xã/phường'}
+                  </Text>
+                  <ChevronDown size={20} color="#6B7280" />
+                </TouchableOpacity>
+
+                {showWardPicker && (
+                  <View style={styles.pickerDropdown}>
+                    <ScrollView style={styles.pickerScrollView} nestedScrollEnabled>
+                      {wards.map((ward) => (
+                        <TouchableOpacity
+                          key={ward.id}
+                          style={[
+                            styles.pickerItem,
+                            selectedWard?.id === ward.id && styles.pickerItemSelected
+                          ]}
+                          onPress={() => {
+                            setSelectedWard(ward);
+                            setFormData(prev => ({ 
+                              ...prev, 
+                              district: ward.full_name 
+                            }));
+                            setShowWardPicker(false);
+                          }}
+                        >
+                          <Text style={[
+                            styles.pickerItemName,
+                            selectedWard?.id === ward.id && styles.pickerItemNameSelected
+                          ]}>
+                            {ward.full_name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+              </>
+            )}
+          </View>
+
+          {/* Detail Address */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Địa chỉ chi tiết *</Text>
+            <Text style={styles.inputHint}>(Số nhà, tên đường, ấp/khu phố)</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Ví dụ: 123 Đường Nguyễn Trãi, Ấp 3"
+              value={formData.address}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, address: text }))}
+              editable={!loading}
+              maxLength={200}
             />
           </View>
 
@@ -668,5 +756,36 @@ const styles = StyleSheet.create({
   autoCalculatedValue: {
     fontWeight: 'bold',
     color: '#22C55E',
+  },
+  readOnlyField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  readOnlyFieldText: {
+    fontSize: 16,
+    color: '#6B7280',
+    flex: 1,
+  },
+  wardLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  wardLoadingText: {
+    fontSize: 16,
+    color: '#6B7280',
   },
 });

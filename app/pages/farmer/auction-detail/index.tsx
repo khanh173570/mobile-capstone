@@ -22,6 +22,7 @@ import {
 } from 'lucide-react-native';
 import Header from '../../../../components/shared/Header';
 import AuctionLogModal from '../../../../components/farmer/AuctionLogModal';
+import BidLogDisplay from '../../../../components/farmer/BidLogDisplay';
 import { 
   FarmerAuction, 
   getAuctionSessionHarvests, 
@@ -33,6 +34,7 @@ import {
 } from '../../../../services/auctionService';
 import { getCropById, Crop } from '../../../../services/cropService';
 import { getAuctionLogs, AuctionLog } from '../../../../services/auctionLogService';
+import { getAllBidsForAuction } from '../../../../services/bidService';
 import { useAuctionContext } from '../../../../hooks/useAuctionContext';
 
 interface AuctionDetailScreenProps {
@@ -52,6 +54,8 @@ export default function AuctionDetailScreen() {
   const [logs, setLogs] = useState<AuctionLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [showLogsModal, setShowLogsModal] = useState(false);
+  const [bidLogs, setBidLogs] = useState<any[]>([]);
+  const [bidLogsLoading, setBidLogsLoading] = useState(false);
 
   useEffect(() => {
     if (auctionData) {
@@ -62,6 +66,7 @@ export default function AuctionDetailScreen() {
         setCurrentAuctionId(parsedAuction.id);
         loadAuctionHarvests(parsedAuction.id);
         loadAuctionCrops(parsedAuction.id);
+        loadBidLogs(parsedAuction.id);
       } catch (error) {
         console.error('Error parsing auction data:', error);
         Alert.alert('Lỗi', 'Không thể tải thông tin đấu giá');
@@ -88,6 +93,20 @@ export default function AuctionDetailScreen() {
       Alert.alert('Lỗi', 'Không thể tải lịch sử thay đổi');
     } finally {
       setLogsLoading(false);
+    }
+  };
+
+  const loadBidLogs = async (auctionId: string) => {
+    setBidLogsLoading(true);
+    try {
+      const bids = await getAllBidsForAuction(auctionId);
+      console.log('Bid logs loaded:', bids.length);
+      setBidLogs(bids);
+    } catch (error) {
+      console.error('Error loading bid logs:', error);
+      // Don't show alert, just log the error
+    } finally {
+      setBidLogsLoading(false);
     }
   };
 
@@ -681,6 +700,13 @@ export default function AuctionDetailScreen() {
             </View>
           )}
         </View> */}
+
+        {/* Bid Logs Display */}
+        <BidLogDisplay 
+          bidLogs={bidLogs} 
+          loading={bidLogsLoading}
+          minBidIncrement={auction?.minBidIncrement}
+        />
 
         <View style={{ height: 20 }} />
       </ScrollView>

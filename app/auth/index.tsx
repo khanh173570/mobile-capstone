@@ -198,7 +198,7 @@ export default function LoginScreen() { // Test fix workflow
             </Text>
           </TouchableOpacity>
         </View>
-<View style={styles.socialContainer}>
+{/* <View style={styles.socialContainer}>
   <Text style={styles.socialText}>Hoặc đăng nhập bằng</Text>
   <View style={styles.socialRow}>
     <TouchableOpacity style={styles.socialButton}>
@@ -213,7 +213,7 @@ export default function LoginScreen() { // Test fix workflow
       <FontAwesome5 name="tiktok" size={32} color="#000000" />
     </TouchableOpacity>
   </View>
-</View>
+</View> */}
 
 
       </View>

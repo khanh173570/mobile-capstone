@@ -18,11 +18,12 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 interface EditHarvestModalProps {
   visible: boolean;
   harvest: Harvest | null;
+  isViewOnly?: boolean;
   onClose: () => void;
   onSubmit: (harvestData: UpdateHarvestData) => Promise<void>;
 }
 
-export default function EditHarvestModal({ visible, harvest, onClose, onSubmit }: EditHarvestModalProps) {
+export default function EditHarvestModal({ visible, harvest, isViewOnly = false, onClose, onSubmit }: EditHarvestModalProps) {
   const [loading, setLoading] = useState(false);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showHarvestDatePicker, setShowHarvestDatePicker] = useState(false);
@@ -133,7 +134,14 @@ export default function EditHarvestModal({ visible, harvest, onClose, onSubmit }
     >
       <View style={styles.modalContainer}>
         <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>Cập nhật mùa vụ</Text>
+          <Text style={styles.modalTitle}>
+            {isViewOnly ? 'Xem chi tiết mùa vụ' : 'Cập nhật mùa vụ'}
+          </Text>
+          {isViewOnly && (
+            <View style={styles.viewOnlyBadge}>
+              <Text style={styles.viewOnlyBadgeText}>Đang có đấu giá</Text>
+            </View>
+          )}
           <TouchableOpacity 
             style={styles.closeButton}
             onPress={onClose}
@@ -162,7 +170,7 @@ export default function EditHarvestModal({ visible, harvest, onClose, onSubmit }
             <TouchableOpacity
               style={styles.dateButton}
               onPress={() => setShowHarvestDatePicker(true)}
-              disabled={loading}
+              disabled={loading || isViewOnly}
             >
               <Calendar size={20} color="#6B7280" />
               <Text style={styles.dateButtonText}>
@@ -192,7 +200,7 @@ export default function EditHarvestModal({ visible, harvest, onClose, onSubmit }
                 keyboardType="numeric"
                 value={formData.totalQuantity > 0 ? formData.totalQuantity.toString() : ''}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, totalQuantity: parseFloat(text) || 0 }))}
-                editable={!loading}
+                editable={!loading && !isViewOnly}
               />
               <View style={[styles.textInput, styles.unitInput, styles.unitInputDisabled]}>
                 <Text style={styles.unitText}>kg</Text>
@@ -209,7 +217,7 @@ export default function EditHarvestModal({ visible, harvest, onClose, onSubmit }
               keyboardType="numeric"
               value={formData.salePrice > 0 ? formData.salePrice.toString() : ''}
               onChangeText={(text) => setFormData(prev => ({ ...prev, salePrice: parseFloat(text) || 0 }))}
-              editable={!loading}
+              editable={!loading && !isViewOnly}
             />
           </View>
 
@@ -224,31 +232,42 @@ export default function EditHarvestModal({ visible, harvest, onClose, onSubmit }
               multiline
               numberOfLines={4}
               textAlignVertical="top"
-              editable={!loading}
+              editable={!loading && !isViewOnly}
             />
           </View>
         </ScrollView>
 
         <View style={styles.modalFooter}>
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={onClose}
-            disabled={loading}
-          >
-            <Text style={styles.cancelButtonText}>Hủy</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-            onPress={handleSubmit}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.submitButtonText}>Cập nhật</Text>
-            )}
-          </TouchableOpacity>
+          {isViewOnly ? (
+            <TouchableOpacity
+              style={[styles.submitButton, { flex: 1 }]}
+              onPress={onClose}
+            >
+              <Text style={styles.submitButtonText}>Đóng</Text>
+            </TouchableOpacity>
+          ) : (
+            <>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={onClose}
+                disabled={loading}
+              >
+                <Text style={styles.cancelButtonText}>Hủy</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+                onPress={handleSubmit}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.submitButtonText}>Cập nhật</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </View>
     </Modal>
@@ -274,6 +293,19 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#111827',
+  },
+  viewOnlyBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  viewOnlyBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#92400E',
   },
   closeButton: {
     width: 40,

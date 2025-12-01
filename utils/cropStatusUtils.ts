@@ -1,4 +1,4 @@
-// Crop status utilities
+// Crop status utilities - Synchronized with CropStatusEnum from cropService.ts
 export interface CropStatusInfo {
   id: number;
   name: string;
@@ -10,38 +10,45 @@ export interface CropStatusInfo {
 export const CROP_STATUSES: CropStatusInfo[] = [
   {
     id: 0,
-    name: 'Mới trồng',
-    color: '#3B82F6', // Blue
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    description: 'Cây vừa được trồng'
+    name: 'Chưa bắt đầu mùa vụ',
+    color: '#6B7280', // Gray - Not editable
+    backgroundColor: 'rgba(107, 114, 128, 0.1)',
+    description: 'Vừa tạo vườn, chưa bắt đầu canh tác'
   },
   {
     id: 1,
     name: 'Đang phát triển',
-    color: '#F59E0B', // Amber
+    color: '#F59E0B', // Amber - Fully editable
     backgroundColor: 'rgba(245, 158, 11, 0.1)',
-    description: 'Cây đang trong quá trình phát triển'
+    description: 'Cây đang trong quá trình phát triển, có thể tạo đấu giá'
   },
   {
     id: 2,
-    name: 'Đang ra hoa',
-    color: '#EC4899', // Pink
-    backgroundColor: 'rgba(236, 72, 153, 0.1)',
-    description: 'Cây đang trong thời kỳ ra hoa'
+    name: 'Đang trên sàn đấu giá',
+    color: '#3B82F6', // Blue - Not editable
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    description: 'Vườn đang có đấu giá trong sàn'
   },
   {
     id: 3,
-    name: 'Đã thu hoạch',
-    color: '#22C55E', // Green
-    backgroundColor: 'rgba(34, 197, 94, 0.1)',
-    description: 'Đã thu hoạch quả'
+    name: 'Đang thu hoạch',
+    color: '#EC4899', // Pink - Partially editable (harvest only)
+    backgroundColor: 'rgba(236, 72, 153, 0.1)',
+    description: 'Cây đang trong quá trình thu hoạch'
   },
   {
     id: 4,
+    name: 'Đã thu hoạch',
+    color: '#22C55E', // Green - Read-only
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    description: 'Đã hoàn thành thu hoạch'
+  },
+  {
+    id: 5,
     name: 'Ngừng canh tác',
-    color: '#EF4444', // Red
+    color: '#EF4444', // Red - Not editable
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    description: 'Ngừng canh tác hoặc cây chết'
+    description: 'Ngừng canh tác vườn này'
   }
 ];
 

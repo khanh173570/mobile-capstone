@@ -355,7 +355,7 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            <View style={styles.farmDetailItem}>
+            {/* <View style={styles.farmDetailItem}>
               <View style={styles.farmDetailIcon}>
                 <Leaf size={20} color="#10B981" />
               </View>
@@ -363,7 +363,7 @@ export default function HomeScreen() {
                 <Text style={styles.farmDetailLabel}>Loại hình</Text>
                 <Text style={styles.farmDetailValue}>Nông nghiệp hữu cơ</Text>
               </View>
-            </View>
+            </View> */}
 
             <View style={styles.farmDetailItem}>
               <View style={styles.farmDetailIcon}>
@@ -384,7 +384,7 @@ export default function HomeScreen() {
     
 
       {/* Weather Info */}
-      <View style={styles.weatherCard}>
+      {/* <View style={styles.weatherCard}>
         <View style={styles.weatherHeader}>
           <Sun size={24} color="#F59E0B" />
           <Text style={styles.weatherTitle}>Thông tin thời tiết</Text>
@@ -401,7 +401,7 @@ export default function HomeScreen() {
             <Text style={styles.weatherValue}>75%</Text>
           </View>
         </View>
-      </View>
+      </View> */}
 
       {/* Update Farm Button */}
       <TouchableOpacity style={styles.updateButton} onPress={handleUpdateFarm}>

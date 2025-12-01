@@ -194,6 +194,7 @@ export default function HarvestGradeDetailPage() {
       <CreateGradeModal
         visible={showCreateModal}
         harvestId={harvestId}
+        existingGrades={grades.map(g => g.grade)}
         onClose={() => setShowCreateModal(false)}
         onSuccess={handleCreateSuccess}
       />

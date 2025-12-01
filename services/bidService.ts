@@ -45,7 +45,7 @@ export const calculateMinAutoBidLimit = (
 };
 
 /**
- * Get bids for a specific auction
+ * Get current user's bids for a specific auction
  */
 export const getBidsForAuction = async (auctionSessionId: string): Promise<BidResponse[]> => {
   try {
@@ -68,6 +68,34 @@ export const getBidsForAuction = async (auctionSessionId: string): Promise<BidRe
     return Array.isArray(data.data) ? data.data : [];
   } catch (error) {
     console.error('Error fetching bids:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all bids for a specific auction (for viewing bid logs)
+ */
+export const getAllBidsForAuction = async (auctionSessionId: string): Promise<any[]> => {
+  try {
+    const response = await fetchWithTokenRefresh(
+      `${API_BASE_URL}/auction-service/bidlog/auction/${auctionSessionId}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to fetch bid logs');
+    }
+
+    return Array.isArray(data.data) ? data.data : [];
+  } catch (error) {
+    console.error('Error fetching bid logs:', error);
     throw error;
   }
 };

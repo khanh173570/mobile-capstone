@@ -8,6 +8,7 @@ import {
   Alert,
   TouchableOpacity,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { 
@@ -32,8 +33,10 @@ import { getFarmById, Farm } from '../../../../../services/farmService';
 import { getHarvestById } from '../../../../../services/harvestService';
 import CreateBidModal from '../../../../../components/wholesaler/BidModalV2';
 import BidListDisplay from '../../../../../components/wholesaler/BidListDisplay';
+import AllBidsDisplay from '../../../../../components/wholesaler/AllBidsDisplay';
+import HarvestImagesGallery from '../../../../../components/wholesaler/HarvestImagesGallery';
 import { useAuctionContext } from '../../../../../hooks/useAuctionContext';
-import { getBidsForAuction, BidResponse } from '../../../../../services/bidService';
+import { getBidsForAuction, getAllBidsForAuction, BidResponse } from '../../../../../services/bidService';
 import { sendLocalNotification } from '../../../../../services/notificationService';
 
 interface Auction {
@@ -75,10 +78,13 @@ export default function WholesalerAuctionDetailScreen() {
   const [crops, setCrops] = useState<Crop[]>([]);
   const [currentHarvests, setCurrentHarvests] = useState<{ [key: string]: CurrentHarvest }>({});
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showBidModal, setShowBidModal] = useState(false);
   const [bids, setBids] = useState<BidResponse[]>([]);
   const [loadingBids, setLoadingBids] = useState(false);
   const [selectedBidForEdit, setSelectedBidForEdit] = useState<BidResponse | undefined>(undefined);
+  const [allBidLogs, setAllBidLogs] = useState<any[]>([]);
+  const [loadingAllBids, setLoadingAllBids] = useState(false);
 
   useEffect(() => {
     if (auctionId) {
@@ -164,6 +170,7 @@ export default function WholesalerAuctionDetailScreen() {
     // Fetch bids for this auction if loaded successfully
     if (auctionId) {
       await loadBids(auctionId as string);
+      await loadAllBids(auctionId as string);
     }
   };
 
@@ -178,6 +185,34 @@ export default function WholesalerAuctionDetailScreen() {
       // Silently fail - bids not loading shouldn't block UI
     } finally {
       setLoadingBids(false);
+    }
+  };
+
+  const loadAllBids = async (auctionSessionId: string) => {
+    try {
+      setLoadingAllBids(true);
+      const bidLogsList = await getAllBidsForAuction(auctionSessionId);
+      console.log('Fetched all bid logs:', bidLogsList.length);
+      setAllBidLogs(bidLogsList);
+    } catch (error) {
+      console.error('Error loading all bids:', error);
+      // Silently fail - all bids not loading shouldn't block UI
+    } finally {
+      setLoadingAllBids(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      // Reload auction detail and bids
+      if (auctionId) {
+        await loadAuctionDetail();
+      }
+    } catch (error) {
+      console.error('Error during refresh:', error);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -276,6 +311,14 @@ export default function WholesalerAuctionDetailScreen() {
         style={styles.content}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#22C55E']}
+            tintColor="#22C55E"
+          />
+        }
       >
         {/* Status Section */}
         <View style={styles.section}>
@@ -427,6 +470,9 @@ export default function WholesalerAuctionDetailScreen() {
                     </View>
                   )}
                 </View>
+
+                {/* Harvest Images Gallery */}
+                <HarvestImagesGallery harvestId={harvest.id} />
 
                 {/* Harvest Grade Details */}
                 {harvest.harvestGradeDetails && harvest.harvestGradeDetails.length > 0 && (
@@ -644,6 +690,12 @@ export default function WholesalerAuctionDetailScreen() {
           }}
         />
 
+        {/* All Bids Display */}
+        <AllBidsDisplay
+          bidLogs={allBidLogs}
+          loading={loadingAllBids}
+        />
+
         {/* Bidding Button - Only show if no bids yet */}
         {bids.length === 0 && (
           <TouchableOpacity 
@@ -673,9 +725,10 @@ export default function WholesalerAuctionDetailScreen() {
             setSelectedBidForEdit(undefined);
           }}
           onBidCreated={() => {
-            // Reload bids after creating/updating
+            // Reload all data after creating/updating bid
             if (auctionId) {
-              loadBids(auctionId as string);
+              // Reload auction detail (updates current price and other info)
+              loadAuctionDetail();
               
               // Send notification to trigger home screen refresh
               sendLocalNotification({
