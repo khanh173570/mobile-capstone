@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -22,7 +22,7 @@ import {
 } from 'lucide-react-native';
 import Header from '../../../../components/shared/Header';
 import AuctionLogModal from '../../../../components/farmer/AuctionLogModal';
-import BidLogDisplay from '../../../../components/farmer/BidLogDisplay';
+import AllBidsDisplay from '../../../../components/wholesaler/AllBidsDisplay';
 import { 
   FarmerAuction, 
   getAuctionSessionHarvests, 
@@ -36,6 +36,7 @@ import { getCropById, Crop } from '../../../../services/cropService';
 import { getAuctionLogs, AuctionLog } from '../../../../services/auctionLogService';
 import { getAllBidsForAuction } from '../../../../services/bidService';
 import { useAuctionContext } from '../../../../hooks/useAuctionContext';
+import { signalRService, BidPlacedEvent, BuyNowEvent } from '../../../../services/signalRService';
 
 interface AuctionDetailScreenProps {
   auction: FarmerAuction;
@@ -57,29 +58,294 @@ export default function AuctionDetailScreen() {
   const [bidLogs, setBidLogs] = useState<any[]>([]);
   const [bidLogsLoading, setBidLogsLoading] = useState(false);
 
+  // Debug: Log state changes
   useEffect(() => {
-    if (auctionData) {
-      try {
-        const parsedAuction = JSON.parse(auctionData as string);
-        setAuction(parsedAuction);
-        // Set current auction ID for global polling
-        setCurrentAuctionId(parsedAuction.id);
-        loadAuctionHarvests(parsedAuction.id);
-        loadAuctionCrops(parsedAuction.id);
-        loadBidLogs(parsedAuction.id);
-      } catch (error) {
-        console.error('Error parsing auction data:', error);
-        Alert.alert('Lỗi', 'Không thể tải thông tin đấu giá');
-        router.back();
-      }
+    console.log('📊 Farmer State bidLogs changed, count:', bidLogs.length);
+    if (bidLogs.length > 0) {
+      console.log('📊 Farmer First bid:', bidLogs[0].userName, '-', bidLogs[0].type);
     }
-    setLoading(false);
+  }, [bidLogs]);
 
-    // Cleanup: Reset auction ID when leaving detail page
-    return () => {
-      setCurrentAuctionId(null);
+  // Define callback functions first before useEffect
+  // Quiet reload without loading indicator (for SignalR updates)
+  const loadBidLogsQuietly = useCallback(async (
+    auctionId: string, 
+    retryCount = 0, 
+    previousCount?: number,
+    previousLatestTime?: string
+  ) => {
+    // NO setBidLogsLoading(true)!
+    try {
+      console.log('🔄 Farmer Quiet: START, retry:', retryCount);
+      
+      if (retryCount > 0) {
+        const delay = 300 * retryCount;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+      
+      const bids = await getAllBidsForAuction(auctionId);
+      console.log('✅ Farmer Quiet: Loaded', bids.length, 'logs');
+      
+      let currentCount = previousCount;
+      let latestTimestamp = previousLatestTime;
+      
+      if (currentCount === undefined || latestTimestamp === undefined) {
+        await new Promise<void>((resolve) => {
+          setBidLogs(prev => {
+            currentCount = prev.length;
+            if (prev.length > 0) {
+              const sorted = [...prev].sort((a: any, b: any) => 
+                new Date(b.dateTimeUpdate).getTime() - new Date(a.dateTimeUpdate).getTime()
+              );
+              latestTimestamp = sorted[0].dateTimeUpdate;
+            }
+            resolve();
+            return prev;
+          });
+        });
+      }
+      
+      let hasNewerData = false;
+      if (bids.length > 0 && latestTimestamp) {
+        const apiLatestTime = new Date(bids[0].dateTimeUpdate).getTime();
+        const stateLatestTime = new Date(latestTimestamp).getTime();
+        hasNewerData = apiLatestTime > stateLatestTime;
+      } else if (bids.length > (currentCount || 0)) {
+        hasNewerData = true;
+      }
+      
+      if (retryCount < 2 && !hasNewerData) {
+        return loadBidLogsQuietly(auctionId, retryCount + 1, currentCount, latestTimestamp);
+      }
+      
+      if (!hasNewerData && retryCount >= 2) {
+        console.log('⏭️ Farmer Quiet: Max retries, keeping optimistic');
+        return;
+      }
+      
+      setBidLogs(bids);
+      console.log('✅ Farmer Quiet: State updated with', bids.length, 'logs');
+    } catch (error) {
+      console.error('❌ Farmer Quiet: Error:', error);
+    }
+  }, []);
+
+  const loadBidLogs = useCallback(async (
+    auctionId: string, 
+    retryCount = 0, 
+    previousCount?: number,
+    previousLatestTime?: string
+  ) => {
+    setBidLogsLoading(true);
+    try {
+      console.log('🔄 Farmer: START loadBidLogs, retry:', retryCount);
+      
+      // Add small delay to let backend sync
+      if (retryCount > 0) {
+        const delay = 300 * retryCount;
+        console.log(`⏳ Farmer: Waiting ${delay}ms for backend to sync...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+      
+      const bids = await getAllBidsForAuction(auctionId);
+      console.log('✅ Farmer: Bid logs loaded:', bids.length);
+      
+      // Get current count and latest timestamp from state
+      let currentCount = previousCount;
+      let latestTimestamp = previousLatestTime;
+      
+      if (currentCount === undefined || latestTimestamp === undefined) {
+        await new Promise<void>((resolve) => {
+          setBidLogs(prev => {
+            currentCount = prev.length;
+            if (prev.length > 0) {
+              const sorted = [...prev].sort((a: any, b: any) => 
+                new Date(b.dateTimeUpdate).getTime() - new Date(a.dateTimeUpdate).getTime()
+              );
+              latestTimestamp = sorted[0].dateTimeUpdate;
+              console.log('📊 Farmer: Current count:', currentCount, '| Latest:', latestTimestamp);
+            } else {
+              console.log('📊 Farmer: Current count:', currentCount);
+            }
+            resolve();
+            return prev;
+          });
+        });
+      }
+      
+      // Check if API has newer data by comparing timestamps
+      let hasNewerData = false;
+      if (bids.length > 0 && latestTimestamp) {
+        const apiLatestTime = new Date(bids[0].dateTimeUpdate).getTime();
+        const stateLatestTime = new Date(latestTimestamp).getTime();
+        hasNewerData = apiLatestTime > stateLatestTime;
+        console.log('🔍 Farmer: Newer?', hasNewerData);
+      } else if (bids.length > (currentCount || 0)) {
+        hasNewerData = true;
+      }
+      
+      // ✅ FIX: Nếu cả API và state đều empty (0 bids), đừng retry
+      if (bids.length === 0 && (currentCount === 0 || currentCount === undefined)) {
+        console.log('ℹ️ Farmer: No bids yet, skipping retry');
+        setBidLogs([]);
+        setBidLogsLoading(false);
+        return;
+      }
+      
+      // Check if we need to retry
+      if (retryCount < 2 && !hasNewerData) {
+        console.log(`⚠️ Farmer: No newer data, retrying...`);
+        setBidLogsLoading(false);
+        return loadBidLogs(auctionId, retryCount + 1, currentCount, latestTimestamp);
+      }
+      
+      // If still no newer data after retries, keep optimistic updates
+      if (!hasNewerData && retryCount >= 2) {
+        console.log('⏭️ Farmer: Max retries, keeping optimistic data');
+        setBidLogsLoading(false);
+        return;
+      }
+      
+      setBidLogs(bids);
+      console.log('✅ Farmer: State updated with', bids.length, 'bid logs');
+    } catch (error) {
+      console.error('❌ Farmer: Error loading bid logs:', error);
+      // Don't show alert, just log the error
+    } finally {
+      setBidLogsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const initializeAuction = async () => {
+      if (auctionData) {
+        try {
+          const parsedAuction = JSON.parse(auctionData as string);
+          setAuction(parsedAuction);
+          // Set current auction ID for global polling
+          setCurrentAuctionId(parsedAuction.id);
+          
+          // Load all data in parallel
+          await Promise.all([
+            loadAuctionHarvests(parsedAuction.id),
+            loadAuctionCrops(parsedAuction.id),
+            loadBidLogsQuietly(parsedAuction.id), // Use quiet version để không block UI
+          ]);
+
+          // Setup SignalR for real-time updates
+          const setupSignalR = async () => {
+            try {
+              await signalRService.connect();
+              await signalRService.joinAuctionGroup(parsedAuction.id);
+              console.log('Farmer: Joined auction group', parsedAuction.id);
+            } catch (error) {
+              console.error('Farmer: SignalR setup failed', error);
+            }
+          };
+
+          setupSignalR();
+
+        // Subscribe to BidPlaced events
+        const unsubscribeBidPlaced = signalRService.onBidPlaced((event: BidPlacedEvent) => {
+          console.log('🔔 Farmer: BidPlaced event received', {
+            auctionId: event.auctionId,
+            userName: event.userName,
+            bidAmount: event.bidAmount,
+            newPrice: event.newPrice,
+          });
+          
+          // Only refresh if event is for this auction
+          if (event.auctionId === parsedAuction.id) {
+            console.log('✅ Farmer: Event matches current auction, updating data...');
+            console.log(`💰 Farmer: Price: ${event.previousPrice} → ${event.newPrice}`);
+            console.log(`👤 Farmer: Bidder: ${event.userName} (${event.userId})`);
+            
+            // Update auction current price immediately
+            setAuction(prev => {
+              console.log('💰 Farmer: Updating auction price:', prev?.currentPrice, '→', event.newPrice);
+              return prev ? { ...prev, currentPrice: event.newPrice } : prev;
+            });
+            
+            // Create optimistic bid log for instant UI update
+            const optimisticBidLog: any = {
+              id: `${event.bidId}-optimistic`,
+              bidId: event.bidId,
+              userId: event.userId,
+              userName: event.userName,
+              type: 'Updated',
+              isAutoBidding: false,
+              dateTimeUpdate: event.placedAt,
+              oldEntity: JSON.stringify({
+                Auction: { Price: event.previousPrice },
+                Bid: { BidAmount: event.previousPrice }
+              }),
+              newEntity: JSON.stringify({
+                Auction: { Price: event.newPrice },
+                Bid: {
+                  UserId: event.userId,
+                  UserName: event.userName,
+                  BidAmount: event.bidAmount,
+                  IsAutoBid: false,
+                  IsWinning: true,
+                }
+              }),
+              createdAt: event.placedAt,
+              updatedAt: null,
+            };
+            
+            // Add optimistic bid immediately
+            console.log('⚡ Farmer: Adding optimistic bid:', event.bidAmount);
+            setBidLogs(prev => {
+              const exists = prev.some((log: any) => 
+                log.dateTimeUpdate === event.placedAt
+              );
+              if (exists) {
+                console.log('✓ Farmer: Bid with same timestamp exists, skipping');
+                return prev;
+              }
+              console.log('✓ Farmer: Optimistic bid added, count:', prev.length + 1);
+              return [optimisticBidLog, ...prev];
+            });
+            
+            // Fetch fresh data from API (quiet - no loading spinner)
+            console.log('🔄 Farmer: Quiet reloading bid data from API...');
+            console.log('📊 Farmer: Current bid logs count:', bidLogs.length);
+            loadBidLogsQuietly(parsedAuction.id);
+          } else {
+            console.log('❌ Farmer: Event for different auction, ignoring');
+          }
+        });
+
+        // Subscribe to BuyNow events
+        const unsubscribeBuyNow = signalRService.onBuyNow((event: BuyNowEvent) => {
+          console.log('Farmer: BuyNow event', event);
+          
+          if (event.auctionId === parsedAuction.id) {
+            // Reload auction to get updated status
+            Alert.alert('Thông báo', `Đấu giá đã được mua ngay bởi ${event.userName}!`);
+          }
+        });
+
+        // Cleanup function
+        return () => {
+          setCurrentAuctionId(null);
+          signalRService.leaveAuctionGroup(parsedAuction.id);
+          unsubscribeBidPlaced();
+          unsubscribeBuyNow();
+        };
+
+        } catch (error) {
+          console.error('Error parsing auction data:', error);
+          Alert.alert('Lỗi', 'Không thể tải thông tin đấu giá');
+          router.back();
+        } finally {
+          setLoading(false);
+        }
+      }
     };
-  }, [auctionData, setCurrentAuctionId]);
+    
+    initializeAuction();
+  }, [auctionData, setCurrentAuctionId, loadBidLogsQuietly, loadAuctionHarvests, loadAuctionCrops]);
 
   const loadAuctionLogs = async () => {
     if (!auction?.id) return;
@@ -93,20 +359,6 @@ export default function AuctionDetailScreen() {
       Alert.alert('Lỗi', 'Không thể tải lịch sử thay đổi');
     } finally {
       setLogsLoading(false);
-    }
-  };
-
-  const loadBidLogs = async (auctionId: string) => {
-    setBidLogsLoading(true);
-    try {
-      const bids = await getAllBidsForAuction(auctionId);
-      console.log('Bid logs loaded:', bids.length);
-      setBidLogs(bids);
-    } catch (error) {
-      console.error('Error loading bid logs:', error);
-      // Don't show alert, just log the error
-    } finally {
-      setBidLogsLoading(false);
     }
   };
 
@@ -701,12 +953,14 @@ export default function AuctionDetailScreen() {
           )}
         </View> */}
 
-        {/* Bid Logs Display */}
-        <BidLogDisplay 
-          bidLogs={bidLogs} 
-          loading={bidLogsLoading}
-          minBidIncrement={auction?.minBidIncrement}
-        />
+        {/* Bid Logs Section */}
+        <View style={styles.section}>
+          <AllBidsDisplay
+            key={`farmer-bids-${bidLogs.length}-${bidLogs[0]?.id || 'empty'}`}
+            bidLogs={bidLogs} 
+            loading={bidLogsLoading}
+          />
+        </View>
 
         <View style={{ height: 20 }} />
       </ScrollView>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -36,8 +36,9 @@ import BidListDisplay from '../../../../../components/wholesaler/BidListDisplay'
 import AllBidsDisplay from '../../../../../components/wholesaler/AllBidsDisplay';
 import HarvestImagesGallery from '../../../../../components/wholesaler/HarvestImagesGallery';
 import { useAuctionContext } from '../../../../../hooks/useAuctionContext';
-import { getBidsForAuction, getAllBidsForAuction, BidResponse } from '../../../../../services/bidService';
+import { getBidsForAuction, getAllBidsForAuction, BidResponse, BidLog } from '../../../../../services/bidService';
 import { sendLocalNotification } from '../../../../../services/notificationService';
+import { signalRService, BidPlacedEvent, BuyNowEvent } from '../../../../../services/signalRService';
 
 interface Auction {
   id: string;
@@ -83,20 +84,131 @@ export default function WholesalerAuctionDetailScreen() {
   const [bids, setBids] = useState<BidResponse[]>([]);
   const [loadingBids, setLoadingBids] = useState(false);
   const [selectedBidForEdit, setSelectedBidForEdit] = useState<BidResponse | undefined>(undefined);
-  const [allBidLogs, setAllBidLogs] = useState<any[]>([]);
+  const [allBidLogs, setAllBidLogs] = useState<BidLog[]>([]);
   const [loadingAllBids, setLoadingAllBids] = useState(false);
 
+  // Debug: Log state changes
+  useEffect(() => {
+    console.log('📊 State allBidLogs changed, count:', allBidLogs.length);
+    if (allBidLogs.length > 0) {
+      console.log('📊 First bid:', allBidLogs[0].userName, '-', allBidLogs[0].type);
+      const firstBidData = JSON.parse(allBidLogs[0].newEntity).Bid;
+      console.log('📊 First bid amount:', firstBidData?.BidAmount || 'N/A');
+      console.log('📊 First bid time:', allBidLogs[0].dateTimeUpdate);
+    }
+  }, [allBidLogs]);
+
+  // SignalR setup for real-time updates
   useEffect(() => {
     if (auctionId) {
       // Set current auction ID for global polling
       setCurrentAuctionId(auctionId as string);
       loadAuctionDetail();
-    }
 
-    // Cleanup: Reset auction ID when leaving
-    return () => {
-      setCurrentAuctionId(null);
-    };
+      // Connect to SignalR and join auction group
+      const setupSignalR = async () => {
+        try {
+          await signalRService.connect();
+          await signalRService.joinAuctionGroup(auctionId as string);
+          console.log('SignalR: Joined auction group', auctionId);
+        } catch (error) {
+          console.error('SignalR: Setup failed', error);
+        }
+      };
+
+      setupSignalR();
+
+      // Subscribe to BidPlaced events
+      const unsubscribeBidPlaced = signalRService.onBidPlaced((event: BidPlacedEvent) => {
+        console.log('🔔 Wholesaler: BidPlaced event received', {
+          auctionId: event.auctionId,
+          userName: event.userName,
+          bidAmount: event.bidAmount,
+          newPrice: event.newPrice,
+        });
+        
+        // Only refresh if event is for this auction
+        if (event.auctionId === auctionId) {
+          console.log('✅ Event matches current auction, updating data...');
+          console.log(`💰 Price: ${event.previousPrice} → ${event.newPrice}`);
+          console.log(`👤 Bidder: ${event.userName} (${event.userId})`);
+          
+          // Update auction current price immediately
+          setAuction(prev => {
+            console.log('💰 Updating auction price:', prev?.currentPrice, '→', event.newPrice);
+            return prev ? { ...prev, currentPrice: event.newPrice } : prev;
+          });
+          
+          // Create optimistic bid log for instant UI update
+          const optimisticBidLog: BidLog = {
+            id: `${event.bidId}-optimistic`,
+            bidId: event.bidId,
+            userId: event.userId,
+            userName: event.userName,
+            type: 'Updated',
+            isAutoBidding: false,
+            dateTimeUpdate: event.placedAt,
+            oldEntity: JSON.stringify({
+              Auction: { Price: event.previousPrice },
+              Bid: { BidAmount: event.previousPrice }
+            }),
+            newEntity: JSON.stringify({
+              Auction: { Price: event.newPrice },
+              Bid: {
+                UserId: event.userId,
+                UserName: event.userName,
+                BidAmount: event.bidAmount,
+                IsAutoBid: false,
+                IsWinning: true,
+              }
+            }),
+            createdAt: event.placedAt,
+            updatedAt: null,
+          };
+          
+          // Add optimistic bid immediately for instant UX
+          console.log('⚡ Adding optimistic bid:', event.bidAmount);
+          setAllBidLogs(prev => {
+            // Check if this exact timestamp already exists (avoid duplicate optimistic)
+            const exists = prev.some(log => 
+              log.dateTimeUpdate === event.placedAt
+            );
+            if (exists) {
+              console.log('✓ Bid with same timestamp exists, skipping optimistic');
+              return prev;
+            }
+            console.log('✓ Optimistic bid added, count:', prev.length + 1);
+            return [optimisticBidLog, ...prev];
+          });
+          
+          // Fetch real data from API in background (quiet - no loading spinner)
+          console.log('🔄 Quiet reloading bid data from API...');
+          console.log('📊 Current bid logs count:', allBidLogs.length);
+          loadAllBidsQuietly(auctionId as string);
+          loadBidsQuietly(auctionId as string);
+        } else {
+          console.log('❌ Event for different auction, ignoring');
+        }
+      });
+
+      // Subscribe to BuyNow events
+      const unsubscribeBuyNow = signalRService.onBuyNow((event: BuyNowEvent) => {
+        console.log('Wholesaler: BuyNow event', event);
+        
+        if (event.auctionId === auctionId) {
+          // Reload auction detail to get updated status
+          loadAuctionDetail();
+        }
+      });
+
+      // Cleanup: Leave auction group and unsubscribe
+      return () => {
+        setCurrentAuctionId(null);
+        signalRService.leaveAuctionGroup(auctionId as string);
+        unsubscribeBidPlaced();
+        unsubscribeBuyNow();
+      };
+    }
   }, [auctionId, setCurrentAuctionId]);
 
   const loadAuctionDetail = async () => {
@@ -174,33 +286,187 @@ export default function WholesalerAuctionDetailScreen() {
     }
   };
 
-  const loadBids = async (auctionSessionId: string) => {
+  const loadBids = useCallback(async (auctionSessionId: string) => {
     try {
       setLoadingBids(true);
       const bidsList = await getBidsForAuction(auctionSessionId);
-      console.log('Fetched bids:', bidsList);
+      console.log('✅ Fetched user bids:', bidsList.length);
       setBids(bidsList);
     } catch (error) {
-      console.error('Error loading bids:', error);
+      console.error('❌ Error loading bids:', error);
       // Silently fail - bids not loading shouldn't block UI
     } finally {
       setLoadingBids(false);
     }
-  };
+  }, []);
 
-  const loadAllBids = async (auctionSessionId: string) => {
+  // Quiet reload without loading indicator (for SignalR updates)
+  const loadBidsQuietly = useCallback(async (auctionSessionId: string) => {
     try {
-      setLoadingAllBids(true);
-      const bidLogsList = await getAllBidsForAuction(auctionSessionId);
-      console.log('Fetched all bid logs:', bidLogsList.length);
-      setAllBidLogs(bidLogsList);
+      const bidsList = await getBidsForAuction(auctionSessionId);
+      console.log('✅ Quiet: Fetched user bids:', bidsList.length);
+      setBids(bidsList);
     } catch (error) {
-      console.error('Error loading all bids:', error);
+      console.error('❌ Quiet reload bids error:', error);
+    }
+  }, []);
+
+  // Quiet reload for all bids (no loading indicator)
+  const loadAllBidsQuietly = useCallback(async (
+    auctionSessionId: string, 
+    retryCount = 0, 
+    previousCount?: number,
+    previousLatestTime?: string
+  ) => {
+    try {
+      console.log('🔄 Quiet: loadAllBids, retry:', retryCount);
+      // NO setLoadingAllBids(true)!
+      
+      if (retryCount > 0) {
+        const delay = 300 * retryCount;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+      
+      const bidLogsList = await getAllBidsForAuction(auctionSessionId);
+      console.log('✅ Quiet API: Fetched', bidLogsList.length, 'bid logs');
+      
+      let currentCount = previousCount;
+      let latestTimestamp = previousLatestTime;
+      
+      if (currentCount === undefined || latestTimestamp === undefined) {
+        await new Promise<void>((resolve) => {
+          setAllBidLogs(prev => {
+            currentCount = prev.length;
+            if (prev.length > 0) {
+              const sorted = [...prev].sort((a, b) => 
+                new Date(b.dateTimeUpdate).getTime() - new Date(a.dateTimeUpdate).getTime()
+              );
+              latestTimestamp = sorted[0].dateTimeUpdate;
+            }
+            resolve();
+            return prev;
+          });
+        });
+      }
+      
+      let hasNewerData = false;
+      if (bidLogsList.length > 0 && latestTimestamp) {
+        const apiLatestTime = new Date(bidLogsList[0].dateTimeUpdate).getTime();
+        const stateLatestTime = new Date(latestTimestamp).getTime();
+        hasNewerData = apiLatestTime > stateLatestTime;
+      } else if (bidLogsList.length > (currentCount || 0)) {
+        hasNewerData = true;
+      }
+      
+      if (retryCount < 2 && !hasNewerData) {
+        return loadAllBidsQuietly(auctionSessionId, retryCount + 1, currentCount, latestTimestamp);
+      }
+      
+      if (!hasNewerData && retryCount >= 2) {
+        console.log('⏭️ Quiet: Max retries, keeping optimistic');
+        return;
+      }
+      
+      setAllBidLogs(bidLogsList);
+      console.log('✅ Quiet: State updated');
+    } catch (error) {
+      console.error('❌ Quiet reload error:', error);
+    }
+  }, []);
+
+  const loadAllBids = useCallback(async (
+    auctionSessionId: string, 
+    retryCount = 0, 
+    previousCount?: number,
+    previousLatestTime?: string
+  ) => {
+    try {
+      console.log('🔄 START: loadAllBids called for auction:', auctionSessionId, 'retry:', retryCount);
+      setLoadingAllBids(true);
+      
+      // Add small delay to let backend sync
+      if (retryCount > 0) {
+        const delay = 300 * retryCount; // 300ms, 600ms, 900ms
+        console.log(`⏳ Waiting ${delay}ms for backend to sync...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+      
+      const bidLogsList = await getAllBidsForAuction(auctionSessionId);
+      console.log('✅ API Response: Fetched', bidLogsList.length, 'bid logs');
+      
+      // Debug: Log first 3 bids
+      if (bidLogsList.length > 0) {
+        console.log('📋 First 3 bids from API:');
+        bidLogsList.slice(0, 3).forEach((bid, idx) => {
+          console.log(`  ${idx + 1}. ${bid.userName} - ${bid.type} - Amount: ${JSON.parse(bid.newEntity).Bid?.BidAmount || 'N/A'} - Time: ${bid.dateTimeUpdate}`);
+        });
+      }
+      
+      // Get current count and latest timestamp from state
+      let currentCount = previousCount;
+      let latestTimestamp = previousLatestTime;
+      
+      if (currentCount === undefined || latestTimestamp === undefined) {
+        // First call, read from current state
+        await new Promise<void>((resolve) => {
+          setAllBidLogs(prev => {
+            currentCount = prev.length;
+            // Get the latest timestamp (newest bid)
+            if (prev.length > 0) {
+              const sorted = [...prev].sort((a, b) => 
+                new Date(b.dateTimeUpdate).getTime() - new Date(a.dateTimeUpdate).getTime()
+              );
+              latestTimestamp = sorted[0].dateTimeUpdate;
+              console.log('📊 Current state count:', currentCount, '| Latest bid time:', latestTimestamp);
+            } else {
+              console.log('📊 Current state count:', currentCount);
+            }
+            resolve();
+            return prev; // Don't update yet
+          });
+        });
+      }
+      
+      // Check if API has newer data by comparing timestamps
+      let hasNewerData = false;
+      if (bidLogsList.length > 0 && latestTimestamp) {
+        const apiLatestTime = new Date(bidLogsList[0].dateTimeUpdate).getTime();
+        const stateLatestTime = new Date(latestTimestamp).getTime();
+        hasNewerData = apiLatestTime > stateLatestTime;
+        console.log('🔍 API latest:', bidLogsList[0].dateTimeUpdate, '| State latest:', latestTimestamp, '| Newer?', hasNewerData);
+      } else if (bidLogsList.length > (currentCount || 0)) {
+        hasNewerData = true; // Count increased
+        console.log('🔍 Count increased:', bidLogsList.length, '>', currentCount, '| Newer? true');
+      }
+      
+      // Check if we need to retry
+      if (retryCount < 2 && !hasNewerData) {
+        console.log(`⚠️ No newer data yet, retrying...`);
+        setLoadingAllBids(false);
+        return loadAllBids(auctionSessionId, retryCount + 1, currentCount, latestTimestamp);
+      }
+      
+      // If still no newer data after retries, keep optimistic updates
+      if (!hasNewerData && retryCount >= 2) {
+        console.log('⏭️ Max retries reached, keeping optimistic data');
+        setLoadingAllBids(false);
+        return; // Don't update state, keep optimistic bids
+      }
+      
+      console.log('📝 Setting state with new data...');
+      // Remove optimistic bids and replace with real data
+      setAllBidLogs(bidLogsList);
+      console.log('✅ State setAllBidLogs called successfully');
+    } catch (error) {
+      console.error('❌ Error loading all bids:', error);
       // Silently fail - all bids not loading shouldn't block UI
     } finally {
       setLoadingAllBids(false);
+      console.log('🏁 END: loadAllBids completed');
     }
-  };
+  }, []);
+
+
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -690,8 +956,9 @@ export default function WholesalerAuctionDetailScreen() {
           }}
         />
 
-        {/* All Bids Display */}
+        {/* All Bids Display - Show 5 recent, scroll for more */}
         <AllBidsDisplay
+          key={`bids-${allBidLogs.length}-${allBidLogs[0]?.id || 'empty'}`}
           bidLogs={allBidLogs}
           loading={loadingAllBids}
         />
@@ -725,10 +992,18 @@ export default function WholesalerAuctionDetailScreen() {
             setSelectedBidForEdit(undefined);
           }}
           onBidCreated={() => {
-            // Reload all data after creating/updating bid
+            // Don't reload immediately - wait for SignalR event to update price
+            // This prevents showing stale price due to backend race condition
+            console.log('✅ Bid created, waiting for SignalR event to update price...');
+            
+            // Only reload bid lists quietly (no full page reload)
             if (auctionId) {
-              // Reload auction detail (updates current price and other info)
-              loadAuctionDetail();
+              // SignalR will update the price automatically
+              // Just reload bid lists in background
+              setTimeout(() => {
+                loadAllBidsQuietly(auctionId as string);
+                loadBidsQuietly(auctionId as string);
+              }, 300); // Small delay to let backend commit
               
               // Send notification to trigger home screen refresh
               sendLocalNotification({

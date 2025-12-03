@@ -680,53 +680,97 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     const refreshToken = await AsyncStorage.getItem('refreshToken');
     
     if (!refreshToken) {
-      console.log('No refresh token available');
+      console.log('❌ No refresh token available');
       return false;
     }
 
-    console.log('Attempting to refresh access token...');
+    console.log('🔄 Attempting to refresh access token...');
+    console.log('🔑 Refresh token length:', refreshToken.length);
+    console.log('🌐 API URL:', `${API_URL}/auth/refresh`);
     
-    const response = await fetch(`${API_URL}/Auth/RefreshToken`, {
+    // API endpoint: https://gateway.a-379.store/api/auth/refresh
+    // Send refresh token in BOTH header AND body (backend may check either)
+    const response = await fetch(`${API_URL}/auth/refresh`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${refreshToken}`,
       },
-      body: JSON.stringify({ refreshToken }),
+      body: JSON.stringify({
+        refreshToken: refreshToken
+      }),
     });
 
+    console.log('📡 Response status:', response.status);
+    
     if (!response.ok) {
-      console.error('Failed to refresh token:', response.status);
+      const errorText = await response.text();
+      console.error('❌ Failed to refresh token');
+      console.error('📄 Response status:', response.status);
+      console.error('📄 Response body:', errorText);
+      
       // Refresh token has expired, clear tokens
       await AsyncStorage.removeItem('accessToken');
       await AsyncStorage.removeItem('refreshToken');
       return false;
     }
 
-    const data = await response.json();
+    const responseText = await response.text();
+    console.log('📄 Response body:', responseText.substring(0, 200));
+    
+    const data: ApiResponse<TokenData> = JSON.parse(responseText);
 
-    if (data.isSuccess && data.data.accessToken) {
+    if (data.isSuccess && data.data?.accessToken) {
       // Store new access token
       await AsyncStorage.setItem('accessToken', data.data.accessToken);
       
-      // Update refresh token if provided
+      // Update refresh token (API always returns new refresh token)
       if (data.data.refreshToken) {
         await AsyncStorage.setItem('refreshToken', data.data.refreshToken);
       }
 
-      console.log('Access token refreshed successfully');
+      console.log('✅ Access token refreshed successfully');
+      console.log('📊 New access token length:', data.data.accessToken.length);
+      console.log('📅 Token expires at:', getTokenExpiration(data.data.accessToken));
       return true;
     } else {
-      console.error('Refresh token response invalid:', data);
+      console.error('❌ Refresh token response invalid');
+      console.error('📊 isSuccess:', data.isSuccess);
+      console.error('📊 message:', data.message);
       await AsyncStorage.removeItem('accessToken');
       await AsyncStorage.removeItem('refreshToken');
       return false;
     }
   } catch (error) {
-    console.error('Error refreshing access token:', error);
+    console.error('❌ Error refreshing access token:', error);
+    console.error('📊 Error details:', error instanceof Error ? error.message : String(error));
     await AsyncStorage.removeItem('accessToken');
     await AsyncStorage.removeItem('refreshToken');
     return false;
+  }
+};
+
+// Helper function to get token expiration time
+const getTokenExpiration = (token: string): string => {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return 'Invalid token';
+    
+    let decoded = parts[1];
+    const padding = 4 - (decoded.length % 4);
+    if (padding !== 4) {
+      decoded += '='.repeat(padding);
+    }
+    
+    const payload = JSON.parse(atob(decoded));
+    
+    if (payload.exp) {
+      return new Date(payload.exp * 1000).toLocaleString('vi-VN');
+    }
+    
+    return 'No expiration';
+  } catch (error) {
+    return 'Error parsing token';
   }
 };
 
@@ -753,11 +797,14 @@ export const isTokenExpired = (token: string): boolean => {
       const expirationTime = payload.exp * 1000; // Convert to milliseconds
       const currentTime = Date.now();
       
-      // Consider token expired if it expires in less than 1 minute
-      const isExpired = currentTime >= (expirationTime - 60000);
+      // Consider token expired if it expires in less than 2 minutes
+      // This gives time to refresh before actual expiration
+      const bufferTime = 120000; // 2 minutes in milliseconds
+      const isExpired = currentTime >= (expirationTime - bufferTime);
       
       if (isExpired) {
-        console.log('Token will expire soon:', new Date(expirationTime));
+        const expiresIn = Math.round((expirationTime - currentTime) / 1000);
+        console.log(`⏰ Token expires in ${expiresIn} seconds (${new Date(expirationTime).toLocaleString('vi-VN')})`);
       }
       
       return isExpired;
@@ -765,7 +812,7 @@ export const isTokenExpired = (token: string): boolean => {
     
     return false;
   } catch (error) {
-    console.error('Error checking token expiration:', error);
+    console.error('❌ Error checking token expiration:', error);
     return true; // Consider expired on error
   }
 };
@@ -778,13 +825,29 @@ export const fetchWithTokenRefresh = async (
   try {
     let accessToken = await AsyncStorage.getItem('accessToken');
     
+    // If no access token, return 401-like response
+    if (!accessToken) {
+      console.log('❌ No access token available');
+      return new Response(JSON.stringify({ message: 'No access token' }), { 
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
     // Check if token is expired and refresh if needed
-    if (accessToken && isTokenExpired(accessToken)) {
-      console.log('Token expired, attempting refresh...');
+    if (isTokenExpired(accessToken)) {
+      console.log('⏰ Token expired, attempting refresh...');
       const refreshed = await refreshAccessToken();
       
       if (!refreshed) {
-        throw new Error('Failed to refresh token');
+        console.log('❌ Refresh failed, clearing session...');
+        // Clear all auth data
+        await logout();
+        // Return 401 to trigger login redirect
+        return new Response(JSON.stringify({ message: 'Session expired' }), { 
+          status: 401,
+          headers: { 'Content-Type': 'application/json' }
+        });
       }
       
       accessToken = await AsyncStorage.getItem('accessToken');
@@ -801,9 +864,9 @@ export const fetchWithTokenRefresh = async (
       headers,
     });
 
-    // If we get 401, try refreshing token and retry
+    // If we get 401, try refreshing token once and retry
     if (response.status === 401) {
-      console.log('Got 401, attempting to refresh token...');
+      console.log('🔄 Got 401, attempting to refresh token...');
       const refreshed = await refreshAccessToken();
       
       if (refreshed) {
@@ -818,12 +881,22 @@ export const fetchWithTokenRefresh = async (
           ...options,
           headers: retryHeaders,
         });
+        
+        // If still 401 after refresh, logout
+        if (response.status === 401) {
+          console.log('❌ Still 401 after refresh, clearing session...');
+          await logout();
+        }
+      } else {
+        // Refresh failed, logout
+        console.log('❌ Refresh failed on 401, clearing session...');
+        await logout();
       }
     }
 
     return response;
   } catch (error) {
-    console.error('Error in fetchWithTokenRefresh:', error);
+    console.error('❌ Error in fetchWithTokenRefresh:', error);
     throw error;
   }
 };

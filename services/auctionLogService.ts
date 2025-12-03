@@ -25,7 +25,7 @@ export interface AuctionLog {
   id: string;
   auctionPostId: string;
   userId: string;
-  type: 'Create' | 'StatusChange' | 'Publish' | 'Update' | string;
+  type: 'Create' | 'StatusChange' | 'Publish' | 'Update' | 'End' | 'Pause' | 'Resume' | 'BuyNow' | string;
   dateTimeUpdate: string;
   oldEntity: AuctionLogEntity | null;
   newEntity: AuctionLogEntity | null;
@@ -82,6 +82,10 @@ export const getLogTypeLabel = (type: string): string => {
     'StatusChange': 'Thay đổi trạng thái',
     'Publish': 'Công bố',
     'Update': 'Cập nhật',
+    'End': 'Kết thúc',
+    'Pause': 'Tạm dừng',
+    'Resume': 'Tiếp tục',
+    'BuyNow': 'Mua ngay',
   };
   return typeLabels[type] || type;
 };
@@ -89,10 +93,14 @@ export const getLogTypeLabel = (type: string): string => {
 // Get log type color
 export const getLogTypeColor = (type: string): string => {
   const typeColors: { [key: string]: string } = {
-    'Create': '#10B981',
-    'StatusChange': '#3B82F6',
-    'Publish': '#F59E0B',
-    'Update': '#8B5CF6',
+    'Create': '#10B981',      // Green - Tạo mới
+    'StatusChange': '#3B82F6', // Blue - Thay đổi trạng thái
+    'Publish': '#F59E0B',      // Orange - Công bố
+    'Update': '#8B5CF6',       // Purple - Cập nhật
+    'End': '#EF4444',          // Red - Kết thúc
+    'Pause': '#F97316',        // Orange-red - Tạm dừng
+    'Resume': '#22C55E',       // Green - Tiếp tục
+    'BuyNow': '#0EA5E9',       // Sky blue - Mua ngay
   };
   return typeColors[type] || '#6B7280';
 };

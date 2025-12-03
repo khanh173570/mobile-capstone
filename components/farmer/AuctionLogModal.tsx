@@ -93,23 +93,23 @@ export default function AuctionLogModal({
                     <Text style={styles.logTypeText}>{typeLabel}</Text>
                   </View>
                   <Text style={styles.logTime}>{formatDate(log.dateTimeUpdate)}</Text>
+                  
+                  {statusChange && (
+                    <View style={styles.statusPreview}>
+                      <Text style={styles.statusPreviewText}>
+                        {statusChange.from} → {statusChange.to}
+                      </Text>
+                    </View>
+                  )}
                 </View>
 
-                {statusChange && (
-                  <View style={styles.statusPreview}>
-                    <Text style={styles.statusPreviewText}>
-                      {statusChange.from} → {statusChange.to}
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              <View style={styles.expandIconContainer}>
-                {isExpanded ? (
-                  <ChevronUp size={20} color="#6B7280" />
-                ) : (
-                  <ChevronDown size={20} color="#6B7280" />
-                )}
+                <View style={styles.expandIconContainer}>
+                  {isExpanded ? (
+                    <ChevronUp size={20} color="#6B7280" />
+                  ) : (
+                    <ChevronDown size={20} color="#6B7280" />
+                  )}
+                </View>
               </View>
             </TouchableOpacity>
 
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
   logCardTop: {
     flex: 1,
     flexDirection: 'column',
-    gap: 6,
+    gap: 8,
   },
   logTypeBadge: {
     paddingHorizontal: 10,
@@ -350,11 +350,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   statusPreview: {
-    marginTop: 8,
     paddingHorizontal: 8,
     paddingVertical: 6,
     backgroundColor: '#F3F4F6',
     borderRadius: 6,
+    alignSelf: 'flex-start',
   },
   statusPreviewText: {
     fontSize: 12,

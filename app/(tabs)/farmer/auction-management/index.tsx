@@ -29,8 +29,6 @@ export default function AuctionManagementScreen() {
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [showStatusFilter, setShowStatusFilter] = useState(false);
   const [showAllStatusModal, setShowAllStatusModal] = useState(false);
-  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastAuctionsRef = useRef<string>('');
 
   const statusOptions = [
     { value: 'All', label: 'Tất cả' },
@@ -46,11 +44,6 @@ export default function AuctionManagementScreen() {
 
   useEffect(() => {
     loadAuctions();
-    startPolling();
-
-    return () => {
-      stopPolling();
-    };
   }, []);
 
   // Auto refresh when screen comes to focus
@@ -58,44 +51,8 @@ export default function AuctionManagementScreen() {
     React.useCallback(() => {
       console.log('Auction management screen focused');
       loadAuctions();
-      startPolling();
-
-      return () => {
-        stopPolling();
-      };
     }, [])
   );
-
-  const startPolling = () => {
-    // Clear existing interval if any
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-    }
-
-    // Poll every 20 seconds
-    pollingIntervalRef.current = setInterval(async () => {
-      try {
-        const auctionData = await getFarmerAuctions();
-        const currentAuctionsStr = JSON.stringify(auctionData);
-
-        // Only update if data changed
-        if (lastAuctionsRef.current !== currentAuctionsStr) {
-          console.log('✓ Auction status changed, updating...');
-          setAuctions(auctionData);
-          lastAuctionsRef.current = currentAuctionsStr;
-        }
-      } catch (error) {
-        console.error('Error in polling:', error);
-      }
-    }, 20000); // 20 seconds
-  };
-
-  const stopPolling = () => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-  };
 
   useEffect(() => {
     // Filter auctions when status changes
@@ -108,7 +65,6 @@ export default function AuctionManagementScreen() {
       setLoading(true);
       const auctionData = await getFarmerAuctions();
       setAuctions(auctionData);
-      lastAuctionsRef.current = JSON.stringify(auctionData);
     } catch (error) {
       console.error('Error loading auctions:', error);
       Alert.alert('Lỗi', 'Không thể tải danh sách đấu giá');

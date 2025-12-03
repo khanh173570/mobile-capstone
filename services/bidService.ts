@@ -73,9 +73,26 @@ export const getBidsForAuction = async (auctionSessionId: string): Promise<BidRe
 };
 
 /**
+ * Bid Log interface matching API response
+ */
+export interface BidLog {
+  id: string;
+  bidId: string;
+  userId: string;
+  userName: string;
+  type: string; // 'Created' or 'Updated'
+  isAutoBidding: boolean;
+  dateTimeUpdate: string;
+  oldEntity: string; // JSON string
+  newEntity: string; // JSON string
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+/**
  * Get all bids for a specific auction (for viewing bid logs)
  */
-export const getAllBidsForAuction = async (auctionSessionId: string): Promise<any[]> => {
+export const getAllBidsForAuction = async (auctionSessionId: string): Promise<BidLog[]> => {
   try {
     const response = await fetchWithTokenRefresh(
       `${API_BASE_URL}/auction-service/bidlog/auction/${auctionSessionId}`,
@@ -93,7 +110,12 @@ export const getAllBidsForAuction = async (auctionSessionId: string): Promise<an
       throw new Error(data.message || 'Failed to fetch bid logs');
     }
 
-    return Array.isArray(data.data) ? data.data : [];
+    // Parse oldEntity and newEntity from JSON strings
+    const bidLogs: BidLog[] = Array.isArray(data.data) ? data.data : [];
+    
+    // No need to parse - API already returns parsed objects
+    // The oldEntity and newEntity are already JSON strings as per the interface
+    return bidLogs;
   } catch (error) {
     console.error('Error fetching bid logs:', error);
     throw error;
