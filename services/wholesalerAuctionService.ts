@@ -35,9 +35,7 @@ export interface ApiResponse<T> {
   data: T;
 }
 
-/**
- * Get wholesaler's participated auctions
- */
+
 export const getWholesalerAuctions = async (): Promise<WholesalerAuction[]> => {
   try {
     const token = await AsyncStorage.getItem('accessToken');
