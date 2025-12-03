@@ -16,8 +16,10 @@ interface BidLog {
   type: string; // 'Created' or 'Updated'
   isAutoBidding: boolean;
   dateTimeUpdate: string;
-  oldEntity?: string;
-  newEntity?: string;
+  oldEntity: string; // JSON string
+  newEntity: string; // JSON string
+  createdAt: string;
+  updatedAt: string | null;
 }
 
 interface BidLogDisplayProps {
@@ -72,7 +74,7 @@ export default function BidLogDisplay({
 
       <ScrollView style={styles.logList} showsVerticalScrollIndicator={false}>
         {bidLogs.map((log, index) => {
-          const bidData = parseBidData(log.newEntity || '{}');
+          const bidData = parseBidData(log.newEntity);
           const bidAmount = bidData.BidAmount || 0;
           const isAutoBid = bidData.IsAutoBid || false;
 

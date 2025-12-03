@@ -7,18 +7,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { TrendingUp, Clock, User } from 'lucide-react-native';
-
-interface BidLog {
-  id: string;
-  bidId: string;
-  userId: string;
-  userName: string;
-  type: string; // 'Created' or 'Updated'
-  isAutoBidding: boolean;
-  dateTimeUpdate: string;
-  oldEntity?: string;
-  newEntity?: string;
-}
+import { BidLog } from '../../services/bidService';
 
 interface AllBidsDisplayProps {
   bidLogs: BidLog[];
@@ -29,6 +18,19 @@ export default function AllBidsDisplay({
   bidLogs,
   loading,
 }: AllBidsDisplayProps) {
+  // Debug: Log when component receives new props
+  React.useEffect(() => {
+    console.log('🎨 AllBidsDisplay re-rendered with', bidLogs.length, 'bid logs');
+    if (bidLogs.length > 0) {
+      const sorted = [...bidLogs].sort((a, b) => 
+        new Date(b.dateTimeUpdate).getTime() - new Date(a.dateTimeUpdate).getTime()
+      );
+      console.log('🎨 After sorting, first bid:', sorted[0].userName, '-', sorted[0].type);
+      const firstBidData = JSON.parse(sorted[0].newEntity).Bid;
+      console.log('🎨 First bid amount:', firstBidData?.BidAmount || 'N/A');
+    }
+  }, [bidLogs]);
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -52,6 +54,7 @@ export default function AllBidsDisplay({
       const data = JSON.parse(jsonString);
       return data.Bid || {};
     } catch (error) {
+      console.error('Error parsing bid data:', error);
       return {};
     }
   };
@@ -61,36 +64,31 @@ export default function AllBidsDisplay({
     return date.toLocaleString('vi-VN');
   };
 
-  // Get unique bids (latest bid per user per auction)
-  const getUniqueBids = () => {
-    const bidMap = new Map<string, BidLog>();
-    // Reverse to start from oldest and get replaced with newer ones
-    [...bidLogs].reverse().forEach((log) => {
-      const key = `${log.userId}`;
-      if (!bidMap.has(key)) {
-        bidMap.set(key, log);
-      }
-    });
-    return Array.from(bidMap.values()).reverse();
-  };
-
-  const uniqueBids = getUniqueBids();
+  // Sort bid logs by dateTimeUpdate (newest first)
+  const sortedBidLogs = [...bidLogs].sort((a, b) => {
+    return new Date(b.dateTimeUpdate).getTime() - new Date(a.dateTimeUpdate).getTime();
+  });
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>📊 Tất cả lượt đấu giá</Text>
-        <Text style={styles.count}>{uniqueBids.length} người</Text>
+        <Text style={styles.count}>{sortedBidLogs.length} lượt</Text>
       </View>
 
       <ScrollView style={styles.bidList} showsVerticalScrollIndicator={false}>
-        {uniqueBids.map((log, index) => {
-          const bidData = parseBidData(log.newEntity || '{}');
+        {sortedBidLogs.map((log, index) => {
+          const bidData = parseBidData(log.newEntity);
           const bidAmount = bidData.BidAmount || 0;
-          const isAutoBid = bidData.IsAutoBid || false;
+          const isAutoBid = log.isAutoBidding;
+
+          // Get type label from log.type
+          const typeLabel = log.type === 'Created' ? '🆕 Tạo mới' : 
+                           log.type === 'Updated' ? '🔄 Cập nhật' : 
+                           log.type;
 
           return (
-            <View key={log.userId} style={styles.bidItem}>
+            <View key={`${log.id}-${index}`} style={styles.bidItem}>
               {/* Rank */}
               <View style={styles.rankBadge}>
                 <Text style={styles.rankText}>{index + 1}</Text>
@@ -103,6 +101,9 @@ export default function AllBidsDisplay({
                   <View style={styles.userInfo}>
                     <User size={14} color="#6B7280" />
                     <Text style={styles.userName}>{log.userName}</Text>
+                  </View>
+                  <View style={styles.typeLabel}>
+                    <Text style={styles.typeLabelText}>{typeLabel}</Text>
                   </View>
                   <View
                     style={[
@@ -140,13 +141,7 @@ export default function AllBidsDisplay({
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 20,
-    marginHorizontal: 0,
-    paddingHorizontal: 16,
-    backgroundColor: '#F9FAFB',
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    marginTop: 0,
   },
   header: {
     flexDirection: 'row',
@@ -231,6 +226,18 @@ const styles = StyleSheet.create({
   typeText: {
     fontSize: 14,
   },
+  typeLabel: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: '#F3F4F6',
+    marginLeft: 8,
+  },
+  typeLabelText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
   amountRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -255,7 +262,6 @@ const styles = StyleSheet.create({
   loadingContainer: {
     alignItems: 'center',
     paddingVertical: 20,
-    marginHorizontal: 16,
   },
   loadingText: {
     fontSize: 13,
@@ -265,12 +271,10 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: 'center',
     paddingVertical: 24,
-    marginHorizontal: 16,
     backgroundColor: '#F9FAFB',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    marginTop: 20,
   },
   emptyText: {
     fontSize: 14,
