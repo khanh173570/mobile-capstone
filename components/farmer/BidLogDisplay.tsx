@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   logList: {
-    maxHeight: 400,
+    maxHeight: 450,
   },
   logItem: {
     flexDirection: 'row',

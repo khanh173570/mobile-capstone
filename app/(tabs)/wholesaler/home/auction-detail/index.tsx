@@ -956,7 +956,7 @@ export default function WholesalerAuctionDetailScreen() {
           }}
         />
 
-        {/* All Bids Display */}
+        {/* All Bids Display - Show 5 recent, scroll for more */}
         <AllBidsDisplay
           key={`bids-${allBidLogs.length}-${allBidLogs[0]?.id || 'empty'}`}
           bidLogs={allBidLogs}
@@ -992,10 +992,18 @@ export default function WholesalerAuctionDetailScreen() {
             setSelectedBidForEdit(undefined);
           }}
           onBidCreated={() => {
-            // Reload all data after creating/updating bid
+            // Don't reload immediately - wait for SignalR event to update price
+            // This prevents showing stale price due to backend race condition
+            console.log('✅ Bid created, waiting for SignalR event to update price...');
+            
+            // Only reload bid lists quietly (no full page reload)
             if (auctionId) {
-              // Reload auction detail (updates current price and other info)
-              loadAuctionDetail();
+              // SignalR will update the price automatically
+              // Just reload bid lists in background
+              setTimeout(() => {
+                loadAllBidsQuietly(auctionId as string);
+                loadBidsQuietly(auctionId as string);
+              }, 300); // Small delay to let backend commit
               
               // Send notification to trigger home screen refresh
               sendLocalNotification({

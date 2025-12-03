@@ -76,7 +76,11 @@ export default function AllBidsDisplay({
         <Text style={styles.count}>{sortedBidLogs.length} lượt</Text>
       </View>
 
-      <ScrollView style={styles.bidList} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.bidList} 
+        showsVerticalScrollIndicator={true}
+        nestedScrollEnabled={true}
+      >
         {sortedBidLogs.map((log, index) => {
           const bidData = parseBidData(log.newEntity);
           const bidAmount = bidData.BidAmount || 0;
@@ -160,7 +164,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   bidList: {
-    maxHeight: 400,
+    maxHeight:500, // Show exactly 5 bids, scroll for more
   },
   bidItem: {
     flexDirection: 'row',
