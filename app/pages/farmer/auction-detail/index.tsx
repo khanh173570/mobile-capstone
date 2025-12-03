@@ -184,6 +184,14 @@ export default function AuctionDetailScreen() {
         hasNewerData = true;
       }
       
+      // ✅ FIX: Nếu cả API và state đều empty (0 bids), đừng retry
+      if (bids.length === 0 && (currentCount === 0 || currentCount === undefined)) {
+        console.log('ℹ️ Farmer: No bids yet, skipping retry');
+        setBidLogs([]);
+        setBidLogsLoading(false);
+        return;
+      }
+      
       // Check if we need to retry
       if (retryCount < 2 && !hasNewerData) {
         console.log(`⚠️ Farmer: No newer data, retrying...`);
@@ -209,28 +217,33 @@ export default function AuctionDetailScreen() {
   }, []);
 
   useEffect(() => {
-    if (auctionData) {
-      try {
-        const parsedAuction = JSON.parse(auctionData as string);
-        setAuction(parsedAuction);
-        // Set current auction ID for global polling
-        setCurrentAuctionId(parsedAuction.id);
-        loadAuctionHarvests(parsedAuction.id);
-        loadAuctionCrops(parsedAuction.id);
-        loadBidLogs(parsedAuction.id);
+    const initializeAuction = async () => {
+      if (auctionData) {
+        try {
+          const parsedAuction = JSON.parse(auctionData as string);
+          setAuction(parsedAuction);
+          // Set current auction ID for global polling
+          setCurrentAuctionId(parsedAuction.id);
+          
+          // Load all data in parallel
+          await Promise.all([
+            loadAuctionHarvests(parsedAuction.id),
+            loadAuctionCrops(parsedAuction.id),
+            loadBidLogsQuietly(parsedAuction.id), // Use quiet version để không block UI
+          ]);
 
-        // Setup SignalR for real-time updates
-        const setupSignalR = async () => {
-          try {
-            await signalRService.connect();
-            await signalRService.joinAuctionGroup(parsedAuction.id);
-            console.log('Farmer: Joined auction group', parsedAuction.id);
-          } catch (error) {
-            console.error('Farmer: SignalR setup failed', error);
-          }
-        };
+          // Setup SignalR for real-time updates
+          const setupSignalR = async () => {
+            try {
+              await signalRService.connect();
+              await signalRService.joinAuctionGroup(parsedAuction.id);
+              console.log('Farmer: Joined auction group', parsedAuction.id);
+            } catch (error) {
+              console.error('Farmer: SignalR setup failed', error);
+            }
+          };
 
-        setupSignalR();
+          setupSignalR();
 
         // Subscribe to BidPlaced events
         const unsubscribeBidPlaced = signalRService.onBidPlaced((event: BidPlacedEvent) => {
@@ -321,14 +334,18 @@ export default function AuctionDetailScreen() {
           unsubscribeBuyNow();
         };
 
-      } catch (error) {
-        console.error('Error parsing auction data:', error);
-        Alert.alert('Lỗi', 'Không thể tải thông tin đấu giá');
-        router.back();
+        } catch (error) {
+          console.error('Error parsing auction data:', error);
+          Alert.alert('Lỗi', 'Không thể tải thông tin đấu giá');
+          router.back();
+        } finally {
+          setLoading(false);
+        }
       }
-    }
-    setLoading(false);
-  }, [auctionData, setCurrentAuctionId, loadBidLogs]);
+    };
+    
+    initializeAuction();
+  }, [auctionData, setCurrentAuctionId, loadBidLogsQuietly, loadAuctionHarvests, loadAuctionCrops]);
 
   const loadAuctionLogs = async () => {
     if (!auction?.id) return;
