@@ -8,6 +8,7 @@ import { useNotifications, useSingleAuctionLogPolling } from '../hooks/useNotifi
 import { NotificationMessage } from '../services/notificationService';
 import { registerGlobalNotificationSetter } from '../services/auctionLogNotificationService';
 import { AuctionContext } from '../hooks/useAuctionContext';
+import { SignalRProvider } from './providers/SignalRProvider';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -47,20 +48,22 @@ export default function RootLayout() {
   }
 
   return (
-    <AuctionContext.Provider value={{ currentAuctionId, setCurrentAuctionId }}>
-      <View style={{ flex: 1 }}>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="auth" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="pages" />
-        </Stack>
-        
-        {/* Global notification toast */}
-        <NotificationToast
-          notification={notification}
-          onDismiss={() => setNotification(null)}
-        />
-      </View>
-    </AuctionContext.Provider>
+    <SignalRProvider>
+      <AuctionContext.Provider value={{ currentAuctionId, setCurrentAuctionId }}>
+        <View style={{ flex: 1 }}>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="auth" />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="pages" />
+          </Stack>
+          
+          {/* Global notification toast */}
+          <NotificationToast
+            notification={notification}
+            onDismiss={() => setNotification(null)}
+          />
+        </View>
+      </AuctionContext.Provider>
+    </SignalRProvider>
   );
 }

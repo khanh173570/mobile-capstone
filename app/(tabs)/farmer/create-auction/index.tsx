@@ -125,15 +125,29 @@ export default function CreateAuctionScreen() {
         return;
       }
 
-      const harvest = await getCurrentHarvest(crop.id);
+      let harvest;
+      try {
+        harvest = await getCurrentHarvest(crop.id);
+      } catch (error) {
+        // No current harvest exists (expected error)
+        // Don't log this as it's a normal validation flow
+        Alert.alert(
+          'Yêu cầu tạo vụ thu hoạch',
+          `Vườn "${crop.name}" chưa có vụ thu hoạch.\n\nVui lòng tạo vụ thu hoạch (harvest) trước khi tạo đấu giá.`,
+          [{ text: 'OK' }]
+        );
+        setLoading(false);
+        return;
+      }
       
       // Check if harvest exists and has grade details
       if (!harvest || !harvest.harvestGradeDetailDTOs || harvest.harvestGradeDetailDTOs.length === 0) {
         Alert.alert(
-          'Yêu cầu hoàn thiện',
-          `Vườn "${crop.name}" chưa có chi tiết phân loại đánh giá (harvest grade details). Vui lòng tạo chi tiết phân loại trước khi tạo đấu giá.`,
+          'Yêu cầu hoàn thiện phân loại',
+          `Vườn "${crop.name}" đã có vụ thu hoạch nhưng chưa có chi tiết phân loại đánh giá (harvest grade details).\n\nVui lòng tạo chi tiết phân loại trước khi tạo đấu giá.`,
           [{ text: 'OK' }]
         );
+        setLoading(false);
         return;
       }
 
@@ -143,15 +157,17 @@ export default function CreateAuctionScreen() {
       const isAlreadySelected = selectedCrops.some((item) => item.crop.id === crop.id);
       if (isAlreadySelected) {
         Alert.alert('Thông báo', 'Vườn này đã được chọn');
+        setLoading(false);
         return;
       }
 
       setSelectedCrops([...selectedCrops, { crop, harvest, totalQuantity }]);
       Alert.alert('Thành công', `Đã thêm vườn "${crop.name}" vào danh sách`);
+      setLoading(false);
     } catch (error) {
-      Alert.alert('Lỗi', 'Không thể tải thông tin vườn. Vui lòng thử lại.');
-      console.error('Error loading harvest:', error);
-    } finally {
+      // Only log unexpected errors
+      console.error('Unexpected error in handleSelectCrop:', error);
+      Alert.alert('Lỗi', 'Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.');
       setLoading(false);
     }
   };
@@ -184,12 +200,12 @@ export default function CreateAuctionScreen() {
       return false;
     }
 
-    // Validate publish date is at least 60 minutes from now
+    // Validate publish date is at least 5 minutes from now
     const now = new Date();
     const publishDate = new Date(auctionData.publishDate);
     const diffMinutesFromNow = (publishDate.getTime() - now.getTime()) / (1000 * 60);
-    if (diffMinutesFromNow < 60) {
-      Alert.alert('Lỗi', 'Ngày công bố phải sau thời điểm hiện tại ít nhất 60 phút để admin có thời gian duyệt');
+    if (diffMinutesFromNow < 5) {
+      Alert.alert('Lỗi', 'Ngày công bố phải sau thời điểm hiện tại ít nhất 5 phút');
       return false;
     }
 
@@ -198,11 +214,11 @@ export default function CreateAuctionScreen() {
       return false;
     }
 
-    // Validate endDate is at least 15 minutes after publishDate
+    // Validate endDate is at least 5 minutes after publishDate
     const endDate = new Date(auctionData.endDate);
     const diffMinutes = (endDate.getTime() - publishDate.getTime()) / (1000 * 60);
-    if (diffMinutes < 15) {
-      Alert.alert('Lỗi', 'Ngày kết thúc phải sau ngày công bố ít nhất 15 phút');
+    if (diffMinutes < 5) {
+      Alert.alert('Lỗi', 'Ngày kết thúc phải sau ngày công bố ít nhất 5 phút');
       return false;
     }
 
@@ -879,10 +895,11 @@ export default function CreateAuctionScreen() {
         <View style={styles.noteContainer}>
           <Text style={styles.noteText}>
             📝 <Text style={styles.noteTextBold}>Lưu ý:</Text> 
-            {'\n'}• Ngày công bố phải sau thời điểm hiện tại ít nhất 60 phút (để admin duyệt)
-            {'\n'}• Ngày kết thúc phải sau ngày công bố ít nhất 15 phút
+            {'\n'}• Vườn phải có vụ thu hoạch (harvest) trước khi tạo đấu giá
+            {'\n'}• Vụ thu hoạch phải có chi tiết phân loại đánh giá (grade details)
+            {'\n'}• Ngày công bố phải sau thời điểm hiện tại ít nhất 5 phút
+            {'\n'}• Ngày kết thúc phải sau ngày công bố ít nhất 5 phút
             {'\n'}• Ngày thu hoạch dự kiến phải sau ngày kết thúc ít nhất 3 ngày
-            {'\n'}• Chỉ có thể chọn vườn có chi tiết phân loại đánh giá
             {'\n'}• Mỗi vườn chỉ được tạo 1 đấu giá duy nhất
             {'\n'}• Vườn đang ở trạng thái "Đang trên sàn đấu giá" không thể tạo đấu giá mới
           </Text>

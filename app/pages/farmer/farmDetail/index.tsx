@@ -91,7 +91,7 @@ export default function FarmDetailScreen() {
       const newCrop = await createCrop({ ...cropData, farmID: farmData.id });
       Alert.alert('Thành công', 'Tạo vườn mới thành công!');
       setShowCreateModal(false);
-      await loadData(); // Reload data
+      await loadData(); // Reload data immediately
     } catch (error) {
       console.error('Error creating crop:', error);
       const errorMessage = handleError(error, 'Create Crop');
@@ -113,7 +113,7 @@ export default function FarmDetailScreen() {
       Alert.alert('Thành công', 'Cập nhật vườn thành công!');
       setShowEditModal(false);
       setSelectedCrop(null);
-      await loadData(); // Reload data
+      await loadData(); // Reload data immediately
     } catch (error) {
       console.error('Error updating crop:', error);
       const errorMessage = handleError(error, 'Update Crop');
@@ -137,7 +137,7 @@ export default function FarmDetailScreen() {
             try {
               await deleteCrop(crop.id);
               Alert.alert('Thành công', 'Đã xóa vườn thành công!');
-              await loadData(); // Reload data
+              await loadData(); // Reload data immediately
             } catch (error) {
               console.error('Error deleting crop:', error);
               const errorMessage = handleError(error, 'Delete Crop');

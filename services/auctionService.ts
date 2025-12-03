@@ -104,13 +104,22 @@ export const getCurrentHarvest = async (cropId: string): Promise<CurrentHarvest>
     }
 
     if (!response.ok) {
-      throw new Error(data.message || 'Failed to fetch current harvest');
+      // Don't throw error for "harvest not found" cases - this is expected behavior
+      // Just return null or throw a specific error that can be handled silently
+      const errorMessage = data.message || 'Failed to fetch current harvest';
+      const error = new Error(errorMessage);
+      // Mark this as an expected error for "no harvest" cases
+      (error as any).isExpectedError = !response.ok && response.status === 400;
+      throw error;
     }
 
     console.log('Current harvest fetched successfully:', data.data?.id);
     return data.data;
   } catch (error) {
-    console.error('Error fetching current harvest:', error);
+    // Only log unexpected errors (not the "harvest doesn't exist" case)
+    if (!(error as any).isExpectedError) {
+      console.error('Error fetching current harvest:', error);
+    }
     throw error;
   }
 };
