@@ -181,11 +181,11 @@ export default function WholesalerAuctionDetailScreen() {
             return [optimisticBidLog, ...prev];
           });
           
-          // Fetch real data from API in background (with retry to replace optimistic)
-          console.log('🔄 Reloading bid data from API...');
+          // Fetch real data from API in background (quiet - no loading spinner)
+          console.log('🔄 Quiet reloading bid data from API...');
           console.log('📊 Current bid logs count:', allBidLogs.length);
-          loadAllBids(auctionId as string);
-          loadBids(auctionId as string);
+          loadAllBidsQuietly(auctionId as string);
+          loadBidsQuietly(auctionId as string);
         } else {
           console.log('❌ Event for different auction, ignoring');
         }
@@ -297,6 +297,80 @@ export default function WholesalerAuctionDetailScreen() {
       // Silently fail - bids not loading shouldn't block UI
     } finally {
       setLoadingBids(false);
+    }
+  }, []);
+
+  // Quiet reload without loading indicator (for SignalR updates)
+  const loadBidsQuietly = useCallback(async (auctionSessionId: string) => {
+    try {
+      const bidsList = await getBidsForAuction(auctionSessionId);
+      console.log('✅ Quiet: Fetched user bids:', bidsList.length);
+      setBids(bidsList);
+    } catch (error) {
+      console.error('❌ Quiet reload bids error:', error);
+    }
+  }, []);
+
+  // Quiet reload for all bids (no loading indicator)
+  const loadAllBidsQuietly = useCallback(async (
+    auctionSessionId: string, 
+    retryCount = 0, 
+    previousCount?: number,
+    previousLatestTime?: string
+  ) => {
+    try {
+      console.log('🔄 Quiet: loadAllBids, retry:', retryCount);
+      // NO setLoadingAllBids(true)!
+      
+      if (retryCount > 0) {
+        const delay = 300 * retryCount;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+      
+      const bidLogsList = await getAllBidsForAuction(auctionSessionId);
+      console.log('✅ Quiet API: Fetched', bidLogsList.length, 'bid logs');
+      
+      let currentCount = previousCount;
+      let latestTimestamp = previousLatestTime;
+      
+      if (currentCount === undefined || latestTimestamp === undefined) {
+        await new Promise<void>((resolve) => {
+          setAllBidLogs(prev => {
+            currentCount = prev.length;
+            if (prev.length > 0) {
+              const sorted = [...prev].sort((a, b) => 
+                new Date(b.dateTimeUpdate).getTime() - new Date(a.dateTimeUpdate).getTime()
+              );
+              latestTimestamp = sorted[0].dateTimeUpdate;
+            }
+            resolve();
+            return prev;
+          });
+        });
+      }
+      
+      let hasNewerData = false;
+      if (bidLogsList.length > 0 && latestTimestamp) {
+        const apiLatestTime = new Date(bidLogsList[0].dateTimeUpdate).getTime();
+        const stateLatestTime = new Date(latestTimestamp).getTime();
+        hasNewerData = apiLatestTime > stateLatestTime;
+      } else if (bidLogsList.length > (currentCount || 0)) {
+        hasNewerData = true;
+      }
+      
+      if (retryCount < 2 && !hasNewerData) {
+        return loadAllBidsQuietly(auctionSessionId, retryCount + 1, currentCount, latestTimestamp);
+      }
+      
+      if (!hasNewerData && retryCount >= 2) {
+        console.log('⏭️ Quiet: Max retries, keeping optimistic');
+        return;
+      }
+      
+      setAllBidLogs(bidLogsList);
+      console.log('✅ Quiet: State updated');
+    } catch (error) {
+      console.error('❌ Quiet reload error:', error);
     }
   }, []);
 

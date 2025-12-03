@@ -67,6 +67,69 @@ export default function AuctionDetailScreen() {
   }, [bidLogs]);
 
   // Define callback functions first before useEffect
+  // Quiet reload without loading indicator (for SignalR updates)
+  const loadBidLogsQuietly = useCallback(async (
+    auctionId: string, 
+    retryCount = 0, 
+    previousCount?: number,
+    previousLatestTime?: string
+  ) => {
+    // NO setBidLogsLoading(true)!
+    try {
+      console.log('🔄 Farmer Quiet: START, retry:', retryCount);
+      
+      if (retryCount > 0) {
+        const delay = 300 * retryCount;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+      
+      const bids = await getAllBidsForAuction(auctionId);
+      console.log('✅ Farmer Quiet: Loaded', bids.length, 'logs');
+      
+      let currentCount = previousCount;
+      let latestTimestamp = previousLatestTime;
+      
+      if (currentCount === undefined || latestTimestamp === undefined) {
+        await new Promise<void>((resolve) => {
+          setBidLogs(prev => {
+            currentCount = prev.length;
+            if (prev.length > 0) {
+              const sorted = [...prev].sort((a: any, b: any) => 
+                new Date(b.dateTimeUpdate).getTime() - new Date(a.dateTimeUpdate).getTime()
+              );
+              latestTimestamp = sorted[0].dateTimeUpdate;
+            }
+            resolve();
+            return prev;
+          });
+        });
+      }
+      
+      let hasNewerData = false;
+      if (bids.length > 0 && latestTimestamp) {
+        const apiLatestTime = new Date(bids[0].dateTimeUpdate).getTime();
+        const stateLatestTime = new Date(latestTimestamp).getTime();
+        hasNewerData = apiLatestTime > stateLatestTime;
+      } else if (bids.length > (currentCount || 0)) {
+        hasNewerData = true;
+      }
+      
+      if (retryCount < 2 && !hasNewerData) {
+        return loadBidLogsQuietly(auctionId, retryCount + 1, currentCount, latestTimestamp);
+      }
+      
+      if (!hasNewerData && retryCount >= 2) {
+        console.log('⏭️ Farmer Quiet: Max retries, keeping optimistic');
+        return;
+      }
+      
+      setBidLogs(bids);
+      console.log('✅ Farmer Quiet: State updated with', bids.length, 'logs');
+    } catch (error) {
+      console.error('❌ Farmer Quiet: Error:', error);
+    }
+  }, []);
+
   const loadBidLogs = useCallback(async (
     auctionId: string, 
     retryCount = 0, 
@@ -231,10 +294,10 @@ export default function AuctionDetailScreen() {
               return [optimisticBidLog, ...prev];
             });
             
-            // Fetch fresh data from API (backend now syncs fast)
-            console.log('🔄 Farmer: Reloading bid data from API...');
+            // Fetch fresh data from API (quiet - no loading spinner)
+            console.log('🔄 Farmer: Quiet reloading bid data from API...');
             console.log('📊 Farmer: Current bid logs count:', bidLogs.length);
-            loadBidLogs(parsedAuction.id);
+            loadBidLogsQuietly(parsedAuction.id);
           } else {
             console.log('❌ Farmer: Event for different auction, ignoring');
           }
