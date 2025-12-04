@@ -12,10 +12,17 @@
     },
     "production": {
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "gradle": {
+          "buildOptions": {
+            "--no-daemon": true,
+            "--max-workers": "1"
+          }
+        }
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://gateway.a-379.store/api"
+        "EXPO_PUBLIC_API_URL": "https://gateway.a-379.store/api",
+        "GRADLE_OPTS": "-Dorg.gradle.jvmargs=-Xmx2048m -Dorg.gradle.daemon=false"
       }
     }
   },
