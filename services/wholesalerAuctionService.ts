@@ -68,7 +68,7 @@ export const getWholesalerAuctions = async (): Promise<WholesalerAuction[]> => {
 
     if (!response.ok) {
       console.error('API error:', result.message || 'Failed to fetch wholesaler auctions');
-      throw new Error(result.message || 'Không thể tải lịch sử đấu thầu');
+      throw new Error(result.message || 'Không thể tải lịch sử đấu thầu ');
     }
 
     if (result.isSuccess && result.data && Array.isArray(result.data)) {
