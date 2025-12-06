@@ -18,7 +18,6 @@ import { MapPin, DollarSign, Calendar, Package, User, MoreVertical } from 'lucid
 import { getAuctionsByStatus, getAuctionStatusInfo } from '../../../../services/auctionService';
 import { getCurrentUser } from '../../../../services/authService';
 import { getFarmsByUserId } from '../../../../services/farmService';
-import Header from '../../../../components/shared/Header';
 import ReportAuctionModal from '../../../../components/shared/ReportAuctionModal';
 import FarmerProfileModal from '../../../../components/shared/FarmerProfileModal';
 
@@ -54,8 +53,17 @@ export default function WholesalerHomeScreen() {
   const [farmerFarmNames, setFarmerFarmNames] = useState<{ [farmerId: string]: string }>({});
   const [farmerLoadingState, setFarmerLoadingState] = useState<{ [farmerId: string]: boolean }>({});
 
+  // Load data on mount and focus - no initial loading spinner
   useEffect(() => {
-    loadData();
+    loadDataQuietly();
+    
+    // Auto-refresh every 30 seconds when screen is active
+    const autoRefreshInterval = setInterval(() => {
+      console.log('🔄 Auto-refreshing wholesaler home auctions...');
+      loadDataQuietly();
+    }, 30000); // 5 seconds
+    
+    return () => clearInterval(autoRefreshInterval);
   }, []);
 
   // Preload farmer images when auctions change
@@ -74,7 +82,7 @@ export default function WholesalerHomeScreen() {
   useFocusEffect(
     React.useCallback(() => {
       console.log('WholesalerHomeScreen focused - reloading auctions');
-      loadData();
+      loadDataQuietly();
     }, [])
   );
 
@@ -108,6 +116,16 @@ export default function WholesalerHomeScreen() {
   };
 
   useEffect(() => {
+    // Calculate initial countdowns immediately when auctions load
+    if (auctions.length > 0) {
+      const initialCountdowns: { [key: string]: any } = {};
+      auctions.forEach((auction) => {
+        initialCountdowns[auction.id] = calculateCountdown(auction.endDate);
+      });
+      setCountdowns(initialCountdowns);
+    }
+
+    // Then update every second
     const interval = setInterval(() => {
       const newCountdowns: { [key: string]: any } = {};
       auctions.forEach((auction) => {
@@ -137,6 +155,36 @@ export default function WholesalerHomeScreen() {
     } catch (error) {
       console.error('Error loading data:', error);
       Alert.alert('Lỗi', 'Không thể tải danh sách đấu giá');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load data without showing loading spinner (for initial load and focus refresh)
+  const loadDataQuietly = async () => {
+    try {
+      // Load current user
+      const currentUser = await getCurrentUser();
+      if (currentUser) {
+        setUser(currentUser);
+      }
+
+      // Load auctions
+      const auctionData = await getAuctionsByStatus('OnGoing', 1, 10);
+      if (auctionData.isSuccess && auctionData.data.items) {
+        // Calculate countdowns immediately before setting auctions
+        const initialCountdowns: { [key: string]: any } = {};
+        auctionData.data.items.forEach((auction: Auction) => {
+          initialCountdowns[auction.id] = calculateCountdown(auction.endDate);
+        });
+        setCountdowns(initialCountdowns);
+        
+        // Then set auctions
+        setAuctions(auctionData.data.items);
+      }
+    } catch (error) {
+      console.error('Error loading data quietly:', error);
+      // Don't show alert on quiet load
     } finally {
       setLoading(false);
     }
@@ -421,7 +469,6 @@ export default function WholesalerHomeScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <Header title="Trang chủ - Nhà bán buôn" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#22C55E" />
           <Text style={styles.loadingText}>Đang tải đấu giá...</Text>
@@ -432,8 +479,6 @@ export default function WholesalerHomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Header title="Trang chủ - Nhà bán buôn" />
-      
       <View style={styles.content}>
         {user && (
           <View style={styles.welcomeSection}>
@@ -500,7 +545,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 16,
+    padding: 40,
   },
   loadingContainer: {
     flex: 1,

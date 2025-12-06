@@ -89,13 +89,19 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="farmer/auction-management"
+          name="farmer/buy-request-management"
           options={{
             href: isFarmer ? undefined : null,
-            title: 'Quản lý đấu giá',
+            title: 'Quản lý yêu cầu',
             tabBarIcon: ({ size, color }) => (
-              <Bell size={size} color={color} strokeWidth={2} />
+              <ShoppingCart size={size} color={color} strokeWidth={2} />
             ),
+          }}
+        />
+        <Tabs.Screen
+          name="farmer/buy-request-management/[id]"
+          options={{
+            href: null,
           }}
         />
         <Tabs.Screen
@@ -121,22 +127,22 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="wholesaler/auction-browse"
+          name="wholesaler/bidding-history"
           options={{
             href: !isFarmer ? undefined : null,
-            title: 'Duyệt đấu giá',
+            title: 'Đấu giá',
             tabBarIcon: ({ size, color }) => (
-              <Eye size={size} color={color} strokeWidth={2} />
+              <ShoppingCart size={size} color={color} strokeWidth={2} />
             ),
           }}
         />
         <Tabs.Screen
-          name="wholesaler/bidding-history"
+          name="wholesaler/auction-browse"
           options={{
             href: !isFarmer ? undefined : null,
-            title: 'Lịch sử đấu thầu',
+            title: 'Tạo yêu cầu',
             tabBarIcon: ({ size, color }) => (
-              <ShoppingCart size={size} color={color} strokeWidth={2} />
+              <Eye size={size} color={color} strokeWidth={2} />
             ),
           }}
         />

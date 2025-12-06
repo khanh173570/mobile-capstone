@@ -15,6 +15,7 @@ interface BidListDisplayProps {
   loading: boolean;
   onEditBid?: (bid: BidResponse) => void;
   minBidIncrement: number;
+  auctionStatus?: string;
 }
 
 export default function BidListDisplay({
@@ -22,6 +23,7 @@ export default function BidListDisplay({
   loading,
   onEditBid,
   minBidIncrement,
+  auctionStatus,
 }: BidListDisplayProps) {
   if (loading) {
     return (
@@ -99,11 +101,23 @@ export default function BidListDisplay({
             {/* Action Button */}
             {!bid.isCancelled && (
               <TouchableOpacity
-                style={styles.editButton}
-                onPress={() => onEditBid?.(bid)}
+                style={[
+                  styles.editButton,
+                  auctionStatus !== 'OnGoing' && styles.editButtonDisabled
+                ]}
+                onPress={() => {
+                  if (auctionStatus !== 'OnGoing') {
+                    return;
+                  }
+                  onEditBid?.(bid);
+                }}
+                disabled={auctionStatus !== 'OnGoing'}
               >
-                <Edit2 size={14} color="#2563EB" />
-                <Text style={styles.editButtonText}>Mua với giá mới</Text>
+                <Edit2 size={14} color={auctionStatus !== 'OnGoing' ? '#9CA3AF' : '#2563EB'} />
+                <Text style={[
+                  styles.editButtonText,
+                  auctionStatus !== 'OnGoing' && styles.editButtonTextDisabled
+                ]}>Mua với giá mới</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -260,10 +274,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#BFDBFE',
   },
+  editButtonDisabled: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#E5E7EB',
+  },
   editButtonText: {
     fontSize: 12,
     fontWeight: '600',
     color: '#2563EB',
+  },
+  editButtonTextDisabled: {
+    color: '#9CA3AF',
   },
 
   // Empty State
@@ -279,22 +300,26 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: 24,
+    justifyContent: 'center',
+    paddingVertical: 32,
     marginHorizontal: 16,
     backgroundColor: '#F9FAFB',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     marginTop: 20,
+    minHeight: 120,
   },
   emptyText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#6B7280',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   emptySubText: {
     fontSize: 12,
     color: '#9CA3AF',
+    textAlign: 'center',
+    paddingHorizontal: 20,
   },
 });

@@ -11,8 +11,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronRight } from 'lucide-react-native';
-import { getMyBuyRequests } from '../../services/buyRequestService';
-import { getCustardAppleTypes } from '../../services/buyRequestService';
+import { getCustardAppleTypes } from '../../services/cropService';
 import Header from '../../components/shared/Header';
 
 export default function BuyRequestHistoryScreen() {
@@ -31,14 +30,11 @@ export default function BuyRequestHistoryScreen() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [types, requests] = await Promise.all([
-        getCustardAppleTypes(),
-        getMyBuyRequests(1, 10),
-      ]);
+      const types = await getCustardAppleTypes();
       setCustardAppleTypes(types);
-      setBuyRequests(requests.items || []);
+      setBuyRequests([]);
       setPageNumber(1);
-      setHasMore(!requests.nextPage === false);
+      setHasMore(false);
     } catch (error) {
       console.error('Error loading data:', error);
       Alert.alert('Lỗi', 'Không thể tải dữ liệu');
@@ -50,10 +46,11 @@ export default function BuyRequestHistoryScreen() {
   const onRefresh = async () => {
     try {
       setRefreshing(true);
-      const requests = await getMyBuyRequests(1, 10);
-      setBuyRequests(requests.items || []);
+      const types = await getCustardAppleTypes();
+      setCustardAppleTypes(types);
+      setBuyRequests([]);
       setPageNumber(1);
-      setHasMore(requests.nextPage === true);
+      setHasMore(false);
     } catch (error) {
       console.error('Error refreshing:', error);
     } finally {

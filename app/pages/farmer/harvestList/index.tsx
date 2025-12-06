@@ -288,6 +288,7 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 20,
     paddingBottom: 40,
+    marginTop: 20,
   },
   loadingContainer: {
     flex: 1,

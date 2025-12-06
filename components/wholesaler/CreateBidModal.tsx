@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 10,
+    marginBottom: 20,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -374,6 +374,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     backgroundColor: '#FFFFFF',
+  
   },
   inputError: {
     borderColor: '#DC2626',

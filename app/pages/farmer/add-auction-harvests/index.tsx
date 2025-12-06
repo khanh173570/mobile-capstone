@@ -134,7 +134,8 @@ export default function AddAuctionHarvestsScreen() {
         {
           text: 'OK',
           onPress: () => {
-            router.push('/farmer/auction-management');
+            // @ts-ignore
+            router.push('/farmer/buy-request-management');
           },
         },
       ]);

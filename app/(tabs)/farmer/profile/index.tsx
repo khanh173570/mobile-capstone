@@ -21,14 +21,12 @@ import {
   Award,
   Star,
   Calendar,
-  Briefcase,
   Activity,
   TrendingUp
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { getUserProfile, logout, getCurrentUser } from '../../../../services/authService';
 import type { User as UserType } from '../../../../services/authService';
-import Header from '../../../../components/shared/Header';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -106,7 +104,6 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <Header title="Profile" />
       <ScrollView 
         style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}
@@ -276,9 +273,9 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
-    marginTop: 120,
   },
   scrollContent: {
+    paddingTop: 16,
     paddingBottom: 20,
   },
   profileHeader: {

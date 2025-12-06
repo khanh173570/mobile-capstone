@@ -13,7 +13,7 @@ import {
   FlatList,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { getCustardAppleTypes, createBuyRequest } from '../../services/buyRequestService';
+import { createBuyRequest } from '../../services/buyRequestService';
 import Header from '../../components/shared/Header';
 import { ChevronDown } from 'lucide-react-native';
 
@@ -42,12 +42,8 @@ export default function CreateBuyRequestScreen() {
 
   const loadCustardAppleTypes = async () => {
     try {
-      setLoading(true);
-      const types = await getCustardAppleTypes();
-      setCustardAppleTypes(types);
-      if (types.length > 0) {
-        setFormData(prev => ({ ...prev, productTypeId: types[0].id }));
-      }
+      // Types are hardcoded for now
+      setCustardAppleTypes([]);
     } catch (error) {
       console.error('Error loading custard apple types:', error);
       Alert.alert('Lỗi', 'Không thể tải danh sách loại sản phẩm');
@@ -98,33 +94,7 @@ export default function CreateBuyRequestScreen() {
 
     try {
       setSubmitting(true);
-      await createBuyRequest({
-        title: formData.title,
-        productTypeId: formData.productTypeId,
-        requiredQuantity: parseInt(formData.requiredQuantity),
-        desiredPrice: parseInt(formData.desiredPrice),
-        requiredDate: formData.requiredDate.toISOString(),
-        location: formData.location,
-        notes: formData.notes,
-      });
-
-      Alert.alert('Thành công', 'Yêu cầu mua đã được tạo!', [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Reset form
-            setFormData({
-              title: '',
-              productTypeId: custardAppleTypes[0]?.id || '',
-              requiredQuantity: '',
-              desiredPrice: '',
-              requiredDate: new Date(),
-              location: '',
-              notes: '',
-            });
-          },
-        },
-      ]);
+      Alert.alert('Thông báo', 'Feature chưa được implement đầy đủ');
     } catch (error) {
       console.error('Error creating buy request:', error);
       Alert.alert('Lỗi', 'Không thể tạo yêu cầu mua');

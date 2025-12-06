@@ -84,3 +84,22 @@ export const triggerNotificationResponse = (notification: NotificationMessage): 
     listener(notification);
   });
 };
+
+/**
+ * Register a notification listener (simplified helper)
+ */
+export const registerNotificationListener = (
+  listener: NotificationListener
+): NotificationListener => {
+  notificationListeners.push(listener);
+  return listener;
+};
+
+/**
+ * Unregister a notification listener (simplified helper)
+ */
+export const unregisterNotificationListener = (
+  listener: NotificationListener
+): void => {
+  notificationListeners = notificationListeners.filter((l) => l !== listener);
+};

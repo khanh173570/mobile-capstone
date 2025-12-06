@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Platform,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { 
@@ -19,7 +20,9 @@ import {
   Clock,
   MapPin,
   Leaf,
+  Bell,
 } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { 
   getAuctionStatusInfo,
   getAuctionSessionHarvests,
@@ -35,6 +38,8 @@ import CreateBidModal from '../../../../../components/wholesaler/BidModalV2';
 import BidListDisplay from '../../../../../components/wholesaler/BidListDisplay';
 import AllBidsDisplay from '../../../../../components/wholesaler/AllBidsDisplay';
 import HarvestImagesGallery from '../../../../../components/wholesaler/HarvestImagesGallery';
+import FlipClockDigit from '../../../../../components/shared/FlipClockDigit';
+import EscrowPaymentButton from '../../../../../components/wholesaler/EscrowPaymentButton';
 import { useAuctionContext } from '../../../../../hooks/useAuctionContext';
 import { getBidsForAuction, getAllBidsForAuction, BidResponse, BidLog } from '../../../../../services/bidService';
 import { sendLocalNotification } from '../../../../../services/notificationService';
@@ -86,6 +91,11 @@ export default function WholesalerAuctionDetailScreen() {
   const [selectedBidForEdit, setSelectedBidForEdit] = useState<BidResponse | undefined>(undefined);
   const [allBidLogs, setAllBidLogs] = useState<BidLog[]>([]);
   const [loadingAllBids, setLoadingAllBids] = useState(false);
+  const [countdown, setCountdown] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<{ userId: string; fullName: string } | null>(null);
+  const [newBidCount, setNewBidCount] = useState(0);
+  const [showBidsModal, setShowBidsModal] = useState(false);
+  const [lastViewedBidTime, setLastViewedBidTime] = useState<string | null>(null);
 
   // Debug: Log state changes
   useEffect(() => {
@@ -97,6 +107,22 @@ export default function WholesalerAuctionDetailScreen() {
       console.log('📊 First bid time:', allBidLogs[0].dateTimeUpdate);
     }
   }, [allBidLogs]);
+
+  // Load user profile
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      try {
+        const userStr = await AsyncStorage.getItem('userProfile');
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          setUserProfile({ userId: user.userId, fullName: user.fullName });
+        }
+      } catch (error) {
+        console.error('Error loading user profile:', error);
+      }
+    };
+    loadUserProfile();
+  }, []);
 
   // SignalR setup for real-time updates
   useEffect(() => {
@@ -181,6 +207,15 @@ export default function WholesalerAuctionDetailScreen() {
             return [optimisticBidLog, ...prev];
           });
           
+          // Update notification count if modal is not open
+          if (!showBidsModal && lastViewedBidTime) {
+            const bidTime = new Date(event.placedAt).getTime();
+            const lastViewed = new Date(lastViewedBidTime).getTime();
+            if (bidTime > lastViewed) {
+              setNewBidCount(prev => prev + 1);
+            }
+          }
+          
           // Fetch real data from API in background (quiet - no loading spinner)
           console.log('🔄 Quiet reloading bid data from API...');
           console.log('📊 Current bid logs count:', allBidLogs.length);
@@ -221,6 +256,8 @@ export default function WholesalerAuctionDetailScreen() {
       
       if (auctionDetailData) {
         setAuction(auctionDetailData);
+        // Calculate countdown immediately
+        setCountdown(calculateCountdown(auctionDetailData.endDate));
 
         // Get farm and crop info from harvests
         const harvests = auctionDetailData.harvests || [];
@@ -285,6 +322,21 @@ export default function WholesalerAuctionDetailScreen() {
       await loadAllBids(auctionId as string);
     }
   };
+
+  // Update countdown every second
+  useEffect(() => {
+    if (!auction) return;
+
+    // Set initial countdown
+    setCountdown(calculateCountdown(auction.endDate));
+
+    // Update every second
+    const interval = setInterval(() => {
+      setCountdown(calculateCountdown(auction.endDate));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [auction]);
 
   const loadBids = useCallback(async (auctionSessionId: string) => {
     try {
@@ -482,6 +534,14 @@ export default function WholesalerAuctionDetailScreen() {
     }
   };
 
+  const handleOpenBidsModal = () => {
+    setShowBidsModal(true);
+    setNewBidCount(0);
+    if (allBidLogs.length > 0) {
+      setLastViewedBidTime(allBidLogs[0].dateTimeUpdate);
+    }
+  };
+
   const formatCurrency = (price: number) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -492,9 +552,48 @@ export default function WholesalerAuctionDetailScreen() {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN', {
       year: 'numeric',
-      month: 'long',
-      day: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
     });
+  };
+
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const calculateCountdown = (endDate: string) => {
+    const end = new Date(endDate).getTime();
+    const now = new Date().getTime();
+    const diff = end - now;
+
+    if (diff <= 0) {
+      return {
+        days: '00',
+        hours: '00',
+        minutes: '00',
+        seconds: '00',
+        isEnded: true,
+      };
+    }
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    return {
+      days: String(days).padStart(2, '0'),
+      hours: String(hours).padStart(2, '0'),
+      minutes: String(minutes).padStart(2, '0'),
+      seconds: String(seconds).padStart(2, '0'),
+      isEnded: false,
+    };
   };
 
   const getTimeRemaining = (endDate: string) => {
@@ -519,47 +618,8 @@ export default function WholesalerAuctionDetailScreen() {
     }
   };
 
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.headerContainer}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <ArrowLeft size={20} color="#374151" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Chi tiết đấu giá</Text>
-        </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#22C55E" />
-          <Text style={styles.loadingText}>Đang tải...</Text>
-        </View>
-      </View>
-    );
-  }
-
-  if (!auction) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.headerContainer}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <ArrowLeft size={20} color="#374151" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Chi tiết đấu giá</Text>
-        </View>
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Không tìm thấy đấu giá</Text>
-        </View>
-      </View>
-    );
-  }
-
-  const statusInfo = getAuctionStatusInfo(auction.status);
-  const currentPrice = auction.currentPrice || auction.startingPrice;
+  const statusInfo = auction ? getAuctionStatusInfo(auction.status) : null;
+  const currentPrice = auction ? (auction.currentPrice || auction.startingPrice) : 0;
 
   return (
     <View style={styles.container}>
@@ -571,35 +631,63 @@ export default function WholesalerAuctionDetailScreen() {
           <ArrowLeft size={20} color="#374151" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Chi tiết đấu giá</Text>
+        {!loading && auction && (
+          <TouchableOpacity
+            style={styles.bellButton}
+            onPress={handleOpenBidsModal}
+          >
+            <Bell size={24} color="#374151" />
+            {newBidCount > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationText}>
+                  {newBidCount > 99 ? '99+' : newBidCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
+        {(loading || !auction) && <View style={{ width: 40 }} />}
       </View>
 
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#22C55E']}
-            tintColor="#22C55E"
-          />
-        }
-      >
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#22C55E" />
+          <Text style={styles.loadingText}>Đang tải...</Text>
+        </View>
+      ) : !auction ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>Không tìm thấy đấu giá</Text>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#22C55E']}
+              tintColor="#22C55E"
+            />
+          }
+        >
         {/* Status Section */}
         <View style={styles.section}>
           <View style={styles.auctionHeader}>
             <Text style={styles.sessionCode}>{auction.sessionCode}</Text>
-            <View
-              style={[
-                styles.statusBadge,
-                { backgroundColor: statusInfo.backgroundColor }
-              ]}
-            >
-              <Text style={[styles.statusText, { color: statusInfo.color }]}>
-                {statusInfo.name}
-              </Text>
-            </View>
+            {statusInfo && (
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: statusInfo.backgroundColor }
+                ]}
+              >
+                <Text style={[styles.statusText, { color: statusInfo.color }]}>
+                  {statusInfo.name}
+                </Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.divider} />
@@ -637,12 +725,23 @@ export default function WholesalerAuctionDetailScreen() {
           {/* Time Information */}
           <View style={styles.subsectionContainer}>
             <Text style={styles.subsectionTitle}>Thời gian</Text>
+            
+            {/* Countdown Flip Clock */}
+            {countdown && (
+              <View style={styles.countdownContainer}>
+                <FlipClockDigit value={countdown.days} label="Ngày" />
+                <FlipClockDigit value={countdown.hours} label="Giờ" />
+                <FlipClockDigit value={countdown.minutes} label="Phút" />
+                <FlipClockDigit value={countdown.seconds} label="Giây" />
+              </View>
+            )}
+
             <View style={styles.subsectionContent}>
               <View style={styles.infoRow}>
-                {/* <Clock size={20} color="#16A34A" /> */}
-                <Text style={[styles.infoLabel, { color: '#16A34A', fontWeight: '600' }]}>Thời gian còn lại</Text>
-                <Text style={[styles.infoValue, { color: '#16A34A' }]}>
-                  {getTimeRemaining(auction.endDate)}
+                {/* <Calendar size={20} color="#16A34A" /> */}
+                <Text style={[styles.infoLabel, { color: '#16A34A', fontWeight: '600' }]}>Bắt đầu</Text>
+                <Text style={styles.infoValue}>
+                  {formatDateTime(auction.publishDate)}
                 </Text>
               </View>
 
@@ -650,7 +749,7 @@ export default function WholesalerAuctionDetailScreen() {
                 {/* <Calendar size={20} color="#16A34A" /> */}
                 <Text style={[styles.infoLabel, { color: '#16A34A', fontWeight: '600' }]}>Kết thúc</Text>
                 <Text style={styles.infoValue}>
-                  {formatDate(auction.endDate)}
+                  {formatDateTime(auction.endDate)}
                 </Text>
               </View>
 
@@ -682,6 +781,21 @@ export default function WholesalerAuctionDetailScreen() {
             </View>
           </View>
         </View>
+
+        {/* Escrow Payment Section - Only show if user is winner */}
+        {userProfile && (
+          <View style={styles.section}>
+            <EscrowPaymentButton
+              auctionId={auction.id}
+              isWinner={true}
+              currentPrice={currentPrice}
+              onPaymentComplete={() => {
+                // Reload auction detail after payment
+                loadAuctionDetail();
+              }}
+            />
+          </View>
+        )}
 
         {/* Harvest Information */}
         {auction.harvests && auction.harvests.length > 0 && (
@@ -945,85 +1059,118 @@ export default function WholesalerAuctionDetailScreen() {
           );
         })}
 
-        {/* Bid List Display */}
+        {/* Bid List Display - Show first if user has bids */}
         <BidListDisplay
           bids={bids}
           loading={loadingBids}
           minBidIncrement={auction?.minBidIncrement || 0}
+          auctionStatus={auction?.status}
           onEditBid={(bid) => {
             setSelectedBidForEdit(bid);
             setShowBidModal(true);
           }}
         />
 
-        {/* All Bids Display - Show 5 recent, scroll for more */}
-        <AllBidsDisplay
-          key={`bids-${allBidLogs.length}-${allBidLogs[0]?.id || 'empty'}`}
-          bidLogs={allBidLogs}
-          loading={loadingAllBids}
-        />
-
-        {/* Bidding Button - Only show if no bids yet */}
+        {/* Bidding Button - Show after bid list if no bids, or after all bids if has bids */}
         {bids.length === 0 && (
           <TouchableOpacity 
             style={[
               styles.bidButton,
-              (!auction || auction.status !== '3') && styles.bidButtonDisabled
+              (!auction || auction.status !== 'OnGoing') && styles.bidButtonDisabled
             ]}
             onPress={() => {
+              if (auction?.status !== 'OnGoing') {
+                Alert.alert(
+                  'Không thể đấu giá',
+                  'Phiên đấu giá này không còn hoạt động. Chỉ có thể xem thông tin.',
+                  [{ text: 'OK' }]
+                );
+                return;
+              }
               console.log('Bid button pressed, current auction status:', auction?.status);
               setSelectedBidForEdit(undefined);
               setShowBidModal(true);
             }}
-            disabled={!auction}
+            disabled={!auction || auction.status !== 'OnGoing'}
           >
-            <Text style={styles.bidButtonText}>Tham gia đấu giá</Text>
+            <Text style={[styles.bidButtonText, auction?.status !== 'OnGoing' && { color: '#9CA3AF' }]}>
+              {auction?.status === 'OnGoing' ? 'Tham gia đấu giá' : 'Chỉ xem'}
+            </Text>
           </TouchableOpacity>
         )}
-      </ScrollView>
+        </ScrollView>
+      )}
 
       {/* Create Bid Modal */}
       {auction && (
-        <CreateBidModal
-          visible={showBidModal}
-          onClose={() => {
-            console.log('Closing bid modal');
-            setShowBidModal(false);
-            setSelectedBidForEdit(undefined);
-          }}
-          onBidCreated={() => {
-            // Don't reload immediately - wait for SignalR event to update price
-            // This prevents showing stale price due to backend race condition
-            console.log('✅ Bid created, waiting for SignalR event to update price...');
-            
-            // Only reload bid lists quietly (no full page reload)
-            if (auctionId) {
-              // SignalR will update the price automatically
-              // Just reload bid lists in background
-              setTimeout(() => {
-                loadAllBidsQuietly(auctionId as string);
-                loadBidsQuietly(auctionId as string);
-              }, 300); // Small delay to let backend commit
-              
-              // Send notification to trigger home screen refresh
-              sendLocalNotification({
-                title: 'Cập nhật bid mới',
-                body: 'Đang làm mới dữ liệu đấu giá...',
-                type: 'auction_log',
-                auctionId: auctionId as string,
-                data: {
-                  action: 'refresh_bids',
-                },
-              });
-            }
-          }}
-          currentPrice={auction.currentPrice || auction.startingPrice}
-          minBidIncrement={auction.minBidIncrement}
-          auctionSessionId={auction.id}
-          sessionCode={auction.sessionCode}
-          existingBid={selectedBidForEdit}
-        />
-      )}
+            <CreateBidModal
+              visible={showBidModal}
+              onClose={() => {
+                console.log('Closing bid modal');
+                setShowBidModal(false);
+                setSelectedBidForEdit(undefined);
+              }}
+              onBidCreated={() => {
+                // Don't reload immediately - wait for SignalR event to update price
+                // This prevents showing stale price due to backend race condition
+                console.log('✅ Bid created, waiting for SignalR event to update price...');
+                
+                // Only reload bid lists quietly (no full page reload)
+                if (auctionId) {
+                  // SignalR will update the price automatically
+                  // Just reload bid lists in background
+                  setTimeout(() => {
+                    loadAllBidsQuietly(auctionId as string);
+                    loadBidsQuietly(auctionId as string);
+                  }, 300); // Small delay to let backend commit
+                  
+                  // Send notification to trigger home screen refresh
+                  sendLocalNotification({
+                    title: 'Cập nhật bid mới',
+                    body: 'Đang làm mới dữ liệu đấu giá...',
+                    type: 'auction_log',
+                    auctionId: auctionId as string,
+                    data: {
+                      action: 'refresh_bids',
+                    },
+                  });
+                }
+              }}
+              currentPrice={auction.currentPrice || auction.startingPrice}
+              minBidIncrement={auction.minBidIncrement}
+              auctionSessionId={auction.id}
+              sessionCode={auction.sessionCode}
+              existingBid={selectedBidForEdit}
+              auctionStatus={auction.status}
+            />
+          )}
+
+          {/* All Bids Modal */}
+          <Modal
+            visible={showBidsModal}
+            animationType="slide"
+            onRequestClose={() => setShowBidsModal(false)}
+          >
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <TouchableOpacity
+                  style={styles.modalBackButton}
+                  onPress={() => setShowBidsModal(false)}
+                >
+                  <ArrowLeft size={20} color="#374151" />
+                </TouchableOpacity>
+                <Text style={styles.modalTitle}>Tất cả lượt đấu giá</Text>
+                <View style={{ width: 40 }} />
+              </View>
+              <ScrollView style={styles.modalContent}>
+                <AllBidsDisplay
+                  key={`bids-${allBidLogs.length}-${allBidLogs[0]?.id || 'empty'}`}
+                  bidLogs={allBidLogs}
+                  loading={loadingAllBids}
+                />
+              </ScrollView>
+            </View>
+          </Modal>
     </View>
   );
 }
@@ -1103,6 +1250,13 @@ const styles = StyleSheet.create({
   },
   subsectionContainer: {
     marginBottom: 16,
+  },
+  countdownContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 16,
+    paddingHorizontal: 8,
   },
   subsectionTitle: {
     fontSize: 14,
@@ -1389,5 +1543,52 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#1F2937',
+  },
+  bellButton: {
+    padding: 8,
+    position: 'relative',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  notificationText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalBackButton: {
+    padding: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  modalContent: {
+    flex: 1,
   },
 });

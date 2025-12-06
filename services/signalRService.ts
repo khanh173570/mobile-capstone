@@ -1,5 +1,6 @@
 import * as SignalR from '@microsoft/signalr';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { refreshAccessToken } from './authService';
 
 const SIGNALR_HUB_URL = 'https://gateway.a-379.store/api/auction-service/hubs/global';
 
@@ -75,12 +76,23 @@ class SignalRService {
     }
 
     try {
+      // Refresh token first to ensure it's not expired
+      console.log('SignalR: Refreshing access token before connection...');
+      const refreshed = await refreshAccessToken();
+      
+      if (!refreshed) {
+        console.error('SignalR: Failed to refresh access token');
+        return;
+      }
+
       // Get JWT token from storage
       const token = await AsyncStorage.getItem('accessToken');
       if (!token) {
-        console.error('SignalR: No access token found');
+        console.error('SignalR: No access token found after refresh');
         return;
       }
+
+      console.log('SignalR: Access token ready, establishing WebSocket connection...');
 
       // Create connection with JWT authentication
       this.connection = new SignalR.HubConnectionBuilder()
@@ -140,6 +152,17 @@ class SignalRService {
 
     } catch (error) {
       console.error('SignalR: Connection failed', error);
+      
+      // Check if error is 401 Unauthorized
+      const errorString = String(error);
+      if (errorString.includes('401') || errorString.includes('Unauthorized')) {
+        console.error('SignalR: 401 Unauthorized - clearing tokens and stopping reconnect');
+        await AsyncStorage.removeItem('accessToken');
+        await AsyncStorage.removeItem('refreshToken');
+        this.notifyConnectionState(false);
+        return;
+      }
+
       this.notifyConnectionState(false);
       
       // Retry connection if not manually disconnected
