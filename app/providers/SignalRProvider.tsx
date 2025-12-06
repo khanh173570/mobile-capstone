@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { signalRService } from '../../services/signalRService';
 import { AppState, AppStateStatus } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface SignalRContextType {
   isConnected: boolean;
@@ -21,16 +22,32 @@ interface SignalRProviderProps {
 /**
  * SignalR Provider Component
  * Manages global SignalR connection lifecycle
- * - Auto-connects on mount
+ * - Waits for user authentication before connecting
  * - Auto-reconnects when app comes to foreground
  * - Disconnects when app goes to background
  */
 export const SignalRProvider: React.FC<SignalRProviderProps> = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    // Initial connection
-    connectSignalR();
+    // Check if user is authenticated
+    const checkAuthentication = async () => {
+      try {
+        const token = await AsyncStorage.getItem('accessToken');
+        setIsAuthenticated(!!token);
+        if (token) {
+          console.log('SignalR Provider: User authenticated, connecting...');
+          await connectSignalR();
+        } else {
+          console.log('SignalR Provider: User not authenticated, skipping connection');
+        }
+      } catch (error) {
+        console.error('SignalR Provider: Error checking authentication', error);
+      }
+    };
+
+    checkAuthentication();
 
     // Subscribe to connection state changes
     const unsubscribe = signalRService.onConnectionStateChange((connected) => {
@@ -51,6 +68,13 @@ export const SignalRProvider: React.FC<SignalRProviderProps> = ({ children }) =>
 
   const connectSignalR = async () => {
     try {
+      // Double-check token exists before connecting
+      const token = await AsyncStorage.getItem('accessToken');
+      if (!token) {
+        console.log('SignalR Provider: No token, skipping connection');
+        return;
+      }
+
       console.log('SignalR Provider: Connecting...');
       await signalRService.connect();
     } catch (error) {

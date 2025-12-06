@@ -1,12 +1,11 @@
 import { Stack } from 'expo-router';
 
-export default function AuctionManagementLayout() {
+export default function BiddingHistoryAuctionDetailLayout() {
   return (
     <Stack
       screenOptions={{
         headerShown: false,
-      }}>
-      <Stack.Screen name="index" />
-    </Stack>
+      }}
+    />
   );
 }

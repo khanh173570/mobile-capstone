@@ -11,9 +11,8 @@ import {
   Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Mail, MapPin, Phone, LogOut, User, MapPinned, Building2, FileText, X } from 'lucide-react-native';
+import { Mail, MapPin, Phone, LogOut, User, MapPinned, Building2, FileText, X, Wallet, CreditCard } from 'lucide-react-native';
 import { getCurrentUser, logout } from '../../../../services/authService';
-import Header from '../../../../components/shared/Header';
 import ReportHistoryScreen from '../../../../components/wholesaler/ReportHistoryScreen';
 
 export default function WholesalerProfileScreen() {
@@ -80,7 +79,6 @@ export default function WholesalerProfileScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <Header title="Hồ sơ cá nhân" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#22C55E" />
           <Text style={styles.loadingText}>Đang tải...</Text>
@@ -92,7 +90,6 @@ export default function WholesalerProfileScreen() {
   if (!user) {
     return (
       <View style={styles.container}>
-        <Header title="Hồ sơ cá nhân" />
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>Không thể tải thông tin người dùng</Text>
         </View>
@@ -102,8 +99,6 @@ export default function WholesalerProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <Header title="Hồ sơ cá nhân" />
-
       <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
@@ -180,6 +175,30 @@ export default function WholesalerProfileScreen() {
               <Text style={styles.value}>{user.address}</Text>
             </View>
           </View>
+        </View>
+
+        {/* Wallet Section */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Ví điện tử</Text>
+          <TouchableOpacity
+            style={styles.walletButton}
+            onPress={() => router.push('/(tabs)/wholesaler/profile/wallet')}
+          >
+            <Wallet size={20} color="#FFFFFF" />
+            <Text style={styles.walletButtonText}>Ví của tôi</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Withdraw Section */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Rút tiền</Text>
+          <TouchableOpacity
+            style={styles.withdrawButton}
+            onPress={() => router.push('/(tabs)/wholesaler/profile/withdraw')}
+          >
+            <CreditCard size={20} color="#FFFFFF" />
+            <Text style={styles.withdrawButtonText}>Rút tiền từ ví</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Reports Section */}
@@ -259,11 +278,11 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 100,
-    paddingBottom: 120,
+    paddingTop: 16,
+    paddingBottom: 20,
   },
   scrollContent: {
-    paddingBottom: 120,
+    paddingBottom: 20,
   },
   loadingContainer: {
     flex: 1,
@@ -369,6 +388,34 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#111827',
     marginBottom: 12,
+  },
+  walletButton: {
+    backgroundColor: '#3B82F6',
+    borderRadius: 12,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  walletButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  withdrawButton: {
+    backgroundColor: '#F59E0B',
+    borderRadius: 12,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  withdrawButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
   },
   reportButton: {
     backgroundColor: '#16A34A',

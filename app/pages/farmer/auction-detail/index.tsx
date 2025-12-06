@@ -345,7 +345,7 @@ export default function AuctionDetailScreen() {
     };
     
     initializeAuction();
-  }, [auctionData, setCurrentAuctionId, loadBidLogsQuietly, loadAuctionHarvests, loadAuctionCrops]);
+  }, [auctionData, setCurrentAuctionId, loadBidLogsQuietly]);
 
   const loadAuctionLogs = async () => {
     if (!auction?.id) return;

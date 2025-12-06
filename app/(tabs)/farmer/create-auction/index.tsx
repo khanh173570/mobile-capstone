@@ -13,8 +13,8 @@ import {
   Switch,
   Platform,
 } from 'react-native';
-import { Calendar, DollarSign, ChevronDown, X, Plus, Clock } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { Calendar, DollarSign, ChevronDown, X, Plus, Clock, Filter, Package, Check } from 'lucide-react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Header from '../../../../components/shared/Header';
 import { 
@@ -24,10 +24,15 @@ import {
   calculateTotalQuantity,
   CreateAuctionData,
   CurrentHarvest,
+  getFarmerAuctions,
+  FarmerAuction,
+  filterAuctionsByStatus,
 } from '../../../../services/auctionService';
 import { getCropsByFarmId } from '../../../../services/cropService';
 import { Crop } from '../../../../services/cropService';
 import { getCurrentUser, getCurrentFarm } from '../../../../services/authService';
+import { getFarmerBuyRequests, BuyRequest } from '../../../../services/farmerBuyRequestService';
+import AuctionCard from '../../../../components/farmer/AuctionCard';
 
 interface SelectedCropHarvest {
   crop: Crop;
@@ -37,6 +42,10 @@ interface SelectedCropHarvest {
 
 export default function CreateAuctionScreen() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'create' | 'review'>('create');
+  const [showStatusFilterModal, setShowStatusFilterModal] = useState(false);
+  const [showAllStatusesModal, setShowAllStatusesModal] = useState(false);
+  
   const [auctionData, setAuctionData] = useState({
     publishDate: new Date().toISOString(),
     endDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
@@ -73,9 +82,122 @@ export default function CreateAuctionScreen() {
   const [loadingCrops, setLoadingCrops] = useState(false);
   const [farmId, setFarmId] = useState('');
 
+  // Review tab states
+  const [userId, setUserId] = useState('');
+  const [auctions, setAuctions] = useState<FarmerAuction[]>([]);
+  const [filteredAuctions, setFilteredAuctions] = useState<FarmerAuction[]>([]);
+  const [auctionLoading, setAuctionLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<string>('All');
+  const [showStatusFilter, setShowStatusFilter] = useState(false);
+  const [buyRequests, setBuyRequests] = useState<BuyRequest[]>([]);
+  const [buyRequestsLoading, setBuyRequestsLoading] = useState(false);
+
   useEffect(() => {
     loadFarmAndCrops();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (activeTab === 'review') {
+        loadReviewData();
+      }
+    }, [activeTab])
+  );
+
+  const loadReviewData = async () => {
+    try {
+      const user = await getCurrentUser();
+      if (user) {
+        setUserId(user.id);
+        // Load auctions
+        setAuctionLoading(true);
+        try {
+          const farmerAuctions = await getFarmerAuctions();
+          setAuctions(farmerAuctions);
+          setFilteredAuctions(farmerAuctions);
+        } catch (auctionError) {
+          console.error('Error loading auctions:', auctionError);
+          // Gracefully set empty array if auction loading fails
+          setAuctions([]);
+          setFilteredAuctions([]);
+        } finally {
+          setAuctionLoading(false);
+        }
+
+        // Load buy requests
+        setBuyRequestsLoading(true);
+        try {
+          const requests = await getFarmerBuyRequests(user.id);
+          setBuyRequests(requests);
+        } catch (requestError) {
+          console.error('Error loading buy requests:', requestError);
+          // Gracefully set empty array if buy request loading fails
+          setBuyRequests([]);
+        } finally {
+          setBuyRequestsLoading(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading review data:', error);
+      setAuctionLoading(false);
+      setBuyRequestsLoading(false);
+    }
+  };
+
+  const handleStatusFilterChange = (status: string) => {
+    setSelectedStatus(status);
+    if (status === 'All') {
+      setFilteredAuctions(auctions);
+    } else {
+      setFilteredAuctions(filterAuctionsByStatus(auctions, status));
+    }
+    setShowStatusFilter(false);
+  };
+
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case 'Draft':
+        return '#9CA3AF';
+      case 'Pending':
+        return '#F59E0B';
+      case 'Rejected':
+        return '#EF4444';
+      case 'Approved':
+        return '#10B981';
+      case 'OnGoing':
+        return '#22C55E';
+      case 'Completed':
+        return '#3B82F6';
+      case 'NoWinner':
+        return '#A16207';
+      case 'Cancelled':
+        return '#6B7280';
+      case 'Pause':
+        return '#DC2626';
+      case 'All':
+        return '#6B7280';
+      default:
+        return '#9CA3AF';
+    }
+  };
+
+  const getStatusLabel = (status: string): string => {
+    switch (status) {
+      case 'Pending':
+        return 'Chờ xử lý';
+      case 'Accepted':
+        return 'Chấp nhận';
+      case 'Rejected':
+        return 'Từ chối';
+      case 'Completed':
+        return 'Hoàn thành';
+      case 'Canceled':
+        return 'Đã hủy';
+      default:
+        return status;
+    }
+  };
 
   const loadFarmAndCrops = async () => {
     try {
@@ -385,7 +507,8 @@ export default function CreateAuctionScreen() {
             setAntiSnipingMinutes('2');
             setExpectedHarvestDate('');
             // Navigate to auction management
-            router.push('/farmer/auction-management');
+            // @ts-ignore
+            router.push('/farmer/buy-request-management');
           },
         },
       ]);
@@ -423,13 +546,14 @@ export default function CreateAuctionScreen() {
 
   return (
     <View style={styles.container}>
-      <Header title="Tạo Phiên Đấu Giá" />
+      {/* <Header title="Tạo Đấu Giá" /> */}
       
-      <ScrollView 
-        style={styles.scrollContainer}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      {activeTab === 'create' && (
+        <ScrollView 
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
         <View style={styles.headerInfo}>
           <Text style={styles.subtitle}>
         Vui lòng nhập thông tin phiên đấu giá 
@@ -905,6 +1029,119 @@ export default function CreateAuctionScreen() {
           </Text>
         </View>
       </ScrollView>
+      )}
+
+      {activeTab === 'review' && (
+        <View style={styles.reviewContainer}>
+          {/* Scrollable content */}
+          <ScrollView style={styles.reviewContent} showsVerticalScrollIndicator={false}>
+            {/* Quản lý Đấu Giá Section */}
+            <View style={[styles.reviewSection, { marginTop: 30, marginBottom: 80 }]}>
+              <Text style={styles.reviewSectionTitle}>Quản lý Đấu Giá ({filteredAuctions.length})</Text>
+              {auctionLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#10B981" />
+                  <Text style={styles.loadingText}>Đang tải...</Text>
+                </View>
+              ) : filteredAuctions.length === 0 ? (
+                <View style={styles.emptyHistoryContainer}>
+                  <Package size={48} color="#D1D5DB" />
+                  <Text style={styles.emptyHistoryText}>Chưa có đấu giá nào</Text>
+                </View>
+              ) : (
+                filteredAuctions.map((auction) => (
+                  <AuctionCard 
+                    key={auction.id} 
+                    auction={auction}
+                    onPress={() => {
+                      console.log('Clicking auction:', auction.id);
+                      console.log('Full auction data:', JSON.stringify(auction));
+                      console.log('Navigating to: /pages/farmer/auction-detail');
+                      router.push({
+                        pathname: '/pages/farmer/auction-detail',
+                        params: { auctionData: JSON.stringify(auction) },
+                      });
+                    }}
+                  />
+                ))
+              )}
+            </View>
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Quick Status Filters - appears above footer tabs */}
+      {activeTab === 'review' && (
+        <View style={styles.quickFiltersBarContainer}>
+          {[
+            { status: 'Draft', label: 'Nháp', color: '#9CA3AF' },
+            { status: 'OnGoing', label: 'Đang diễn ra', color: '#22C55E' },
+            { status: 'Completed', label: 'Hoàn thành', color: '#3B82F6' },
+          ].map((item) => {
+            const count = auctions.filter(a => a.status === item.status).length;
+            return (
+              <TouchableOpacity
+                key={item.status}
+                style={[
+                  styles.quickFilterBarButton,
+                  selectedStatus === item.status && styles.quickFilterBarButtonSelected,
+                ]}
+                onPress={() => handleStatusFilterChange(item.status)}
+              >
+                <View style={styles.quickFilterBarContent}>
+                  <Text style={[styles.quickFilterBarLabel, { color: item.color }]}>{item.label}</Text>
+                  <Text style={styles.quickFilterBarCount}>{count}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+          
+          {/* More Button */}
+          <TouchableOpacity
+            style={styles.moreFilterButton}
+            onPress={() => setShowAllStatusesModal(true)}
+          >
+            <Text style={styles.moreFilterButtonText}>⋯</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Footer Navigation */}
+      <View style={styles.footerTabs}>
+        <TouchableOpacity
+          style={[
+            styles.footerTab,
+            activeTab === 'create' && styles.footerTabActive,
+          ]}
+          onPress={() => setActiveTab('create')}
+        >
+          <Text
+            style={[
+              styles.footerTabText,
+              activeTab === 'create' && styles.footerTabTextActive,
+            ]}
+          >
+            Tạo đấu giá
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.footerTab,
+            activeTab === 'review' && styles.footerTabActive,
+          ]}
+          onPress={() => setActiveTab('review')}
+        >
+          <Text
+            style={[
+              styles.footerTabText,
+              activeTab === 'review' && styles.footerTabTextActive,
+            ]}
+          >
+            Xem đấu giá
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Crop Selection Modal */}
       <Modal visible={showCropModal} transparent animationType="slide">
@@ -950,6 +1187,50 @@ export default function CreateAuctionScreen() {
         </View>
       </Modal>
 
+      {/* All Statuses Modal with 4-Column Grid */}
+      <Modal visible={showAllStatusesModal} transparent animationType="fade">
+        <View style={styles.statusGridModalOverlay}>
+          <View style={styles.statusGridModalContent}>
+            <View style={styles.statusGridHeader}>
+              <Text style={styles.statusGridTitle}>Tất cả trạng thái</Text>
+              <TouchableOpacity onPress={() => setShowAllStatusesModal(false)}>
+                <X size={24} color="#374151" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.statusGrid}>
+              {(['All', 'Draft', 'Pending', 'Rejected', 'Approved', 'OnGoing', 'Completed', 'NoWinner', 'Cancelled', 'Pause'] as const).map((status) => {
+                const statusLabel = status === 'All' ? 'Tất cả' : status === 'Draft' ? 'Nháp' : status === 'Pending' ? 'Chờ duyệt' : status === 'Rejected' ? 'Bị từ chối' : status === 'Approved' ? 'Đã duyệt' : status === 'OnGoing' ? 'Đang diễn ra' : status === 'Completed' ? 'Hoàn thành' : status === 'NoWinner' ? 'Không có người thắng' : status === 'Cancelled' ? 'Đã hủy' : status === 'Pause' ? 'Tạm dừng' : status;
+                const statusColor = getStatusColor(status);
+                const auctionCount = status === 'All' ? auctions.length : auctions.filter(a => a.status === status).length;
+
+                return (
+                  <TouchableOpacity
+                    key={status}
+                    style={[
+                      styles.statusGridItem,
+                      selectedStatus === status && styles.statusGridItemSelected,
+                    ]}
+                    onPress={() => {
+                      handleStatusFilterChange(status);
+                      setShowAllStatusesModal(false);
+                      setShowStatusFilterModal(false);
+                    }}
+                  >
+                    <View style={[styles.statusGridColor, { backgroundColor: statusColor }]} />
+                    <Text style={[styles.statusGridLabel, { color: statusColor }]}>{statusLabel}</Text>
+                    <Text style={styles.statusGridCount}>{auctionCount}</Text>
+                    {selectedStatus === status && (
+                      <Check size={16} color="#3B82F6" style={styles.statusGridCheck} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Loading Modal */}
       <Modal visible={showLoadingModal} transparent animationType="fade">
         <View style={styles.loadingModalOverlay}>
@@ -970,13 +1251,14 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
-    marginTop: 120,
   },
   scrollContent: {
-    paddingBottom: 20,
+    paddingTop: 20,
+    paddingBottom: 50,
   },
   headerInfo: {
     marginHorizontal: 20,
+    marginTop: 20,
     marginBottom: 20,
   },
   subtitle: {
@@ -1311,5 +1593,418 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#3B82F6',
+  },
+  // Review tab styles
+  reviewContainer: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  filterBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    zIndex: 10,
+   
+  },
+  statusFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  statusFilterButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  statusFilterDropdownFooter: {
+    position: 'absolute',
+    top: 60,
+    left: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    zIndex: 20,
+    minWidth: 150,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  filterOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  filterOptionSelected: {
+    backgroundColor: '#EFF6FF',
+  },
+  filterOptionText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  filterOptionTextSelected: {
+    fontWeight: '600',
+    color: '#3B82F6',
+  },
+  filterCheckmark: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#3B82F6',
+  },
+  reviewContent: {
+    flex: 1,
+    paddingBottom: 100,
+  },
+  reviewSection: {
+    marginVertical: 16,
+    marginHorizontal: 16,
+  },
+  reviewSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  loadingText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  emptyHistoryContainer: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  emptyHistoryText: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 12,
+  },
+  buyRequestCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  buyRequestCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  buyRequestCardTitleContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  buyRequestCardTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  buyRequestCardDate: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  buyRequestCardContent: {
+    gap: 8,
+  },
+  buyRequestCardRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  buyRequestCardLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  buyRequestCardValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  buyRequestCardValuePrice: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#22C55E',
+  },
+  buyRequestCardMessage: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  footerTabs: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    height: 44,
+  },
+  footerTab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomWidth: 3,
+    borderBottomColor: 'transparent',
+  },
+  footerTabActive: {
+    borderBottomColor: '#3B82F6',
+  },
+  footerTabText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  footerTabTextActive: {
+    color: '#3B82F6',
+  },
+  filterStatusButton: {
+    position: 'absolute',
+    bottom: 48,
+    left: 0,
+    right: 0,
+    backgroundColor: '#3B82F6',
+    paddingVertical: 14,
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  filterStatusButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Quick Filters Bar Styles (shown above footer tabs)
+  quickFiltersBarContainer: {
+    position: 'absolute',
+    bottom: 44,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    flexDirection: 'row',
+    gap: 4,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    height: 40,
+  },
+  quickFilterBarButton: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 0,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  quickFilterBarButtonSelected: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#3B82F6',
+    borderWidth: 1,
+  },
+  quickFilterBarColor: {
+    display: 'none',
+  },
+  quickFilterBarContent: {
+    flex: 1,
+  },
+  quickFilterBarLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  quickFilterBarCount: {
+    fontSize: 9,
+    color: '#6B7280',
+    marginTop: 0,
+  },
+  moreFilterButton: {
+    width: 36,
+    height: 36,
+    backgroundColor: 'transparent',
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  moreFilterButtonText: {
+    fontSize: 20,
+    fontWeight: '300',
+    color: '#6B7280',
+    lineHeight: 20,
+  },
+  // Status Grid Modal Styles
+  statusGridModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'flex-end',
+  },
+  statusGridModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    width: '100%',
+    maxHeight: '60%',
+    paddingHorizontal: 8,
+    paddingTop: 18,
+    paddingBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  statusGridHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingBottom: 0,
+  },
+  statusGridTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  // Quick Filters Styles
+  quickFiltersContainer: {
+    gap: 12,
+    marginBottom: 12,
+  },
+  quickFilterButton: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    gap: 12,
+  },
+  quickFilterButtonSelected: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#3B82F6',
+    borderWidth: 2,
+  },
+  quickFilterColor: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+  },
+  quickFilterContent: {
+    flex: 1,
+  },
+  quickFilterLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  quickFilterCount: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  moreButton: {
+    justifyContent: 'center',
+  },
+  moreButtonText: {
+    fontSize: 32,
+    fontWeight: '300',
+    color: '#6B7280',
+    lineHeight: 32,
+  },
+  // Status Grid Styles
+  statusGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 0,
+    justifyContent: 'space-around',
+  },
+  statusGridItem: {
+    width: '23%',
+    aspectRatio: 1,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    marginVertical: 6,
+    marginHorizontal: '1%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  statusGridItemSelected: {
+    backgroundColor: '#D1FAE5',
+    borderColor: '#10B981',
+    borderWidth: 1,
+  },
+  statusGridColor: {
+    display: 'none',
+  },
+  statusGridLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#111827',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  statusGridCount: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#3B82F6',
+    textAlign: 'center',
+  },
+  statusGridCheck: {
+    marginTop: 6,
   },
 });

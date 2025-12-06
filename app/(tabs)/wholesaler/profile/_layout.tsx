@@ -10,6 +10,19 @@ export default function WholesalerProfileLayout() {
           headerShown: false 
         }} 
       />
+      <Stack.Screen 
+        name="wallet" 
+        options={{ 
+          title: 'Wallet',
+          headerShown: true 
+        }} 
+      />
+      <Stack.Screen 
+        name="withdraw" 
+        options={{ 
+          headerShown: false 
+        }} 
+      />
     </Stack>
   );
 }

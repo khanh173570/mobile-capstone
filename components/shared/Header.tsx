@@ -56,15 +56,7 @@ export default function Header({
           )}
         </View>
         
-        {showNotification && (
-          <TouchableOpacity 
-            style={styles.notificationButton}
-            onPress={handleNotificationPress}
-          >
-            <Bell size={24} color="#374151" />
-            <View style={styles.notificationBadge} />
-          </TouchableOpacity>
-        )}
+       
       </View>
     </View>
   );
@@ -83,11 +75,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1000,
   },
   content: {
     flexDirection: 'row',

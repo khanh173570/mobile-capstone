@@ -6,7 +6,21 @@ export default function AuctionBrowseLayout() {
       <Stack.Screen 
         name="index" 
         options={{ 
-          title: 'Duyệt đấu giá',
+          title: 'Tạo yêu cầu',
+          headerShown: false 
+        }} 
+      />
+      <Stack.Screen 
+        name="detail" 
+        options={{ 
+          title: 'Chi tiết sản phẩm',
+          headerShown: false 
+        }} 
+      />
+      <Stack.Screen 
+        name="history-detail" 
+        options={{ 
+          title: 'Chi tiết lịch sử',
           headerShown: false 
         }} 
       />

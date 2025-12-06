@@ -8,6 +8,7 @@ export default function PagesLayout() {
       <Stack.Screen name="farmer/harvestList" />
       <Stack.Screen name="farmer/harvestGradeDetail" />
       <Stack.Screen name="farmer/add-auction-harvests" />
+      <Stack.Screen name="farmer/auction-detail" />
       <Stack.Screen name="wholesaler" />
     </Stack>
   );

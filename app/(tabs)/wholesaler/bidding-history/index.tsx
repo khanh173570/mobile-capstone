@@ -7,13 +7,16 @@ import {
   RefreshControl,
   ActivityIndicator,
   TouchableOpacity,
+  AppState,
+  Platform,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Filter, Award, TrendingUp } from 'lucide-react-native';
 import WholesalerAuctionCard from '../../../../components/wholesaler/WholesalerAuctionCard';
 import { getWholesalerAuctions, WholesalerAuction } from '../../../../services/wholesalerAuctionService';
 import { handleError } from '../../../../utils/errorHandler';
 import { getUserProfile } from '../../../../services/authService';
+import { registerNotificationListener, unregisterNotificationListener } from '../../../../services/notificationService';
 
 export default function BiddingHistoryScreen() {
   const [auctions, setAuctions] = useState<WholesalerAuction[]>([]);
@@ -25,15 +28,35 @@ export default function BiddingHistoryScreen() {
 
   const filters = [
     { id: 'all', label: 'Tất cả', icon: TrendingUp },
-    { id: 'won', label: 'Đã thắng', icon: Award },
-    { id: 'active', label: 'Đang diễn ra', icon: Filter },
-    { id: 'completed', label: 'Hoàn thành', icon: Filter },
-    { id: 'no-winner', label: 'Không thắng', icon: Filter },
+    { id: 'ongoing', label: 'Đang diễn ra', icon: Filter },
+    { id: 'completed', label: 'Hoàn thành', icon: Award },
   ];
 
   useEffect(() => {
     loadUserProfile();
-    loadAuctions();
+    loadAuctions(); // Initial load with spinner
+    
+    // Auto-refresh every 30 seconds when screen is active (quiet mode)
+    const autoRefreshInterval = setInterval(() => {
+      console.log('🔄 Auto-refreshing bidding history...');
+      loadAuctionsQuietly(); // Use quiet mode for auto-refresh
+    }, 30000); // 30 seconds
+
+    // Listen for bid creation notifications
+    const notificationListener = registerNotificationListener((notification) => {
+      console.log('📬 Bidding history received notification:', notification);
+      if (notification.data?.action === 'refresh_bids') {
+        console.log('🔄 Refreshing bidding history due to new bid...');
+        loadAuctionsQuietly();
+      }
+    });
+    
+    return () => {
+      clearInterval(autoRefreshInterval);
+      if (notificationListener) {
+        unregisterNotificationListener(notificationListener);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -68,21 +91,30 @@ export default function BiddingHistoryScreen() {
     }
   };
 
+  // Load auctions without showing loading spinner (for auto-refresh)
+  const loadAuctionsQuietly = async () => {
+    try {
+      const data = await getWholesalerAuctions();
+      // Sort by created date (newest first)
+      const sortedData = data.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setAuctions(sortedData);
+    } catch (error) {
+      console.error('Error loading auctions quietly:', error);
+      // Don't show error alert for quiet refresh
+    }
+  };
+
   const filterAuctions = () => {
     let filtered = [...auctions];
 
     switch (selectedFilter) {
-      case 'won':
-        filtered = filtered.filter(a => a.winnerId === userId && a.status === 'Completed');
-        break;
-      case 'active':
+      case 'ongoing':
         filtered = filtered.filter(a => a.status === 'Active');
         break;
       case 'completed':
         filtered = filtered.filter(a => a.status === 'Completed');
-        break;
-      case 'no-winner':
-        filtered = filtered.filter(a => a.status === 'NoWinner');
         break;
       case 'all':
       default:
@@ -99,13 +131,13 @@ export default function BiddingHistoryScreen() {
   };
 
   const handleAuctionPress = (auction: WholesalerAuction) => {
-    // Navigate to auction detail
+    // Navigate to auction detail in bidding-history tab
     router.push({
-      pathname: '/pages/wholesaler/auction-detail' as any,
+      pathname: '/(tabs)/wholesaler/bidding-history/auction-detail',
       params: {
         auctionId: auction.id,
       },
-    });
+    } as any);
   };
 
   const renderFilterButton = (filter: typeof filters[0]) => {
@@ -147,14 +179,6 @@ export default function BiddingHistoryScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Lịch sử đấu thầu</Text>
-        <Text style={styles.headerSubtitle}>
-          {filteredAuctions.length} phiên đấu giá
-        </Text>
-      </View>
-
       {/* Filters */}
       <View style={styles.filtersSection}>
         <FlatList
@@ -171,13 +195,17 @@ export default function BiddingHistoryScreen() {
       <FlatList
         data={filteredAuctions}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <WholesalerAuctionCard
-            auction={item}
-            onPress={() => handleAuctionPress(item)}
-            isWinner={item.winnerId === userId && item.status === 'Completed'}
-          />
-        )}
+        renderItem={({ item }) => {
+          const isWinner = item.winnerId === userId && item.status === 'Completed';
+          return (
+            <WholesalerAuctionCard
+              auction={item}
+              onPress={() => handleAuctionPress(item)}
+              isWinner={isWinner}
+              showPaymentButton={true}
+            />
+          );
+        }}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={renderEmptyState}
         refreshControl={
@@ -197,28 +225,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
   filtersSection: {
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+    marginTop: 20,
   },
   filtersContent: {
     paddingHorizontal: 20,
@@ -234,6 +245,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#F3F4F6',
     marginRight: 8,
+    marginTop: 20,
   },
   filterButtonActive: {
     backgroundColor: '#22C55E',
@@ -242,6 +254,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#6B7280',
+    
   },
   filterTextActive: {
     color: '#fff',
@@ -249,6 +262,7 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 20,
     paddingBottom: 40,
+    marginTop: 10,
   },
   loadingContainer: {
     flex: 1,

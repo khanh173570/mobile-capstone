@@ -9,14 +9,21 @@ import {
   Clock,
   DollarSign,
 } from 'lucide-react-native';
+import EscrowPaymentButton from './EscrowPaymentButton';
 
 interface WholesalerAuctionCardProps {
   auction: WholesalerAuction;
   onPress?: () => void;
   isWinner?: boolean;
+  showPaymentButton?: boolean;
 }
 
-export default function WholesalerAuctionCard({ auction, onPress, isWinner = false }: WholesalerAuctionCardProps) {
+export default function WholesalerAuctionCard({ 
+  auction, 
+  onPress, 
+  isWinner = false,
+  showPaymentButton = false 
+}: WholesalerAuctionCardProps) {
   const statusInfo = getAuctionStatusInfo(auction.status);
 
   const formatDate = (dateString: string) => {
@@ -113,6 +120,15 @@ export default function WholesalerAuctionCard({ auction, onPress, isWinner = fal
           <Text style={styles.noteLabel}>Ghi chú:</Text>
           <Text style={styles.noteText} numberOfLines={2}>{auction.note}</Text>
         </View>
+      )}
+
+      {/* Escrow Payment Button - Only show for completed auctions where user is winner */}
+      {showPaymentButton && isWinner && auction.status === 'Completed' && (
+        <EscrowPaymentButton
+          auctionId={auction.id}
+          isWinner={isWinner}
+          currentPrice={auction.currentPrice}
+        />
       )}
     </TouchableOpacity>
   );
