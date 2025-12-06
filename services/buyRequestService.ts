@@ -336,3 +336,44 @@ export const createBuyRequest = async (
     throw error;
   }
 };
+
+/**
+ * Get a single buy request by ID
+ */
+export const getBuyRequestDetail = async (id: string): Promise<any> => {
+  try {
+    const response = await fetchWithTokenRefresh(
+      `${AUCTION_API}/buyrequest/${id}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch buy request detail');
+    }
+
+    const result: BuyRequestResponse = await response.json();
+    return result.data;
+  } catch (error) {
+    console.error('Error fetching buy request detail:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get custard apple types (placeholder - returns empty array)
+ */
+export const getCustardAppleTypes = async (): Promise<any[]> => {
+  try {
+    // This should return custard apple types from the API
+    // For now, returning empty array as a placeholder
+    return [];
+  } catch (error) {
+    console.error('Error fetching custard apple types:', error);
+    throw error;
+  }
+};
