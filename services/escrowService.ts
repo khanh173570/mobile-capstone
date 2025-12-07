@@ -3,15 +3,33 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_BASE_URL = 'https://gateway.a-379.store/api/payment-service';
 
+// EscrowStatus enum from Payment.Domain.Enums
 export enum EscrowStatus {
-  PendingPayment = 0,
-  PartiallyFunded = 1,
-  FullyFunded = 2,
-  Completed = 3,
-  Disputed = 4,
-  Refunded = 5,
-  PartialRefund = 6,
-  Canceled = 7,
+  PendingPayment = 0,      // Chờ thanh toán
+  PartiallyFunded = 1,     // Đã thanh toán một phần (đặt cọc)
+  ReadyToHarvest = 2,      // Sẵn sàng để thương lái tới thu hoạch
+  FullyFunded = 3,         // Đã thanh toán đủ (full fund)
+  Completed = 4,           // Hàng đã giao, tiền released cho seller
+  Disputed = 5,            // Đang tranh chấp
+  Refunded = 6,            // Đã hoàn toàn bộ về buyer
+  PartialRefund = 7,       // Hoàn tiền một phần
+  Canceled = 8,            // Đã hủy
+}
+
+// TransactionType enum from Payment.Domain.Enums
+export enum TransactionType {
+  PayEscrow = 1,
+  ReleaseEscrow = 2,
+  RefundEscrow = 3,
+  AddFunds = 4,
+  WithdrawFunds = 5,
+  PayRemainingEscrow = 6,
+}
+
+// PaymentType enum from Payment.Domain.Enums
+export enum PaymentType {
+  PayOS = 0,
+  Wallet = 1,
 }
 
 export interface EscrowData {
@@ -184,6 +202,8 @@ export const getEscrowStatusName = (status: EscrowStatus): string => {
       return 'Chờ thanh toán';
     case EscrowStatus.PartiallyFunded:
       return 'Đã cọc một phần';
+    case EscrowStatus.ReadyToHarvest:
+      return 'Sẵn sàng thu hoạch';
     case EscrowStatus.FullyFunded:
       return 'Đã thanh toán đủ';
     case EscrowStatus.Completed:
@@ -191,7 +211,7 @@ export const getEscrowStatusName = (status: EscrowStatus): string => {
     case EscrowStatus.Disputed:
       return 'Đang tranh chấp';
     case EscrowStatus.Refunded:
-      return 'Đã hoàn tiền';
+      return 'Đã hoàn toàn bộ';
     case EscrowStatus.PartialRefund:
       return 'Hoàn tiền một phần';
     case EscrowStatus.Canceled:
@@ -210,6 +230,8 @@ export const getEscrowStatusColor = (status: EscrowStatus): string => {
       return '#F59E0B'; // Orange
     case EscrowStatus.PartiallyFunded:
       return '#3B82F6'; // Blue
+    case EscrowStatus.ReadyToHarvest:
+      return '#8B5CF6'; // Purple
     case EscrowStatus.FullyFunded:
       return '#10B981'; // Green
     case EscrowStatus.Completed:
@@ -217,10 +239,11 @@ export const getEscrowStatusColor = (status: EscrowStatus): string => {
     case EscrowStatus.Disputed:
       return '#EF4444'; // Red
     case EscrowStatus.Refunded:
-    case EscrowStatus.PartialRefund:
       return '#6B7280'; // Gray
-    case EscrowStatus.Canceled:
+    case EscrowStatus.PartialRefund:
       return '#9CA3AF'; // Light gray
+    case EscrowStatus.Canceled:
+      return '#D1D5DB'; // Light gray
     default:
       return '#6B7280';
   }

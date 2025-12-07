@@ -208,6 +208,7 @@ export default function EscrowPaymentButton({
         onClose={() => setPaymentWebViewVisible(false)}
         onPaymentSuccess={handlePaymentSuccess}
         onPaymentFailure={handlePaymentFailure}
+        skipOptions={true}
       />
     </>
   );

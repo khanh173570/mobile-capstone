@@ -22,7 +22,8 @@ import {
   Star,
   Calendar,
   Activity,
-  TrendingUp
+  TrendingUp,
+  FileText
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { getUserProfile, logout, getCurrentUser } from '../../../../services/authService';
@@ -225,6 +226,17 @@ export default function ProfileScreen() {
               </View>
             </View>
           </View>
+        </View>
+
+        {/* Escrow Contracts Section */}
+        <View style={styles.sectionContainer}>
+          <TouchableOpacity
+            style={styles.escrowButton}
+            onPress={() => router.push('/pages/farmer/farmer-escrow-contracts')}
+          >
+            <Shield size={20} color="#FFFFFF" />
+            <Text style={styles.escrowButtonText}>Hợp đồng cọc tiền</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Account Information */}
@@ -480,5 +492,39 @@ const styles = StyleSheet.create({
   achievementDesc: {
     fontSize: 14,
     color: '#6B7280',
+  },
+  sectionContainer: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  contractButton: {
+    backgroundColor: '#16A34A',
+    borderRadius: 12,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  contractButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  escrowButton: {
+    backgroundColor: '#8B5CF6',
+    borderRadius: 12,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  escrowButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

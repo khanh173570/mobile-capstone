@@ -1,4 +1,4 @@
-// Crop status utilities - Synchronized with CropStatusEnum from cropService.ts
+// Crop status utilities - Synchronized with CropStatusEnum from Farm.Domain.Enums
 export interface CropStatusInfo {
   id: number;
   name: string;
@@ -7,46 +7,57 @@ export interface CropStatusInfo {
   description: string;
 }
 
+// CropStatus enum from backend:
+// PreSeason = 0, Growing = 1, OpenForBidding = 2, ReadyToHarvest = 3, 
+// Harvesting = 4, Harvested = 5, StoppedCultivation = 6
+
 export const CROP_STATUSES: CropStatusInfo[] = [
   {
     id: 0,
     name: 'Chưa bắt đầu mùa vụ',
-    color: '#6B7280', // Gray - Not editable
+    color: '#6B7280', // Gray
     backgroundColor: 'rgba(107, 114, 128, 0.1)',
     description: 'Vừa tạo vườn, chưa bắt đầu canh tác'
   },
   {
     id: 1,
     name: 'Đang phát triển',
-    color: '#F59E0B', // Amber - Fully editable
+    color: '#F59E0B', // Amber
     backgroundColor: 'rgba(245, 158, 11, 0.1)',
     description: 'Cây đang trong quá trình phát triển, có thể tạo đấu giá'
   },
   {
     id: 2,
     name: 'Đang trên sàn đấu giá',
-    color: '#3B82F6', // Blue - Not editable
+    color: '#3B82F6', // Blue
     backgroundColor: 'rgba(59, 130, 246, 0.1)',
     description: 'Vườn đang có đấu giá trong sàn'
   },
   {
     id: 3,
+    name: 'Sẵn sàng thu hoạch',
+    color: '#8B5CF6', // Purple
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    description: 'Cây đã phát triển đủ, sẵn sàng để thu hoạch'
+  },
+  {
+    id: 4,
     name: 'Đang thu hoạch',
-    color: '#EC4899', // Pink - Partially editable (harvest only)
+    color: '#EC4899', // Pink
     backgroundColor: 'rgba(236, 72, 153, 0.1)',
     description: 'Cây đang trong quá trình thu hoạch'
   },
   {
-    id: 4,
+    id: 5,
     name: 'Đã thu hoạch',
-    color: '#22C55E', // Green - Read-only
+    color: '#22C55E', // Green
     backgroundColor: 'rgba(34, 197, 94, 0.1)',
     description: 'Đã hoàn thành thu hoạch'
   },
   {
-    id: 5,
+    id: 6,
     name: 'Ngừng canh tác',
-    color: '#EF4444', // Red - Not editable
+    color: '#EF4444', // Red
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
     description: 'Ngừng canh tác vườn này'
   }

@@ -82,7 +82,7 @@ export default function TabLayout() {
           name="farmer/create-auction"
           options={{
             href: isFarmer ? undefined : null,
-            title: 'Tạo đấu giá',
+            title: 'Đấu giá',
             tabBarIcon: ({ size, color }) => (
               <Plus size={size} color={color} strokeWidth={2} />
             ),
@@ -92,7 +92,7 @@ export default function TabLayout() {
           name="farmer/buy-request-management"
           options={{
             href: isFarmer ? undefined : null,
-            title: 'Quản lý yêu cầu',
+            title: 'Yêu cầu mua',
             tabBarIcon: ({ size, color }) => (
               <ShoppingCart size={size} color={color} strokeWidth={2} />
             ),
@@ -108,7 +108,7 @@ export default function TabLayout() {
           name="farmer/profile"
           options={{
             href: isFarmer ? undefined : null,
-            title: 'Profile',
+            title: 'Hồ sơ',
             tabBarIcon: ({ size, color }) => (
               <User size={size} color={color} strokeWidth={2} />
             ),

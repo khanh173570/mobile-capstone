@@ -40,6 +40,7 @@ import AllBidsDisplay from '../../../../../components/wholesaler/AllBidsDisplay'
 import HarvestImagesGallery from '../../../../../components/wholesaler/HarvestImagesGallery';
 import FlipClockDigit from '../../../../../components/shared/FlipClockDigit';
 import EscrowPaymentButton from '../../../../../components/wholesaler/EscrowPaymentButton';
+import BuyNowModal from '../../../../../components/wholesaler/BuyNowModal';
 import { useAuctionContext } from '../../../../../hooks/useAuctionContext';
 import { getBidsForAuction, getAllBidsForAuction, BidResponse, BidLog } from '../../../../../services/bidService';
 import { sendLocalNotification } from '../../../../../services/notificationService';
@@ -59,6 +60,8 @@ interface Auction {
   expectedTotalQuantity: number;
   createdAt: string;
   updatedAt: string;
+  enableBuyNow: boolean;
+  buyNowPrice: number | null;
   harvests?: Array<{
     id: string;
     harvestDate: string | null;
@@ -96,6 +99,7 @@ export default function WholesalerAuctionDetailScreen() {
   const [newBidCount, setNewBidCount] = useState(0);
   const [showBidsModal, setShowBidsModal] = useState(false);
   const [lastViewedBidTime, setLastViewedBidTime] = useState<string | null>(null);
+  const [buyNowModalVisible, setBuyNowModalVisible] = useState(false);
 
   // Debug: Log state changes
   useEffect(() => {
@@ -308,10 +312,23 @@ export default function WholesalerAuctionDetailScreen() {
             setFarms(farmsMap);
           }
         }
+      } else {
+        // No data returned - silently go back
+        console.log('No auction data found, redirecting back');
+        router.back();
+        return;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading auction detail:', error);
-      Alert.alert('Lỗi', 'Không thể tải thông tin đấu giá');
+      // Silent error handling - just go back without showing alert
+      if (error?.message?.includes('404') || error?.message?.includes('Failed')) {
+        console.log('Auction not found or deleted, redirecting back');
+        router.back();
+        return;
+      }
+      // For other errors, still go back silently
+      router.back();
+      return;
     } finally {
       setLoading(false);
     }
@@ -1072,11 +1089,24 @@ export default function WholesalerAuctionDetailScreen() {
         />
 
         {/* Bidding Button - Show after bid list if no bids, or after all bids if has bids */}
-        {bids.length === 0 && (
+        <View style={styles.actionButtonsContainer}>
+          {/* Buy Now button: Only show when user has placed at least one bid */}
+          {auction?.enableBuyNow && auction?.buyNowPrice && bids.length > 0 && (
+            <TouchableOpacity 
+              style={styles.buyNowButton}
+              onPress={() => setBuyNowModalVisible(true)}
+              disabled={!auction || auction.status !== 'OnGoing'}
+            >
+              <Text style={[styles.buyNowButtonText, (!auction || auction.status !== 'OnGoing') && { color: '#9CA3AF' }]}>
+                Mua ngay
+              </Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity 
             style={[
               styles.bidButton,
-              (!auction || auction.status !== 'OnGoing') && styles.bidButtonDisabled
+              (!auction || auction.status !== 'OnGoing') && styles.bidButtonDisabled,
+              auction?.enableBuyNow && auction?.buyNowPrice && bids.length > 0 ? { flex: 1, marginLeft: 8 } : {}
             ]}
             onPress={() => {
               if (auction?.status !== 'OnGoing') {
@@ -1094,10 +1124,12 @@ export default function WholesalerAuctionDetailScreen() {
             disabled={!auction || auction.status !== 'OnGoing'}
           >
             <Text style={[styles.bidButtonText, auction?.status !== 'OnGoing' && { color: '#9CA3AF' }]}>
-              {auction?.status === 'OnGoing' ? 'Tham gia đấu giá' : 'Chỉ xem'}
+              {bids.length === 0 
+                ? (auction?.status === 'OnGoing' ? 'Tham gia đấu giá' : 'Chỉ xem')
+                : 'Đấu giá tiếp'}
             </Text>
           </TouchableOpacity>
-        )}
+        </View>
         </ScrollView>
       )}
 
@@ -1142,6 +1174,23 @@ export default function WholesalerAuctionDetailScreen() {
               sessionCode={auction.sessionCode}
               existingBid={selectedBidForEdit}
               auctionStatus={auction.status}
+            />
+          )}
+
+          {/* Buy Now Modal */}
+          {auction && (
+            <BuyNowModal
+              visible={buyNowModalVisible}
+              auction={auction}
+              onClose={() => setBuyNowModalVisible(false)}
+              onSuccess={() => {
+                setBuyNowModalVisible(false);
+                Alert.alert(
+                  'Thành công',
+                  'Mua ngay thành công!',
+                  [{ text: 'OK', onPress: () => loadAuctionDetail() }]
+                );
+              }}
             />
           )}
 
@@ -1523,10 +1572,29 @@ const styles = StyleSheet.create({
   },
 
   // Bidding Button
-  bidButton: {
+  actionButtonsContainer: {
+    flexDirection: 'row',
     marginHorizontal: 16,
     marginTop: 24,
     marginBottom: 16,
+    gap: 8,
+  },
+  buyNowButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    backgroundColor: '#DC2626',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 110,
+  },
+  buyNowButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  bidButton: {
+    flex: 1,
     paddingVertical: 14,
     paddingHorizontal: 24,
     backgroundColor: '#FFFFFF',

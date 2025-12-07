@@ -20,7 +20,6 @@ import {
   Eye,
   History
 } from 'lucide-react-native';
-import Header from '../../../../components/shared/Header';
 import AuctionLogModal from '../../../../components/farmer/AuctionLogModal';
 import AllBidsDisplay from '../../../../components/wholesaler/AllBidsDisplay';
 import { 
@@ -762,7 +761,7 @@ export default function AuctionDetailScreen() {
 
         {/* Crops Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Chi tiết đấu giá</Text>
+          <Text style={styles.sectionTitle}>Thông tin cây trồng</Text>
           {cropsLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="small" color="#22C55E" />
