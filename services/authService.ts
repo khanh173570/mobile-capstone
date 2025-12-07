@@ -433,6 +433,111 @@ export const getUserProfile = async (): Promise<ApiResponse<User>> => {
   }
 };
 
+// Get user by ID
+export const getUserById = async (userId: string): Promise<User | null> => {
+  try {
+    const token = await AsyncStorage.getItem('accessToken');
+    
+    if (!token) {
+      console.warn('No token available for getUserById');
+      return null;
+    }
+    
+    const response = await fetch(`${API_URL}/Auth/${userId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    if (!response.ok) {
+      console.warn(`Failed to fetch user ${userId}:`, response.status);
+      return null;
+    }
+    
+    const text = await response.text();
+    if (!text || text.trim() === '') {
+      return null;
+    }
+
+    const data: ApiResponse<User> = JSON.parse(text);
+    
+    if (data.isSuccess) {
+      return data.data;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Get user by ID error:', error);
+    return null;
+  }
+};
+
+export const getUserProfileById = async (userId: string): Promise<User | null> => {
+  try {
+    const response = await fetch(`${API_URL}/username?userId=${userId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      console.warn(`Failed to fetch user profile ${userId}:`, response.status);
+      return null;
+    }
+    
+    const text = await response.text();
+    if (!text || text.trim() === '') {
+      return null;
+    }
+
+    const data: ApiResponse<User> = JSON.parse(text);
+    
+    if (data.isSuccess) {
+      return data.data;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Get user profile error:', error);
+    return null;
+  }
+};
+
+export const getUserInfoByUsername = async (userId: string): Promise<User | null> => {
+  try {
+    const response = await fetch(`${API_URL}/auth/username?userId=${userId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      console.warn(`Failed to fetch user info ${userId}:`, response.status);
+      return null;
+    }
+    
+    const text = await response.text();
+    if (!text || text.trim() === '') {
+      return null;
+    }
+
+    const data: ApiResponse<User> = JSON.parse(text);
+    
+    if (data.isSuccess) {
+      return data.data;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Get user info error:', error);
+    return null;
+  }
+};
+
 // Login user với logic xử lý farm
 export const loginUser = async (loginData: LoginData): Promise<ApiResponse<LoginResponse>> => {
   try {

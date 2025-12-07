@@ -11,7 +11,7 @@ import {
   Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Mail, MapPin, Phone, LogOut, User, MapPinned, Building2, FileText, X, Wallet, CreditCard } from 'lucide-react-native';
+import { Mail, MapPin, Phone, LogOut, User, MapPinned, Building2, FileText, X, Wallet, CreditCard, Shield } from 'lucide-react-native';
 import { getCurrentUser, logout } from '../../../../services/authService';
 import ReportHistoryScreen from '../../../../components/wholesaler/ReportHistoryScreen';
 
@@ -210,6 +210,18 @@ export default function WholesalerProfileScreen() {
           >
             <FileText size={20} color="#FFFFFF" />
             <Text style={styles.reportButtonText}>Xem lịch sử báo cáo</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Escrow Contracts Section */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Hợp đồng cọc tiền</Text>
+          <TouchableOpacity
+            style={styles.escrowButton}
+            onPress={() => router.push('/pages/wholesaler/wholesaler-escrow-contracts')}
+          >
+            <Shield size={20} color="#FFFFFF" />
+            <Text style={styles.escrowButtonText}>Quản lý hợp đồng</Text>
           </TouchableOpacity>
         </View>
 
@@ -431,6 +443,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  escrowButton: {
+    backgroundColor: '#8B5CF6',
+    borderRadius: 12,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  escrowButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
   accountInfoCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -495,5 +521,19 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#111827',
+  },
+  contractButton: {
+    backgroundColor: '#16A34A',
+    borderRadius: 12,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  contractButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

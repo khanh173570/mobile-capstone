@@ -630,8 +630,7 @@ export default function WholesalerAuctionDetailScreen() {
         >
           <ArrowLeft size={20} color="#374151" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Chi tiết đấu giá</Text>
-        {!loading && auction && (
+        <Text style={styles.headerTitle}>Chi tiết đấu giá</Text>        {!loading && auction && (
           <TouchableOpacity
             style={styles.bellButton}
             onPress={handleOpenBidsModal}

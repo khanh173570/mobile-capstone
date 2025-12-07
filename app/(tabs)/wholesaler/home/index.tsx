@@ -20,6 +20,7 @@ import { getCurrentUser } from '../../../../services/authService';
 import { getFarmsByUserId } from '../../../../services/farmService';
 import ReportAuctionModal from '../../../../components/shared/ReportAuctionModal';
 import FarmerProfileModal from '../../../../components/shared/FarmerProfileModal';
+import BuyNowModal from '../../../../components/wholesaler/BuyNowModal';
 
 interface Auction {
   id: string;
@@ -33,6 +34,8 @@ interface Auction {
   status: string;
   expectedHarvestDate: string;
   expectedTotalQuantity: number;
+  enableBuyNow?: boolean;
+  buyNowPrice?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -52,6 +55,8 @@ export default function WholesalerHomeScreen() {
   const [farmerFarmImages, setFarmerFarmImages] = useState<{ [farmerId: string]: string }>({});
   const [farmerFarmNames, setFarmerFarmNames] = useState<{ [farmerId: string]: string }>({});
   const [farmerLoadingState, setFarmerLoadingState] = useState<{ [farmerId: string]: boolean }>({});
+  const [buyNowModalVisible, setBuyNowModalVisible] = useState(false);
+  const [selectedAuctionForBuyNow, setSelectedAuctionForBuyNow] = useState<Auction | null>(null);
 
   // Load data on mount and focus - no initial loading spinner
   useEffect(() => {
@@ -534,6 +539,23 @@ export default function WholesalerHomeScreen() {
         farmerId={selectedFarmerId}
         onClose={() => setFarmerProfileModalVisible(false)}
       />
+
+      {/* Buy Now Modal */}
+      {selectedAuctionForBuyNow && (
+        <BuyNowModal
+          visible={buyNowModalVisible}
+          auction={selectedAuctionForBuyNow}
+          onClose={() => {
+            setBuyNowModalVisible(false);
+            setSelectedAuctionForBuyNow(null);
+          }}
+          onSuccess={() => {
+            setBuyNowModalVisible(false);
+            setSelectedAuctionForBuyNow(null);
+            loadDataQuietly();
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -545,7 +567,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 40,
   },
   loadingContainer: {
     flex: 1,
@@ -559,6 +580,7 @@ const styles = StyleSheet.create({
   },
   welcomeSection: {
     marginBottom: 20,
+    paddingHorizontal: 16,
   },
   welcomeText: {
     fontSize: 20,
@@ -571,8 +593,9 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   listContent: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
     paddingBottom: 20,
-    paddingTop: 8,
   },
   auctionCardWrapper: {
     marginBottom: 12,
@@ -864,6 +887,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   viewDetailButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  buyNowButton: {
+    backgroundColor: '#DC2626',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 100,
+  },
+  buyNowButtonText: {
     fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',

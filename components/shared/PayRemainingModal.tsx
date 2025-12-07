@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,41 +8,88 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
+  Image,
 } from 'react-native';
 import { X, Wallet, Smartphone } from 'lucide-react-native';
-import { payEscrowWithWallet } from '../../services/escrowPaymentService';
+import { useRouter } from 'expo-router';
+import { getPayRemainingEscrowUrl, payRemainingEscrowWithWallet } from '../../services/escrowContractService';
 
-interface EscrowPaymentModalProps {
+interface PayRemainingModalProps {
   visible: boolean;
   escrowId: string;
   amount: number;
   onClose: () => void;
   onPaymentSuccess: () => void;
   onPaymentFailure?: () => void;
-  onOpenPaymentWebView?: () => void; // For MoMo payment
 }
 
-export default function EscrowPaymentModal({
+export default function PayRemainingModal({
   visible,
   escrowId,
   amount,
   onClose,
   onPaymentSuccess,
   onPaymentFailure,
-  onOpenPaymentWebView,
-}: EscrowPaymentModalProps) {
+}: PayRemainingModalProps) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [selectedOption, setSelectedOption] = useState<'wallet' | 'qr' | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showQRCode, setShowQRCode] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!visible) {
+      setSelectedOption(null);
+      setShowConfirm(false);
+      setShowQRCode(false);
+      setQrCodeUrl(null);
+    }
+  }, [visible]);
 
   const handleSelectWallet = () => {
     setSelectedOption('wallet');
     setShowConfirm(true);
   };
 
-  const handleSelectQR = () => {
+  const handleSelectQR = async () => {
     setSelectedOption('qr');
-    setShowConfirm(true);
+    setLoading(true);
+    try {
+      console.log('Getting QR code for remaining escrow:', escrowId);
+      
+      const paymentUrl = await getPayRemainingEscrowUrl(escrowId);
+      
+      if (paymentUrl) {
+        console.log('Payment URL received:', paymentUrl);
+        setSelectedOption(null);
+        onClose();
+        // Navigate to payment page
+        router.push({
+          pathname: '/pages/payment-remaining',
+          params: {
+            paymentUrl: paymentUrl,
+            amount: amount.toLocaleString('vi-VN'),
+            escrowId: escrowId,
+          },
+        });
+      } else {
+        Alert.alert(
+          'Lỗi',
+          'Không thể lấy mã QR. Vui lòng thử lại.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error: any) {
+      console.error('Error getting QR code:', error);
+      Alert.alert(
+        'Lỗi',
+        error.message || 'Không thể lấy mã QR. Vui lòng thử lại.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleConfirmPayment = async () => {
@@ -50,22 +97,20 @@ export default function EscrowPaymentModal({
 
     if (selectedOption === 'wallet') {
       await handlePayWithWallet();
-    } else if (selectedOption === 'qr') {
-      handlePayWithQR();
     }
   };
 
   const handlePayWithWallet = async () => {
     setLoading(true);
     try {
-      console.log('Paying escrow with wallet, escrowId:', escrowId, 'amount:', amount);
+      console.log('Paying remaining escrow with wallet, escrowId:', escrowId, 'amount:', amount);
       
-      const result = await payEscrowWithWallet(escrowId);
+      const success = await payRemainingEscrowWithWallet(escrowId);
       
-      if (result) {
+      if (success) {
         Alert.alert(
           'Thanh toán thành công',
-          `Đã thanh toán cọc ${amount.toLocaleString('vi-VN')} ₫ thành công!`,
+          `Đã thanh toán ${amount.toLocaleString('vi-VN')} ₫ thành công!`,
           [
             {
               text: 'OK',
@@ -79,18 +124,66 @@ export default function EscrowPaymentModal({
           ]
         );
       } else {
+        throw new Error('Thanh toán thất bại');
+      }
+    } catch (error: any) {
+      console.error('Error paying remaining escrow with wallet:', error);
+      
+      let errorMessage = error.message || 'Không thể thanh toán. Vui lòng thử lại.';
+      
+      Alert.alert(
+        'Lỗi thanh toán',
+        errorMessage,
+        [
+          { 
+            text: 'OK',
+            onPress: () => {
+              setSelectedOption(null);
+              setShowConfirm(false);
+            }
+          },
+        ]
+      );
+      onPaymentFailure?.();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePayWithMoMo = async () => {
+    setLoading(true);
+    try {
+      console.log('Getting MoMo payment URL for remaining escrow:', escrowId);
+      
+      const paymentUrl = await getPayRemainingEscrowUrl(escrowId);
+      
+      if (paymentUrl) {
+        console.log('Payment URL received:', paymentUrl);
+        setSelectedOption(null);
+        setShowQRCode(false);
+        onClose();
+        // Navigate to payment page
+        router.push({
+          pathname: '/pages/payment-remaining',
+          params: {
+            paymentUrl: paymentUrl,
+            amount: amount.toLocaleString('vi-VN'),
+            escrowId: escrowId,
+          },
+        });
+      } else {
         Alert.alert(
           'Thanh toán thất bại',
-          'Không thể thanh toán cọc. Vui lòng thử lại.',
+          'Không thể lấy mã QR. Vui lòng thử lại.',
           [{ text: 'OK' }]
         );
         onPaymentFailure?.();
       }
     } catch (error: any) {
-      console.error('Error paying escrow with wallet:', error);
+      console.error('Error paying remaining escrow with MoMo:', error);
       Alert.alert(
         'Lỗi',
-        error.message || 'Không thể thanh toán cọc. Vui lòng thử lại.',
+        error.message || 'Không thể lấy mã QR. Vui lòng thử lại.',
         [{ text: 'OK' }]
       );
       onPaymentFailure?.();
@@ -99,11 +192,23 @@ export default function EscrowPaymentModal({
     }
   };
 
-  const handlePayWithQR = () => {
-    setSelectedOption(null);
-    setShowConfirm(false);
-    onClose();
-    onOpenPaymentWebView?.();
+  const handlePaymentScannedSuccess = () => {
+    Alert.alert(
+      'Thanh toán thành công',
+      `Đã thanh toán ${amount.toLocaleString('vi-VN')} ₫ thành công!`,
+      [
+        {
+          text: 'OK',
+          onPress: () => {
+            setQrCodeUrl(null);
+            setShowQRCode(false);
+            setSelectedOption(null);
+            onClose();
+            onPaymentSuccess();
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -117,7 +222,7 @@ export default function EscrowPaymentModal({
         <View style={styles.container}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Thanh toán cọc</Text>
+            <Text style={styles.headerTitle}>Thanh toán phần còn lại</Text>
             <TouchableOpacity onPress={onClose} disabled={loading}>
               <X size={24} color="#6B7280" />
             </TouchableOpacity>
@@ -165,7 +270,7 @@ export default function EscrowPaymentModal({
                 <View style={styles.optionContent}>
                   <Text style={styles.optionTitle}>Quét mã QR</Text>
                   <Text style={styles.optionDescription}>
-                    Thanh toán qua PayOS
+                    Quét mã QR bằng ứng dụng MoMo
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -174,7 +279,7 @@ export default function EscrowPaymentModal({
             /* Confirmation Screen */
             <View style={styles.confirmContainer}>
               <Text style={styles.confirmTitle}>
-                Xác nhận {selectedOption === 'wallet' ? 'từ ví' : 'qua QR'}
+                Xác nhận {selectedOption === 'wallet' ? 'từ ví' : 'MoMo'}
               </Text>
               <Text style={styles.confirmMessage}>
                 Bạn sắp thanh toán {amount.toLocaleString('vi-VN')} ₫ để hoàn tất giao dịch.
@@ -241,7 +346,7 @@ const styles = StyleSheet.create({
   },
   container: {
     width: '90%',
-    maxHeight: '80%',
+    maxHeight: '95%',
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     overflow: 'hidden',
@@ -298,16 +403,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 20,
     marginBottom: 12,
-    padding: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     borderRadius: 12,
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
   optionIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
@@ -329,66 +435,108 @@ const styles = StyleSheet.create({
   confirmContainer: {
     paddingHorizontal: 20,
     paddingVertical: 24,
-    minHeight: 200,
-    justifyContent: 'center',
   },
   confirmTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#111827',
     marginBottom: 12,
-    textAlign: 'center',
   },
   confirmMessage: {
     fontSize: 14,
     color: '#374151',
     marginBottom: 16,
-    textAlign: 'center',
     lineHeight: 20,
   },
   confirmWarning: {
     fontSize: 13,
     color: '#D97706',
-    marginBottom: 20,
+    marginBottom: 16,
+  },
+  qrContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+  },
+  qrTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 16,
     textAlign: 'center',
   },
+  qrCode: {
+    width: 320,
+    height: 320,
+    marginBottom: 24,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  qrDescription: {
+    fontSize: 15,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 22,
+    fontWeight: '500',
+  },
+  qrAmount: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#10B981',
+    marginBottom: 24,
+    textAlign: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 12,
+    width: '100%',
+  },
+  paidButton: {
+    backgroundColor: '#10B981',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  paidButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
   loadingContainer: {
+    paddingVertical: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 14,
+    fontSize: 13,
     color: '#6B7280',
+    marginTop: 12,
   },
   footer: {
     flexDirection: 'row',
-    gap: 12,
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    gap: 12,
   },
   button: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 10,
-    justifyContent: 'center',
+    borderRadius: 12,
     alignItems: 'center',
-  },
-  closeButton: {
-    backgroundColor: '#E5E7EB',
-  },
-  closeButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
+    justifyContent: 'center',
   },
   cancelButton: {
     backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
   },
   cancelButtonText: {
     fontSize: 14,
@@ -396,12 +544,20 @@ const styles = StyleSheet.create({
     color: '#374151',
   },
   confirmButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#DC2626',
   },
   confirmButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  closeButton: {
+    backgroundColor: '#F3F4F6',
+  },
+  closeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
   },
   buttonDisabled: {
     opacity: 0.6,

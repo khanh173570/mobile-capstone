@@ -20,6 +20,7 @@ interface PaymentWebViewProps {
   onClose: () => void;
   onPaymentSuccess: () => void;
   onPaymentFailure: () => void;
+  skipOptions?: boolean; // Skip payment options and show QR directly
 }
 
 export default function PaymentWebView({
@@ -28,12 +29,13 @@ export default function PaymentWebView({
   onClose,
   onPaymentSuccess,
   onPaymentFailure,
+  skipOptions = false,
 }: PaymentWebViewProps) {
   const [loading, setLoading] = useState(true);
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
-  const [showPaymentOptions, setShowPaymentOptions] = useState(true);
-  const [selectedOption, setSelectedOption] = useState<'qr' | 'app' | null>(null);
+  const [showPaymentOptions, setShowPaymentOptions] = useState(!skipOptions);
+  const [selectedOption, setSelectedOption] = useState<'qr' | 'app' | null>(skipOptions ? 'qr' : null);
   const [showBankingApps, setShowBankingApps] = useState(false);
   const [qrData, setQrData] = useState<string>('');
   const webViewRef = useRef<WebView>(null);

@@ -13,7 +13,7 @@ export default function WholesalerProfileLayout() {
       <Stack.Screen 
         name="wallet" 
         options={{ 
-          title: 'Wallet',
+          title: 'Ví của tôi',
           headerShown: true 
         }} 
       />
