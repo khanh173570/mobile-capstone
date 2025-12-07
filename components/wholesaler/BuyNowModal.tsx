@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Modal,
   View,
-  Text,
+  Text,     
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
