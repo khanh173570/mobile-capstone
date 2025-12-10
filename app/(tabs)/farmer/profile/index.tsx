@@ -23,7 +23,10 @@ import {
   Calendar,
   Activity,
   TrendingUp,
-  FileText
+  FileText,
+  Wallet,
+  CreditCard,
+  History
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { getUserProfile, logout, getCurrentUser } from '../../../../services/authService';
@@ -229,21 +232,50 @@ export default function ProfileScreen() {
         </View>
 
         {/* Escrow Contracts Section */}
+      
+        {/* Financial Services Section - 4 Services in 3 Columns */}
         <View style={styles.sectionContainer}>
-          <TouchableOpacity
-            style={styles.escrowButton}
-            onPress={() => router.push('/pages/farmer/farmer-escrow-contracts')}
-          >
-            <Shield size={20} color="#FFFFFF" />
-            <Text style={styles.escrowButtonText}>Hợp đồng cọc tiền</Text>
-          </TouchableOpacity>
-        </View>
+          <View style={styles.servicesGrid}>
+            <TouchableOpacity
+              style={styles.serviceCard}
+              onPress={() => router.push('/pages/farmer/farmer-escrow-contracts' as any)}
+            >
+              <View style={styles.serviceIconContainer}>
+                <Shield size={24} color="#22C55E" />
+              </View>
+              <Text style={styles.serviceTitle}>Hợp đồng</Text>
+            </TouchableOpacity>
 
-        {/* Account Information */}
-        <View style={styles.accountSection}>
-         
-          
-          
+            <TouchableOpacity
+              style={styles.serviceCard}
+              onPress={() => router.push('/(tabs)/farmer/profile/wallet' as any)}
+            >
+              <View style={styles.serviceIconContainer}>
+                <Wallet size={24} color="#22C55E" />
+              </View>
+              <Text style={styles.serviceTitle}>Ví của tôi</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.serviceCard}
+              onPress={() => router.push('/(tabs)/farmer/profile/transactions' as any)}
+            >
+              <View style={styles.serviceIconContainer}>
+                <History size={24} color="#3B82F6" />
+              </View>
+              <Text style={styles.serviceTitle}>Giao dịch</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.serviceCard}
+              onPress={() => router.push('/(tabs)/farmer/profile/withdraw' as any)}
+            >
+              <View style={styles.serviceIconContainer}>
+                <CreditCard size={24} color="#F97316" />
+              </View>
+              <Text style={styles.serviceTitle}>Rút tiền</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Action Buttons */}
@@ -526,5 +558,40 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '600',
+  },
+  servicesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  serviceCard: {
+    width: '31%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  serviceIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  serviceTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#111827',
+    textAlign: 'center',
   },
 });

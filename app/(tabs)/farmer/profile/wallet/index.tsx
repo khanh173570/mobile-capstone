@@ -1,0 +1,474 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+import { router } from 'expo-router';
+import {
+  Wallet as WalletIcon,
+  ArrowLeft,
+  Plus,
+  RefreshCw,
+  CreditCard,
+  TrendingUp,
+  Shield,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Clock,
+} from 'lucide-react-native';
+import {
+  getMyWallet,
+  getMyLedgers,
+  Wallet,
+  Ledger,
+  getWalletStatusName,
+  getWalletStatusColor,
+  getLedgerDirectionName,
+  getLedgerDirectionColor,
+  formatCurrency,
+} from '../../../../../services/walletService';
+import { getUserProfile } from '../../../../../services/authService';
+import AddFundsModal from '../../../../../components/wholesaler/AddFundsModal';
+import { handleError } from '../../../../../utils/errorHandler';
+
+export default function FarmerWalletScreen() {
+  const [wallet, setWallet] = useState<Wallet | null>(null);
+  const [ledgers, setLedgers] = useState<Ledger[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showAddFundsModal, setShowAddFundsModal] = useState(false);
+  const [userId, setUserId] = useState<string>('');
+
+  useEffect(() => {
+    loadUserProfile();
+    loadWallet();
+    loadLedgers();
+  }, []);
+
+  const loadUserProfile = async () => {
+    try {
+      const profile = await getUserProfile();
+      if (profile && profile.data) {
+        setUserId(profile.data.id);
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+    }
+  };
+
+  const loadWallet = async () => {
+    try {
+      setLoading(true);
+      const data = await getMyWallet();
+      setWallet(data);
+    } catch (error) {
+      handleError(error, 'Không thể tải thông tin ví');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const loadLedgers = async () => {
+    try {
+      const data = await getMyLedgers();
+      setLedgers(data);
+    } catch (error) {
+      console.error('Error loading ledgers:', error);
+    }
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadWallet();
+    loadLedgers();
+  };
+
+  const handleAddFunds = () => {
+    if (!userId) {
+      Alert.alert('Lỗi', 'Không thể xác định người dùng');
+      return;
+    }
+    setShowAddFundsModal(true);
+  };
+
+  const handleAddFundsSuccess = () => {
+    loadWallet();
+    loadLedgers();
+  };
+
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <ArrowLeft size={24} color="#111827" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Ví của tôi</Text>
+          <View style={{ width: 24 }} />
+        </View>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#22C55E" />
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <ArrowLeft size={24} color="#111827" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Ví của tôi</Text>
+        <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
+          <RefreshCw size={24} color="#111827" />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        style={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
+        {/* Balance Card */}
+        <View style={styles.balanceCard}>
+          <View style={styles.balanceHeader}>
+            <WalletIcon size={32} color="#22C55E" />
+            <View
+              style={[
+                styles.statusBadge,
+                { backgroundColor: getWalletStatusColor(wallet?.walletStatus || 0) + '20' },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusText,
+                  { color: getWalletStatusColor(wallet?.walletStatus || 0) },
+                ]}
+              >
+                {getWalletStatusName(wallet?.walletStatus || 0)}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.balanceLabel}>Số dư khả dụng</Text>
+          <Text style={styles.balanceAmount}>
+            {formatCurrency(wallet?.balance || 0)}
+          </Text>
+
+          <View style={styles.walletInfo}>
+            <View style={styles.walletInfoRow}>
+              <Text style={styles.walletInfoLabel}>Loại tiền:</Text>
+              <Text style={styles.walletInfoValue}>{wallet?.currency || 'VND'}</Text>
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={styles.addFundsButton}
+              onPress={handleAddFunds}
+              disabled={wallet?.walletStatus !== 0}
+            >
+              <Plus size={20} color="#FFFFFF" />
+              <Text style={styles.addFundsButtonText}>Nạp tiền</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.withdrawButton}
+              onPress={() => router.push('/(tabs)/farmer/profile/withdraw' as any)}
+            >
+              <ArrowUpRight size={20} color="#FFFFFF" />
+              <Text style={styles.withdrawButtonText}>Rút tiền</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Transaction History */}
+        <View style={styles.transactionSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Lịch sử biến động</Text>
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/farmer/profile/transactions' as any)}
+            >
+              <Text style={styles.viewAllText}>Xem tất cả</Text>
+            </TouchableOpacity>
+          </View>
+
+          {ledgers.length > 0 ? (
+            <View style={styles.transactionList}>
+              {ledgers.slice(0, 5).map((ledger, index) => (
+                <View
+                  key={ledger.id}
+                  style={[
+                    styles.transactionItem,
+                    index === Math.min(ledgers.length - 1, 4) && { borderBottomWidth: 0 },
+                  ]}
+                >
+                  <View style={styles.transactionLeft}>
+                    <View
+                      style={[
+                        styles.transactionIconContainer,
+                        {
+                          backgroundColor: getLedgerDirectionColor(ledger.direction) + '20',
+                        },
+                      ]}
+                    >
+                      {ledger.direction === 1 ? (
+                        <ArrowDownLeft size={20} color={getLedgerDirectionColor(ledger.direction)} />
+                      ) : (
+                        <ArrowUpRight size={20} color={getLedgerDirectionColor(ledger.direction)} />
+                      )}
+                    </View>
+                    <View style={styles.transactionInfo}>
+                      <Text style={styles.transactionTitle}>
+                        {ledger.description || getLedgerDirectionName(ledger.direction)}
+                      </Text>
+                      <Text style={styles.transactionDate}>{formatDate(ledger.createdAt)}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.transactionRight}>
+                    <Text
+                      style={[
+                        styles.transactionAmount,
+                        { color: getLedgerDirectionColor(ledger.direction) },
+                      ]}
+                    >
+                      {ledger.direction === 1 ? '+' : '-'}{formatCurrency(ledger.amount)}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyTransactions}>
+              <Clock size={48} color="#D1D5DB" />
+              <Text style={styles.emptyTransactionsTitle}>Chưa có giao dịch nào</Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+
+      {userId && (
+        <AddFundsModal
+          visible={showAddFundsModal}
+          onClose={() => setShowAddFundsModal(false)}
+          onSuccess={handleAddFundsSuccess}
+          userId={userId}
+        />
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  content: {
+    flex: 1,
+  },
+  balanceCard: {
+    margin: 16,
+    padding: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#22C55E',
+  },
+  balanceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  balanceLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  balanceAmount: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 16,
+  },
+  walletInfo: {
+    marginBottom: 20,
+  },
+  walletInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  walletInfoLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  walletInfoValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  addFundsButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#22C55E',
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  addFundsButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  withdrawButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F97316',
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  withdrawButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  transactionSection: {
+    marginHorizontal: 16,
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  viewAllText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#22C55E',
+  },
+  transactionList: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+  },
+  transactionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  transactionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  transactionIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  transactionInfo: {
+    flex: 1,
+  },
+  transactionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  transactionDate: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  transactionRight: {
+    alignItems: 'flex-end',
+  },
+  transactionAmount: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  emptyTransactions: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 32,
+    alignItems: 'center',
+  },
+  emptyTransactionsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 16,
+  },
+});

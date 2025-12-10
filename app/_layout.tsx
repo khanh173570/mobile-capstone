@@ -31,17 +31,17 @@ export default function RootLayout() {
     }
   }, [loaded, error]);
 
-  // Setup polling for all auctions when user is logged in
-  useSingleAuctionLogPolling({
-    auctionId: currentAuctionId,
-    intervalSeconds: 20,
-    enabled: !!currentAuctionId,
-    resetOnMount: false,
-    onNewLog: (logId) => {
-      console.log('New log from global polling:', logId);
-      // Notification sẽ được trigger từ auctionLogNotificationService
-    },
-  });
+  // ❌ Polling DISABLED - Using SignalR for real-time updates instead
+  // SignalR broadcasts events instantly, no need for polling every 20 seconds
+  // useSingleAuctionLogPolling({
+  //   auctionId: currentAuctionId,
+  //   intervalSeconds: 20,
+  //   enabled: !!currentAuctionId,
+  //   resetOnMount: false,
+  //   onNewLog: (logId) => {
+  //     console.log('New log from global polling:', logId);
+  //   },
+  // });
 
   if (!loaded && !error) {
     return null;

@@ -65,15 +65,20 @@ export default function BidLogDisplay({
     return date.toLocaleString('vi-VN');
   };
 
+  // Sort bid logs by dateTimeUpdate (newest first)
+  const sortedBidLogs = [...bidLogs].sort((a, b) => {
+    return new Date(b.dateTimeUpdate).getTime() - new Date(a.dateTimeUpdate).getTime();
+  });
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>📊 Lịch sử đấu giá</Text>
-        <Text style={styles.count}>{bidLogs.length} lượt</Text>
+        <Text style={styles.count}>{sortedBidLogs.length} lượt</Text>
       </View>
 
       <ScrollView style={styles.logList} showsVerticalScrollIndicator={false}>
-        {bidLogs.map((log, index) => {
+        {sortedBidLogs.map((log, index) => {
           const bidData = parseBidData(log.newEntity);
           const bidAmount = bidData.BidAmount || 0;
           const isAutoBid = bidData.IsAutoBid || false;
@@ -82,7 +87,7 @@ export default function BidLogDisplay({
             <View key={log.id} style={styles.logItem}>
               {/* Index */}
               <View style={styles.indexBadge}>
-                <Text style={styles.indexText}>{bidLogs.length - index}</Text>
+                <Text style={styles.indexText}>{index + 1}</Text>
               </View>
 
               {/* Content */}

@@ -13,11 +13,16 @@ import {
   AppState,
   AppStateStatus,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { MapPin, DollarSign, Calendar, Package, User, MoreVertical } from 'lucide-react-native';
+import { MapPin, DollarSign, Calendar, Package, User, MoreVertical, Bell } from 'lucide-react-native';
 import { getAuctionsByStatus, getAuctionStatusInfo } from '../../../../services/auctionService';
 import { getCurrentUser } from '../../../../services/authService';
 import { getFarmsByUserId } from '../../../../services/farmService';
+import { getUnreadNotificationCount, getUserNotifications, UserNotification } from '../../../../services/userNotificationService';
+import { NotificationModal } from '../../../../components/shared/NotificationModal';
+import { signalRService, NewNotificationEvent } from '../../../../services/signalRService';
+import Header from '../../../../components/shared/Header';
 import ReportAuctionModal from '../../../../components/shared/ReportAuctionModal';
 import FarmerProfileModal from '../../../../components/shared/FarmerProfileModal';
 import BuyNowModal from '../../../../components/wholesaler/BuyNowModal';
@@ -46,6 +51,9 @@ export default function WholesalerHomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [selectedAuctionId, setSelectedAuctionId] = useState<string>('');
   const [menuVisibleFor, setMenuVisibleFor] = useState<string | null>(null);
@@ -60,15 +68,61 @@ export default function WholesalerHomeScreen() {
 
   // Load data on mount and focus - no initial loading spinner
   useEffect(() => {
-    loadDataQuietly();
+    const initializeApp = async () => {
+      // Initialize SignalR connection
+      console.log('🔌 Initializing SignalR for wholesaler...');
+      await signalRService.connect();
+      
+      // Setup real-time notification listener
+      const unsubscribeNotifications = signalRService.onNewNotification((event: NewNotificationEvent) => {
+        console.log('🔔🔔🔔 New notification received in wholesaler home 🔔🔔🔔');
+        console.log('   Type:', event.type);
+        console.log('   Title:', event.title);
+        console.log('   Message:', event.message);
+        console.log('   Severity:', event.severity);
+        console.log('   Full event:', JSON.stringify(event, null, 2));
+        
+        // Convert SignalR event to UserNotification format
+        const userNotification: UserNotification = {
+          id: event.id,
+          userId: event.userId,
+          type: event.type,
+          severity: event.severity === 'Info' ? 0 : event.severity === 'Warning' ? 1 : 2,
+          title: event.title,
+          message: event.message,
+          isRead: event.isRead,
+          readAt: event.readAt || null,
+          data: event.data || null,
+          relatedEntityId: event.relatedEntityId || null,
+          relatedEntityType: event.relatedEntityType || null,
+          createdAt: event.createdAt,
+          updatedAt: null,
+        };
+        
+        // Add new notification to the list at the top
+        setNotifications(prev => [userNotification, ...prev]);
+        console.log('📝 Notification added to list, reloading unread count...');
+        loadUnreadNotifications();
+      });
+      
+      loadDataQuietly();
+      loadUnreadNotifications();
+      
+      return unsubscribeNotifications;
+    };
+
+    const unsubscribe = initializeApp();
     
     // Auto-refresh every 30 seconds when screen is active
     const autoRefreshInterval = setInterval(() => {
       console.log('🔄 Auto-refreshing wholesaler home auctions...');
       loadDataQuietly();
-    }, 30000); // 5 seconds
+    }, 30000);
     
-    return () => clearInterval(autoRefreshInterval);
+    return () => {
+      clearInterval(autoRefreshInterval);
+      unsubscribe.then(fn => fn?.());
+    };
   }, []);
 
   // Preload farmer images when auctions change
@@ -152,8 +206,8 @@ export default function WholesalerHomeScreen() {
         setUser(currentUser);
       }
 
-      // Load auctions
-      const auctionData = await getAuctionsByStatus('OnGoing', 1, 10);
+      // Load auctions (increased pageSize to 100 to ensure we get all auctions)
+      const auctionData = await getAuctionsByStatus('OnGoing', 1, 100);
       if (auctionData.isSuccess && auctionData.data.items) {
         setAuctions(auctionData.data.items);
       }
@@ -174,8 +228,8 @@ export default function WholesalerHomeScreen() {
         setUser(currentUser);
       }
 
-      // Load auctions
-      const auctionData = await getAuctionsByStatus('OnGoing', 1, 10);
+      // Load auctions (increased pageSize to 100 to ensure we get all auctions)
+      const auctionData = await getAuctionsByStatus('OnGoing', 1, 100);
       if (auctionData.isSuccess && auctionData.data.items) {
         // Calculate countdowns immediately before setting auctions
         const initialCountdowns: { [key: string]: any } = {};
@@ -198,14 +252,24 @@ export default function WholesalerHomeScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      const auctionData = await getAuctionsByStatus('OnGoing', 1, 10);
+      const auctionData = await getAuctionsByStatus('OnGoing', 1, 100);
       if (auctionData.isSuccess && auctionData.data.items) {
         setAuctions(auctionData.data.items);
       }
+      await loadUnreadNotifications();
     } catch (error) {
       console.error('Error refreshing:', error);
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const loadUnreadNotifications = async () => {
+    try {
+      const count = await getUnreadNotificationCount();
+      setUnreadCount(count);
+    } catch (error) {
+      console.error('Error loading unread count:', error);
     }
   };
 
@@ -484,17 +548,13 @@ export default function WholesalerHomeScreen() {
 
   return (
     <View style={styles.container}>
+      <Header 
+        userName={user ? `${user.firstName} ${user.lastName}` : 'Người dùng'}
+        onNotificationPress={() => setShowNotificationModal(true)}
+        unreadNotificationCount={unreadCount}
+      />
+      
       <View style={styles.content}>
-        {user && (
-          <View style={styles.welcomeSection}>
-            <Text style={styles.welcomeText}>
-              Chào mừng, {user.firstName} {user.lastName}
-            </Text>
-            <Text style={styles.subtitleText}>
-              Các đấu giá đang diễn ra
-            </Text>
-          </View>
-        )}
 
         {auctions.length === 0 ? (
           <View style={styles.emptyContainer}>
@@ -556,6 +616,19 @@ export default function WholesalerHomeScreen() {
           }}
         />
       )}
+
+      {/* Notification Modal */}
+      <NotificationModal
+        visible={showNotificationModal}
+        onClose={() => {
+          setShowNotificationModal(false);
+          loadUnreadNotifications();
+        }}
+        role="wholesaler"
+        onRefresh={loadUnreadNotifications}
+        notifications={notifications}
+        onNotificationsChange={setNotifications}
+      />
     </View>
   );
 }

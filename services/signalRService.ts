@@ -2,7 +2,7 @@ import * as SignalR from '@microsoft/signalr';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { refreshAccessToken } from './authService';
 
-const SIGNALR_HUB_URL = 'https://gateway.a-379.store/api/auction-service/hubs/global';
+const SIGNALR_HUB_URL = 'https://gateway.a-379.store/api/messaging-service/hubs/global';
 
 // Event types
 export type BidPlacedEvent = {
@@ -28,12 +28,16 @@ export type BuyNowEvent = {
 export type NewNotificationEvent = {
   id: string;
   userId: string;
-  type: string;
+  type: number; // 1-16 notification type
+  severity: 'Info' | 'Warning' | 'Critical';
   title: string;
   message: string;
-  createdAt: string;
-  data?: any;
+  isRead: boolean;
+  readAt?: string;
+  data?: string; // JSON string with extra data
   relatedEntityId?: string;
+  relatedEntityType?: string;
+  createdAt: string;
 };
 
 export type SystemNotificationEvent = {
@@ -77,22 +81,35 @@ class SignalRService {
 
     try {
       // Refresh token first to ensure it's not expired
-      console.log('SignalR: Refreshing access token before connection...');
+      console.log('🔄 SignalR: Refreshing access token before connection...');
       const refreshed = await refreshAccessToken();
       
       if (!refreshed) {
-        console.error('SignalR: Failed to refresh access token');
+        console.error('❌ SignalR: Failed to refresh access token');
         return;
       }
 
       // Get JWT token from storage
       const token = await AsyncStorage.getItem('accessToken');
       if (!token) {
-        console.error('SignalR: No access token found after refresh');
+        console.error('❌ SignalR: No access token found after refresh');
         return;
       }
 
-      console.log('SignalR: Access token ready, establishing WebSocket connection...');
+      // Decode token to verify user info (for debugging)
+      try {
+        const tokenParts = token.split('.');
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+          const userId = payload.sub || payload.uid || payload['user_id'] || payload.nameid;
+          console.log(`🔐 SignalR: User authenticated (ID: ${userId ? userId.substring(0, 8) : 'unknown'}...)`);
+        }
+      } catch (e) {
+        // Token decode failed, but connection can still proceed
+        console.log('🔐 SignalR: User authenticated via token');
+      }
+
+      console.log('📡 SignalR: Establishing WebSocket connection...');
 
       // Create connection with JWT authentication
       this.connection = new SignalR.HubConnectionBuilder()
@@ -146,9 +163,13 @@ class SignalRService {
       // Start connection
       this.isManuallyDisconnected = false;
       await this.connection.start();
-      console.log('SignalR: Connected successfully');
+      console.log('✅ SignalR: Connected successfully to', SIGNALR_HUB_URL);
+      console.log('   Connection ID:', this.connection?.connectionId);
+      console.log('   Connection State:', this.connection?.state);
+      console.log('🔐 SignalR: Authenticated with JWT token (backend will identify user from token)');
       this.reconnectAttempts = 0;
       this.notifyConnectionState(true);
+      console.log('🎧 SignalR: Event listeners are now active and ready to receive messages');
 
     } catch (error) {
       console.error('SignalR: Connection failed', error);
@@ -201,29 +222,82 @@ class SignalRService {
   private setupEventListeners(): void {
     if (!this.connection) return;
 
+    console.log('🔔 SignalR: Setting up event listeners on connection...');
+    console.log('   Listening for: BidPlaced, BuyNow, ReceiveNotification, etc.');
+
     // BidPlaced event
     this.connection.on('BidPlaced', (event: BidPlacedEvent) => {
-      console.log('SignalR: BidPlaced event received', event);
-      this.bidPlacedHandlers.forEach(handler => handler(event));
+      console.log('🎯🎯🎯 BidPlaced event received 🎯🎯🎯');
+      console.log('   Event Details:');
+      console.log('   - Auction ID:', event.auctionId);
+      console.log('   - Bid ID:', event.bidId);
+      console.log('   - User ID:', event.userId);
+      console.log('   - Bidder:', event.userName);
+      console.log('   - Bid Amount:', event.bidAmount);
+      console.log('   - Price Change:', event.previousPrice, '→', event.newPrice);
+      console.log('   - Placed At:', event.placedAt);
+      console.log('   - Full Event Object:', JSON.stringify(event, null, 2));
+      console.log('   - Now calling', this.bidPlacedHandlers.length, 'registered handlers');
+      this.bidPlacedHandlers.forEach((handler, index) => {
+        console.log(`   - Calling handler ${index + 1}/${this.bidPlacedHandlers.length}`);
+        handler(event);
+      });
     });
 
     // BuyNow event
     this.connection.on('BuyNow', (event: BuyNowEvent) => {
-      console.log('SignalR: BuyNow event received', event);
+      console.log('🎯 SignalR: 🎯🎯🎯 BuyNow event received 🎯🎯🎯');
+      console.log('   Auction ID:', event.auctionId);
+      console.log('   Buyer:', event.userName);
+      console.log('   Buy Now Price:', event.buyNowPrice);
       this.buyNowHandlers.forEach(handler => handler(event));
     });
 
-    // NewNotification event
-    this.connection.on('NewNotification', (event: NewNotificationEvent) => {
-      console.log('SignalR: NewNotification event received', event);
+    // ReceiveNotification event (generic)
+    this.connection.on('ReceiveNotification', (event: NewNotificationEvent) => {
+      console.log('SignalR: ReceiveNotification event received', event);
+      console.log('  - Event keys:', Object.keys(event));
+      console.log('  - id:', event.id);
+      console.log('  - type:', event.type);
+      console.log('  - title:', event.title);
+      console.log('  - message:', event.message);
+      console.log('  - severity:', event.severity);
+      console.log('  - Full event object:', JSON.stringify(event, null, 2));
       this.newNotificationHandlers.forEach(handler => handler(event));
+    });
+
+    // Also listen to specific notification type events for backward compatibility
+    // e.g., 'HarvestReminderMinus7Days', 'EscrowDepositSuccess', etc.
+    const notificationTypes = [
+      'Outbid', 'AuctionEnded', 'AuctionWon', 'AuctionApproved',
+      'AuctionPaused', 'AuctionStarted', 'System',
+      'EscrowDepositSuccess', 'EscrowRemainingPaymentSuccess',
+      'EscrowReleaseReceived', 'WalletFundsAdded',
+      'HarvestReminderMinus7Days', 'HarvestReminderMinus3Days',
+      'HarvestReminderMinus1Day', 'HarvestReminderOnDay', 'HarvestReminderPlus1Day'
+    ];
+
+    notificationTypes.forEach(notificationType => {
+      this.connection?.on(notificationType, (event: NewNotificationEvent) => {
+        console.log(`SignalR: ${notificationType} event received`, event);
+        console.log(`  - Event keys:`, Object.keys(event));
+        console.log(`  - title: ${event.title}`);
+        console.log(`  - message: ${event.message}`);
+        console.log(`  - Full event:`, JSON.stringify(event, null, 2));
+        this.newNotificationHandlers.forEach(handler => handler(event));
+      });
     });
 
     // SystemNotification event
     this.connection.on('SystemNotification', (event: SystemNotificationEvent) => {
-      console.log('SignalR: SystemNotification event received', event);
+      console.log('🎯 SignalR: SystemNotification event received', event);
       this.systemNotificationHandlers.forEach(handler => handler(event));
     });
+
+    // Debug: Log setup completion
+    console.log('🔔 SignalR: Finished setting up event listeners');
+    console.log('   Listening for: BidPlaced, BuyNow, ReceiveNotification, SystemNotification, and', notificationTypes.length, 'notification types');
+    console.log('   Ready to receive events from backend');
   }
 
   /**
@@ -231,16 +305,19 @@ class SignalRService {
    */
   async joinAuctionGroup(auctionId: string): Promise<void> {
     if (!this.connection || this.connection.state !== SignalR.HubConnectionState.Connected) {
-      console.warn('SignalR: Not connected, cannot join auction group');
+      console.warn('⚠️ SignalR: Not connected, cannot join auction group');
+      console.warn(`   Connection state:`, this.connection?.state);
       return;
     }
 
     try {
+      console.log(`🎯 SignalR: Attempting to join auction group: ${auctionId}`);
       await this.connection.invoke('JoinAuctionGroup', auctionId);
       this.joinedAuctions.add(auctionId);
-      console.log(`SignalR: Joined auction group: ${auctionId}`);
+      console.log(`✅ SignalR: Successfully joined auction group: ${auctionId}`);
+      console.log(`📊 SignalR: Total joined auctions: ${this.joinedAuctions.size}`);
     } catch (error) {
-      console.error(`SignalR: Failed to join auction group ${auctionId}`, error);
+      console.error(`❌ SignalR: Failed to join auction group ${auctionId}`, error);
     }
   }
 
@@ -282,9 +359,12 @@ class SignalRService {
    * Subscribe to BidPlaced events
    */
   onBidPlaced(handler: BidPlacedHandler): () => void {
+    console.log('🔔 SignalR: Registering BidPlaced event handler');
+    console.log(`   Total handlers registered: ${this.bidPlacedHandlers.length + 1}`);
     this.bidPlacedHandlers.push(handler);
     // Return unsubscribe function
     return () => {
+      console.log('🔔 SignalR: Unregistering BidPlaced event handler');
       this.bidPlacedHandlers = this.bidPlacedHandlers.filter(h => h !== handler);
     };
   }
@@ -341,6 +421,25 @@ class SignalRService {
   }
 
   /**
+   * Invoke a SignalR hub method (for calling server methods)
+   */
+  async invoke<T>(methodName: string, ...args: any[]): Promise<T | null> {
+    if (!this.connection || this.connection.state !== SignalR.HubConnectionState.Connected) {
+      console.error(`SignalR: Cannot invoke method '${methodName}' - connection not available`);
+      return null;
+    }
+
+    try {
+      const result = await this.connection.invoke<T>(methodName, ...args);
+      console.log(`SignalR: Method '${methodName}' invoked successfully`, result);
+      return result;
+    } catch (error) {
+      console.error(`SignalR: Error invoking method '${methodName}'`, error);
+      return null;
+    }
+  }
+
+  /**
    * Get current connection state
    */
   isConnected(): boolean {
@@ -352,6 +451,15 @@ class SignalRService {
    */
   getJoinedAuctions(): string[] {
     return Array.from(this.joinedAuctions);
+  }
+
+  /**
+   * DEBUG: Manually trigger BidPlaced event (for testing when backend doesn't send)
+   */
+  debugTriggerBidPlaced(event: BidPlacedEvent): void {
+    console.log('🧪 DEBUG: Manually triggering BidPlaced event');
+    console.log('   Event:', event);
+    this.bidPlacedHandlers.forEach(handler => handler(event));
   }
 }
 
