@@ -7,6 +7,9 @@ export default function ProfileLayout() {
         headerShown: false,
       }}>
       <Stack.Screen name="index" />
+      <Stack.Screen name="wallet" />
+      <Stack.Screen name="withdraw" />
+      <Stack.Screen name="transactions" />
     </Stack>
   );
 }

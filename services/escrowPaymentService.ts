@@ -222,6 +222,9 @@ export const getEscrowStatusLabel = (status: number | EscrowStatus): string => {
 /**
  * Format currency to Vietnamese Dong
  */
-export const formatCurrency = (amount: number): string => {
+export const formatCurrency = (amount: number | null | undefined): string => {
+  if (amount === null || amount === undefined) {
+    return '0 ₫';
+  }
   return amount.toLocaleString('vi-VN') + ' ₫';
 };

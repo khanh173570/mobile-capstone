@@ -20,6 +20,7 @@ import {
 import { getAuctionDetail } from '../../services/auctionService';
 import { getUserById, getUserInfoByUsername } from '../../services/authService';
 import PayRemainingModal from './PayRemainingModal';
+import { EscrowTransactions } from './EscrowTransactionsList';
 
 interface EscrowDetailModalProps {
   visible: boolean;
@@ -175,7 +176,7 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
                       label="Ghi chú"
                       value={auctionInfo.note || 'Không có'}
                     />
-                    <DetailRow
+                    {/* <DetailRow
                       label="Giá khởi điểm"
                       value={formatCurrency(auctionInfo.startingPrice || 0)}
                     />
@@ -183,7 +184,7 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
                       label="Giá hiện tại"
                       value={formatCurrency(auctionInfo.currentPrice || 0)}
                       highlight
-                    />
+                    /> */}
                     <DetailRow
                       label="Số lượng dự kiến"
                       value={`${auctionInfo.expectedTotalQuantity || 0} kg`}
@@ -281,7 +282,7 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
                 </View>
 
                 {/* Transaction Details */}
-                <View style={styles.section}>
+                {/* <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Chi tiết giao dịch</Text>
 
                   {contract.paymentTransactionId ? (
@@ -304,7 +305,10 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
                     <DetailRow label="Giao dịch phát hành" value="Chưa phát hành" />
                   )}
                      <DetailRow label="Ngày tạo" value={createdDate} />
-                </View>
+                </View> */}
+
+                {/* Transactions List */}
+                <EscrowTransactions escrowId={contract.id} />
 
                 {/* Error Message */}
                 {error && (

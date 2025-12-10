@@ -15,6 +15,7 @@ interface HeaderProps {
   userName?: string;
   showNotification?: boolean;
   onNotificationPress?: () => void;
+  unreadNotificationCount?: number;
 }
 
 export default function Header({
@@ -23,6 +24,7 @@ export default function Header({
   userName,
   showNotification = true,
   onNotificationPress,
+  unreadNotificationCount = 0,
 }: HeaderProps) {
   const handleNotificationPress = () => {
     if (onNotificationPress) {
@@ -56,7 +58,21 @@ export default function Header({
           )}
         </View>
         
-       
+        {showNotification && (
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={handleNotificationPress}
+          >
+            <Bell size={24} color="#111827" />
+            {unreadNotificationCount > 0 && (
+              <View style={styles.notificationBadgeContainer}>
+                <Text style={styles.notificationBadgeText}>
+                  {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -114,5 +130,23 @@ const styles = StyleSheet.create({
     height: 8,
     backgroundColor: '#EF4444',
     borderRadius: 4,
+  },
+  notificationBadgeContainer: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  notificationBadgeText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#fff',
   },
 });

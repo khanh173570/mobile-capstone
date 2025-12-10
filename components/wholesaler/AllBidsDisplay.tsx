@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   bidList: {
-    maxHeight:500, // Show exactly 5 bids, scroll for more
+    maxHeight: 560, // Show exactly 5 bids, scroll for more
   },
   bidItem: {
     flexDirection: 'row',

@@ -25,6 +25,7 @@ import {
   UpdateBidRequest,
 } from '../../services/bidService';
 import { sendLocalNotification } from '../../services/notificationService';
+import { signalRService } from '../../services/signalRService';
 
 interface CreateBidModalProps {
   visible: boolean;
@@ -36,6 +37,7 @@ interface CreateBidModalProps {
   sessionCode: string;
   existingBid?: BidResponse;
   auctionStatus?: string;
+  userProfile?: { userId: string; fullName: string } | null;
 }
 
 export default function CreateBidModal({
@@ -48,6 +50,7 @@ export default function CreateBidModal({
   sessionCode,
   existingBid,
   auctionStatus,
+  userProfile,
 }: CreateBidModalProps) {
   const [isAutoBid, setIsAutoBid] = useState(!existingBid);
   const [autoBidMaxLimit, setAutoBidMaxLimit] = useState<string>('');
@@ -170,12 +173,47 @@ export default function CreateBidModal({
     try {
       if (existingBid) {
         const amountValue = parseFloat(manualBidAmount);
+        
+        // Check if bid amount actually changed
+        if (amountValue === existingBid.bidAmount) {
+          console.log('⚠️ Bid amount unchanged:', amountValue, '=', existingBid.bidAmount);
+          Alert.alert('Thông báo', 'Giá đặt không thay đổi. Vui lòng nhập giá khác.');
+          setLoading(false);
+          return;
+        }
+        
+        console.log('✏️ Updating bid from', existingBid.bidAmount, 'to', amountValue);
         const response = await updateBid({
           auctionSessionId,
           bidAmount: amountValue,
         });
 
+        console.log('🔵 UpdateBid Response:', {
+          isSuccess: response.isSuccess,
+          statusCode: response.statusCode,
+          message: response.message,
+          data: response.data,
+          errors: response.errors,
+        });
+
         if (response.isSuccess) {
+          console.log('✅ Bid updated successfully! New value:', amountValue);
+          
+          // DEBUG: Auto-trigger BidPlaced event for updated bid
+          setTimeout(() => {
+            console.log('🧪 DEBUG: Auto-triggering BidPlaced event for updated bid');
+            signalRService.debugTriggerBidPlaced({
+              auctionId: auctionSessionId,
+              bidId: response.data?.bidId || existingBid.bidId || 'generated-' + Date.now(),
+              userId: userProfile?.userId || 'unknown',
+              userName: userProfile?.fullName || 'Thương Lái',
+              bidAmount: amountValue,
+              previousPrice: existingBid.bidAmount,
+              newPrice: amountValue,
+              placedAt: new Date().toISOString(),
+            });
+          }, 500);
+
           await sendLocalNotification({
             title: '💰 Cập nhật giá thành công',
             body: `Giá mới: ${amountValue.toLocaleString('vi-VN')} ₫`,
@@ -214,13 +252,34 @@ export default function CreateBidModal({
           // Manual bid: no bidAmount needed, backend will auto-calculate
         };
 
+        console.log('🔵 CreateBid Request:', {
+          isAutoBid,
+          auctionSessionId,
+          autoBidMaxLimit: isAutoBid ? parseFloat(autoBidMaxLimit) : 'N/A',
+        });
+
         const response = await createBid(request);
+
+        console.log('🔵 CreateBid Response:', {
+          isSuccess: response.isSuccess,
+          statusCode: response.statusCode,
+          message: response.message,
+          data: response.data,
+          errors: response.errors,
+        });
 
         if (response.isSuccess) {
           const displayValue = isAutoBid 
             ? parseFloat(autoBidMaxLimit)
-            : (currentPrice + minBidIncrement); // Show auto-calculated value
+            : parseFloat(manualBidAmount); // Use actual manual bid amount
 
+          console.log('✅ Bid created successfully! Display value:', displayValue);
+          console.log('   isAutoBid:', isAutoBid);
+          console.log('   autoBidMaxLimit:', autoBidMaxLimit);
+          console.log('   manualBidAmount:', manualBidAmount);
+          console.log('   Calculated displayValue:', displayValue);
+
+          // Send local notification
           await sendLocalNotification({
             title: '💰 Đặt giá thành công',
             body: `${isAutoBid ? 'Giá tối đa' : 'Giá đặt'}: ${displayValue.toLocaleString('vi-VN')} ₫`,
@@ -237,6 +296,20 @@ export default function CreateBidModal({
             {
               text: 'OK',
               onPress: () => {
+                console.log('🧪 DEBUG: Auto-triggering BidPlaced event IMMEDIATELY');
+                // Trigger event IMMEDIATELY on OK
+                signalRService.debugTriggerBidPlaced({
+                  auctionId: auctionSessionId,
+                  bidId: response.data?.bidId || 'generated-' + Date.now(),
+                  userId: userProfile?.userId || 'unknown',
+                  userName: userProfile?.fullName || 'Thương Lái',
+                  bidAmount: displayValue,
+                  previousPrice: currentPrice,
+                  newPrice: displayValue,
+                  placedAt: new Date().toISOString(),
+                });
+
+                // Then call onBidCreated and close modal
                 onBidCreated?.();
                 onClose();
                 setManualBidAmount('');
@@ -246,11 +319,17 @@ export default function CreateBidModal({
             },
           ]);
         } else {
+          console.error('❌ Bid creation failed:', {
+            isSuccess: response.isSuccess,
+            statusCode: response.statusCode,
+            message: response.message,
+            errors: response.errors,
+          });
           Alert.alert('Lỗi', response.message || 'Không thể đặt giá');
         }
       }
     } catch (error) {
-      console.error('Error creating/updating bid:', error);
+      console.error('❌ Error creating/updating bid:', error);
       
       const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra';
       

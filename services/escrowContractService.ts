@@ -218,7 +218,10 @@ export const payRemainingEscrowWithWallet = async (escrowId: string): Promise<bo
 /**
  * Format currency
  */
-export const formatCurrency = (amount: number): string => {
+export const formatCurrency = (amount: number | null | undefined): string => {
+  if (amount === null || amount === undefined) {
+    return '0 ₫';
+  }
   return amount.toLocaleString('vi-VN') + ' ₫';
 };
 

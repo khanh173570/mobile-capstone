@@ -211,6 +211,9 @@ export const createBid = async (request: CreateBidRequest): Promise<BidApiRespon
       ...(request.isAutoBid && { autoBidMaxLimit: request.autoBidMaxLimit }),
     };
 
+    console.log('📤 bidService: Sending createBid request to', `${API_BASE_URL}/auction-service/bid`);
+    console.log('   Body:', JSON.stringify(body, null, 2));
+
     const response = await fetchWithTokenRefresh(
       `${API_BASE_URL}/auction-service/bid`,
       {
@@ -224,13 +227,21 @@ export const createBid = async (request: CreateBidRequest): Promise<BidApiRespon
 
     const data = await response.json();
 
+    console.log('📥 bidService: createBid response received');
+    console.log('   Status:', response.status);
+    console.log('   isSuccess:', data.isSuccess);
+    console.log('   Message:', data.message);
+    console.log('   Data:', data.data);
+
     if (!response.ok) {
+      console.error('❌ createBid failed:', data.message);
       throw new Error(data.message || 'Failed to create bid');
     }
 
+    console.log('✅ createBid succeeded!');
     return data;
   } catch (error) {
-    console.error('Error creating bid:', error);
+    console.error('❌ Error creating bid:', error);
     throw error;
   }
 };

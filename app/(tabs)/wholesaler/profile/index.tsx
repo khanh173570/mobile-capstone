@@ -177,52 +177,49 @@ export default function WholesalerProfileScreen() {
           </View>
         </View>
 
-        {/* Wallet Section */}
+        {/* Financial Services Section - 4 Services in 3 Columns */}
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Ví điện tử</Text>
-          <TouchableOpacity
-            style={styles.walletButton}
-            onPress={() => router.push('/(tabs)/wholesaler/profile/wallet')}
-          >
-            <Wallet size={20} color="#FFFFFF" />
-            <Text style={styles.walletButtonText}>Ví của tôi</Text>
-          </TouchableOpacity>
-        </View>
+          <View style={styles.servicesGrid}>
+            <TouchableOpacity
+              style={styles.serviceCard}
+              onPress={() => router.push('/pages/wholesaler/wholesaler-escrow-contracts')}
+            >
+              <View style={styles.serviceIconContainer}>
+                <Shield size={24} color="#3B82F6" />
+              </View>
+              <Text style={styles.serviceTitle}>Hợp đồng</Text>
+            </TouchableOpacity>
 
-        {/* Withdraw Section */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Rút tiền</Text>
-          <TouchableOpacity
-            style={styles.withdrawButton}
-            onPress={() => router.push('/(tabs)/wholesaler/profile/withdraw')}
-          >
-            <CreditCard size={20} color="#FFFFFF" />
-            <Text style={styles.withdrawButtonText}>Rút tiền từ ví</Text>
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              style={styles.serviceCard}
+              onPress={() => router.push('/(tabs)/wholesaler/profile/wallet')}
+            >
+              <View style={styles.serviceIconContainer}>
+                <Wallet size={24} color="#3B82F6" />
+              </View>
+              <Text style={styles.serviceTitle}>Ví của tôi</Text>
+            </TouchableOpacity>
 
-        {/* Reports Section */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Báo cáo</Text>
-          <TouchableOpacity
-            style={styles.reportButton}
-            onPress={() => setReportModalVisible(true)}
-          >
-            <FileText size={20} color="#FFFFFF" />
-            <Text style={styles.reportButtonText}>Xem lịch sử báo cáo</Text>
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              style={styles.serviceCard}
+              onPress={() => setReportModalVisible(true)}
+            >
+              <View style={styles.serviceIconContainer}>
+                <FileText size={24} color="#3B82F6" />
+              </View>
+              <Text style={styles.serviceTitle}>Báo cáo</Text>
+            </TouchableOpacity>
 
-        {/* Escrow Contracts Section */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Hợp đồng cọc tiền</Text>
-          <TouchableOpacity
-            style={styles.escrowButton}
-            onPress={() => router.push('/pages/wholesaler/wholesaler-escrow-contracts')}
-          >
-            <Shield size={20} color="#FFFFFF" />
-            <Text style={styles.escrowButtonText}>Quản lý hợp đồng</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.serviceCard}
+              onPress={() => router.push('/(tabs)/wholesaler/profile/withdraw')}
+            >
+              <View style={styles.serviceIconContainer}>
+                <CreditCard size={24} color="#3B82F6" />
+              </View>
+              <Text style={styles.serviceTitle}>Rút tiền</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Account Information */}
@@ -535,5 +532,40 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '600',
+  },
+  servicesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  serviceCard: {
+    width: '31%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  serviceIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  serviceTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#111827',
+    textAlign: 'center',
   },
 });

@@ -1,4 +1,7 @@
 import { fetchWithTokenRefresh } from './authService';
+import Constants from 'expo-constants';
+
+const API_URL = Constants.expoConfig?.extra?.apiUrl;
 
 export interface BuyRequestDetail {
   id: string;
@@ -51,7 +54,7 @@ export async function getFarmerBuyRequests(
   sortBy: string = 'price'
 ): Promise<BuyRequest[]> {
   try {
-    const url = `${process.env.EXPO_PUBLIC_GATEWAY_URL}/api/auction-service/buyrequest/farmer/${farmerId}?pageNumber=${pageNumber}&pageSize=${pageSize}&sortBy=${sortBy}`;
+    const url = `${API_URL}/auction-service/buyrequest/farmer/${farmerId}?pageNumber=${pageNumber}&pageSize=${pageSize}&sortBy=${sortBy}`;
     console.log('📡 Fetching farmer buy requests from:', url);
     
     const response = await fetchWithTokenRefresh(url, {
@@ -97,7 +100,7 @@ export async function getFarmerBuyRequestsWithPagination(
   sortBy: string = 'price'
 ): Promise<BuyRequestListResponse['data']> {
   try {
-    const url = `${process.env.EXPO_PUBLIC_GATEWAY_URL}/api/auction-service/buyrequest/farmer/${farmerId}?pageNumber=${pageNumber}&pageSize=${pageSize}&sortBy=${sortBy}`;
+    const url = `${API_URL}/auction-service/buyrequest/farmer/${farmerId}?pageNumber=${pageNumber}&pageSize=${pageSize}&sortBy=${sortBy}`;
     
     const response = await fetchWithTokenRefresh(url, {
       method: 'GET',

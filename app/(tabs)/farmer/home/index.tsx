@@ -41,9 +41,13 @@ import {
   Droplets,
   X,
   Camera,
-  Upload
+  Upload,
+  Bell
 } from 'lucide-react-native';
 import Header from '../../../../components/shared/Header';
+import { NotificationModal } from '../../../../components/shared/NotificationModal';
+import { getUnreadNotificationCount, getUserNotifications, UserNotification } from '../../../../services/userNotificationService';
+import { signalRService, NewNotificationEvent } from '../../../../services/signalRService';
 import * as ImagePicker from 'expo-image-picker';
 import { handleError } from '@/utils/errorHandler';
 
@@ -58,6 +62,9 @@ export default function HomeScreen() {
   const [userFarms, setUserFarms] = useState<Farm[]>([]);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [updateLoading, setUpdateLoading] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     farmImage: '',
@@ -111,14 +118,71 @@ export default function HomeScreen() {
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadData();
+    await loadUnreadCount();
     setRefreshing(false);
+  };
+
+  const loadUnreadCount = async () => {
+    try {
+      const count = await getUnreadNotificationCount();
+      console.log('📊 Farmer unread notification count:', count);
+      setUnreadCount(count);
+    } catch (error) {
+      console.error('❌ Error loading unread count:', error);
+    }
   };
 
   useEffect(() => {
     const loadUserData = async () => {
       setLoading(true);
+      
+      // Initialize SignalR connection
+      console.log('🔌 Initializing SignalR for farmer...');
+      await signalRService.connect();
+      
+      // Setup real-time notification listener
+      const unsubscribeNotifications = signalRService.onNewNotification((event: NewNotificationEvent) => {
+        console.log('🔔🔔🔔 New notification received in farmer home 🔔🔔🔔');
+        console.log('   Type:', event.type);
+        console.log('   Title:', event.title);
+        console.log('   Message:', event.message);
+        console.log('   Severity:', event.severity);
+        console.log('   Full event:', JSON.stringify(event, null, 2));
+        
+        // Convert SignalR event to UserNotification format
+        const userNotification: UserNotification = {
+          id: event.id,
+          userId: event.userId,
+          type: event.type,
+          severity: event.severity === 'Info' ? 0 : event.severity === 'Warning' ? 1 : 2,
+          title: event.title,
+          message: event.message,
+          isRead: event.isRead,
+          readAt: event.readAt || null,
+          data: event.data || null,
+          relatedEntityId: event.relatedEntityId || null,
+          relatedEntityType: event.relatedEntityType || null,
+          createdAt: event.createdAt,
+          updatedAt: null,
+        };
+        
+        // Add new notification to the list at the top
+        setNotifications(prev => {
+          const updated = [userNotification, ...prev];
+          console.log('📝 Notifications state updated, total count:', updated.length);
+          return updated;
+        });
+        loadUnreadCount();
+      });
+      
       await loadData();
+      await loadUnreadCount();
       setLoading(false);
+      
+      // Cleanup
+      return () => {
+        unsubscribeNotifications();
+      };
     };
 
     loadUserData();
@@ -283,7 +347,8 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <Header 
         userName={userData ? `${userData.firstName} ${userData.lastName}` : 'Người dùng'}
-        onNotificationPress={() => console.log('Notification pressed')}
+        onNotificationPress={() => setShowNotificationModal(true)}
+        unreadNotificationCount={unreadCount}
       />
       
       <ScrollView 
@@ -525,6 +590,23 @@ export default function HomeScreen() {
         </View>
       </View>
     </Modal>
+
+      {/* Notification Modal */}
+      <NotificationModal
+        visible={showNotificationModal}
+        onClose={() => {
+          console.log('Closing notification modal, current notifications count:', notifications.length);
+          setShowNotificationModal(false);
+          loadUnreadCount(); // Refresh count when closing
+        }}
+        role="farmer"
+        onRefresh={loadUnreadCount}
+        notifications={notifications}
+        onNotificationsChange={(updated) => {
+          console.log('Notifications changed from modal, new count:', updated.length);
+          setNotifications(updated);
+        }}
+      />
     </View>
   );
 }
