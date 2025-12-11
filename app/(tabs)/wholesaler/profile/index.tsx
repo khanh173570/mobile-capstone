@@ -116,6 +116,12 @@ export default function WholesalerProfileScreen() {
               {user.firstName} {user.lastName}
             </Text>
             <Text style={styles.profileRole}>Nhà bán buôn</Text>
+            {/* Reputation Score */}
+            <View style={styles.reputationBadge}>
+              <Text style={styles.reputationScore}>
+                ⭐ {user?.reputationScore ?? 0} điểm uy tín
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -173,6 +179,20 @@ export default function WholesalerProfileScreen() {
             <View style={styles.infoContent}>
               <Text style={styles.label}>Địa chỉ chi tiết</Text>
               <Text style={styles.value}>{user.address}</Text>
+            </View>
+          </View>
+
+          {/* Reputation Score */}
+          <View style={[styles.infoRow, styles.borderTop]}>
+            <View style={styles.iconContainer}>
+              <Text style={{ fontSize: 20 }}>⭐</Text>
+            </View>
+            <View style={styles.infoContent}>
+              <Text style={styles.label}>Điểm uy tín</Text>
+              <Text style={styles.value}>{user?.reputationScore ?? 0} điểm</Text>
+              <Text style={[styles.label, { marginTop: 4, fontSize: 12, color: '#9CA3AF' }]}>
+                Trust Score: {user?.reputation?.trustScore ?? 0}
+              </Text>
             </View>
           </View>
         </View>
@@ -339,6 +359,7 @@ const styles = StyleSheet.create({
   },
   profileNameContainer: {
     flex: 1,
+    flex: 1,
   },
   profileName: {
     fontSize: 18,
@@ -349,6 +370,19 @@ const styles = StyleSheet.create({
   profileRole: {
     fontSize: 13,
     color: '#6B7280',
+  },
+  reputationBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  reputationScore: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#92400E',
   },
   infoCard: {
     backgroundColor: '#FFFFFF',
