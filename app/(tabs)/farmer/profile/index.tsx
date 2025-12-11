@@ -127,6 +127,13 @@ export default function ProfileScreen() {
             <Text style={styles.userRole}>
               {user?.role === 'farmer' ? 'Nông dân' : user?.role || 'Chưa xác định'}
             </Text>
+            {/* Reputation Score */}
+            <View style={styles.reputationBadge}>
+              <Star size={16} color="#FCD34D" fill="#FCD34D" />
+              <Text style={styles.reputationScore}>
+                {user?.reputationScore ?? 0} điểm uy tín
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -225,6 +232,20 @@ export default function ProfileScreen() {
                     ? new Date(user.createdAt).toLocaleDateString('vi-VN')
                     : 'Chưa xác định'
                   }
+                </Text>
+              </View>
+            </View>
+
+            {/* Reputation Score */}
+            <View style={[styles.infoRow, styles.lastInfoRow]}>
+              <Star size={20} color="#F59E0B" style={styles.infoIcon} />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Điểm uy tín</Text>
+                <Text style={styles.infoValue}>
+                  {user?.reputationScore ?? 0} điểm
+                </Text>
+                <Text style={[styles.infoLabel, { marginTop: 4, color: '#6B7280' }]}>
+                  Trust Score: {user?.reputation?.trustScore ?? 0}
                 </Text>
               </View>
             </View>
@@ -348,6 +369,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#BBF7D0',
     marginTop: 4,
+  },
+  reputationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 12,
+    gap: 6,
+  },
+  reputationScore: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
   infoSection: {
     marginHorizontal: 16,

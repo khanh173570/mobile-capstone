@@ -71,6 +71,11 @@ export interface User {
   userVerification: any[];
   createdAt: string;
   updatedAt: string;
+  reputationScore?: number;
+  reputation?: {
+    trustScore: number;
+    history: any[];
+  };
 }
 
 export interface TokenData {
