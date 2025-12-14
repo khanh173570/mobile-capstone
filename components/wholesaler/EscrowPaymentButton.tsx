@@ -61,7 +61,7 @@ export default function EscrowPaymentButton({
 
   const handlePaymentPress = async () => {
     if (!escrow) {
-      Alert.alert('Lỗi', 'Không tìm thấy thông tin hợp đồng ký quỹ');
+      Alert.alert('Lỗi', 'Không tìm thấy thông tin giao dịch kí quỹ ký quỹ');
       return;
     }
 
@@ -78,7 +78,7 @@ export default function EscrowPaymentButton({
 
   const handleOpenPaymentWebView = async () => {
     if (!escrow) {
-      Alert.alert('Lỗi', 'Không tìm thấy thông tin hợp đồng ký quỹ');
+      Alert.alert('Lỗi', 'Không tìm thấy thông tin giao dịch kí quỹ ký quỹ');
       return;
     }
 
@@ -139,13 +139,6 @@ export default function EscrowPaymentButton({
   return (
     <>
       <View style={styles.container}>
-        {/* Escrow Status Badge */}
-        <View style={[styles.statusBadge, { backgroundColor: getEscrowStatusColor(escrow.escrowStatus) + '20' }]}>
-          <Text style={[styles.statusText, { color: getEscrowStatusColor(escrow.escrowStatus) }]}>
-            {getEscrowStatusName(escrow.escrowStatus)}
-          </Text>
-        </View>
-
         {/* Payment Button */}
         {isPending && (
           <TouchableOpacity
@@ -173,8 +166,13 @@ export default function EscrowPaymentButton({
 
         {/* Escrow Details */}
         <View style={styles.detailsContainer}>
+          <View style={styles.infoBox}>
+            <Text style={styles.infoText}>
+              💡 Bạn cần đặt cọc 30% giá trị đơn hàng. Phần còn lại (70%) sẽ thanh toán khi nhận hàng.
+            </Text>
+          </View>
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Tổng tiền ký quỹ:</Text>
+            <Text style={styles.detailLabel}>Tiền cọc (30%):</Text>
             <Text style={styles.detailValue}>{formatCurrency(escrow.totalAmount)}</Text>
           </View>
           <View style={styles.detailRow}>
@@ -182,7 +180,7 @@ export default function EscrowPaymentButton({
             <Text style={styles.detailValue}>{formatCurrency(escrow.feeAmount)}</Text>
           </View>
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Người bán nhận:</Text>
+            <Text style={styles.detailLabel}>Người bán nhận (cọc):</Text>
             <Text style={[styles.detailValue, styles.sellerAmount]}>
               {formatCurrency(escrow.sellerReceiveAmount)}
             </Text>
@@ -195,6 +193,7 @@ export default function EscrowPaymentButton({
         visible={showPaymentModal}
         escrowId={escrow?.id || ''}
         amount={escrow?.totalAmount || 0}
+        fullPrice={currentPrice}
         onClose={() => setShowPaymentModal(false)}
         onPaymentSuccess={handlePaymentSuccess}
         onPaymentFailure={handlePaymentFailure}
@@ -266,6 +265,19 @@ const styles = StyleSheet.create({
   },
   detailsContainer: {
     gap: 8,
+  },
+  infoBox: {
+    backgroundColor: '#EFF6FF',
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#3B82F6',
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 13,
+    color: '#1E40AF',
+    lineHeight: 18,
   },
   detailRow: {
     flexDirection: 'row',

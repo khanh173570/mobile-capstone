@@ -71,11 +71,13 @@ export interface User {
   userVerification: any[];
   createdAt: string;
   updatedAt: string;
+  status?: number; // 0 = inactive, 1 = active
   reputationScore?: number;
   reputation?: {
     trustScore: number;
     history: any[];
   };
+  certifications?: any[];
 }
 
 export interface TokenData {
@@ -475,6 +477,50 @@ export const getUserById = async (userId: string): Promise<User | null> => {
     return null;
   } catch (error) {
     console.error('Get user by ID error:', error);
+    return null;
+  }
+};
+
+// Get user by username (userId query param)
+export const getUserByUsername = async (userId: string): Promise<User | null> => {
+  try {
+    const token = await AsyncStorage.getItem('accessToken');
+    
+    if (!token) {
+      console.warn('No token available for getUserByUsername');
+      return null;
+    }
+    
+    console.log('🔍 Fetching user by username:', userId);
+    
+    const response = await fetch(`${API_URL}/Auth/username?userId=${userId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    if (!response.ok) {
+      console.warn(`Failed to fetch user by username ${userId}:`, response.status);
+      return null;
+    }
+    
+    const text = await response.text();
+    if (!text || text.trim() === '') {
+      return null;
+    }
+
+    const data: ApiResponse<User> = JSON.parse(text);
+    
+    if (data.isSuccess) {
+      console.log('✅ User fetched:', data.data.firstName, data.data.lastName);
+      return data.data;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Get user by username error:', error);
     return null;
   }
 };

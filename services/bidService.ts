@@ -5,6 +5,7 @@ const API_BASE_URL = 'https://gateway.a-379.store/api';
 export interface CreateBidRequest {
   isAutoBid: boolean;
   autoBidMaxLimit?: number;
+  bidAmount?: number;
   auctionSessionId: string;
 }
 
@@ -204,14 +205,20 @@ export const validateAutoBidLimit = (
  */
 export const createBid = async (request: CreateBidRequest): Promise<BidApiResponse> => {
   try {
-    // Prepare request body - only include autoBidMaxLimit if isAutoBid is true
-    const body = {
+    // Prepare request body - only 3 fields for create
+    const body: any = {
       isAutoBid: request.isAutoBid,
       auctionSessionId: request.auctionSessionId,
-      ...(request.isAutoBid && { autoBidMaxLimit: request.autoBidMaxLimit }),
     };
+    
+    // Auto bid: add autoBidMaxLimit
+    if (request.isAutoBid && request.autoBidMaxLimit) {
+      body.autoBidMaxLimit = request.autoBidMaxLimit;
+    }
+    // Manual bid: no additional fields needed
 
     console.log('📤 bidService: Sending createBid request to', `${API_BASE_URL}/auction-service/bid`);
+    console.log('   Request type:', request.isAutoBid ? 'AUTO BID' : 'MANUAL BID');
     console.log('   Body:', JSON.stringify(body, null, 2));
 
     const response = await fetchWithTokenRefresh(

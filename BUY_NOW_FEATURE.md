@@ -8,7 +8,7 @@ Chức năng **Mua Ngay (Buy Now)** cho phép người bán buôn (wholesaler) c
 1. Nông dân tạo phiên đấu giá với tùy chọn "Mua ngay" (enableBuyNow = true) và giá mua ngay (buyNowPrice)
 2. Trên tab "Trang chủ" của người bán buôn, hiển thị nút "Mua ngay" cho các phiên đấu giá có chức năng này
 3. Người bán buôn bấm "Mua ngay" → Xác nhận → Thanh toán qua PayOS
-4. Tạo hợp đồng escrow → Giải phóng tiền cho nông dân sau khi giao hàng
+4. Tạo giao dịch kí quỹ escrow → Giải phóng tiền cho nông dân sau khi giao hàng
 
 ---
 
@@ -19,7 +19,7 @@ Chức năng **Mua Ngay (Buy Now)** cho phép người bán buôn (wholesaler) c
 
 **Chức năng:**
 - Thực hiện mua ngay phiên đấu giá
-- Lấy thông tin hợp đồng escrow
+- Lấy thông tin giao dịch kí quỹ escrow
 
 **API Endpoints:**
 ```
@@ -31,16 +31,16 @@ GET /api/payment-service/payos/paymenturl?escrow={escrowId}
 **Hàm chính:**
 ```typescript
 - executeBuyNow(auctionId: string) // Thực hiện mua ngay
-- getEscrowByAuctionId(auctionId: string) // Lấy hợp đồng escrow
+- getEscrowByAuctionId(auctionId: string) // Lấy giao dịch kí quỹ escrow
 - getPaymentUrl(escrowId: string) // Lấy URL thanh toán PayOS
-- getWholesalerEscrows() // Lấy tất cả hợp đồng escrow của người bán buôn
+- getWholesalerEscrows() // Lấy tất cả giao dịch kí quỹ escrow của người bán buôn
 ```
 
 ### 2. Cập Nhật `escrowPaymentService.ts`
 **Đường dẫn:** `d:\Capstone_2025\services\escrowPaymentService.ts`
 
 **Thêm vào:**
-- Interface `EscrowRecord` - Mô hình dữ liệu hợp đồng escrow
+- Interface `EscrowRecord` - Mô hình dữ liệu giao dịch kí quỹ escrow
 - Interface `PaymentUrlResponse` - Phản hồi URL thanh toán
 - Hàm `getEscrowByAuctionId()` - Lấy escrow theo auctionId
 - Hàm `getPaymentUrl()` - Lấy URL thanh toán PayOS
@@ -272,7 +272,7 @@ Then:  Alert lỗi hiển thị, modal quay về step "Confirm"
    - Sau giao hàng: status = 2 (Released)
 
 4. **Liên Kết Với Các Màn Hình Khác:**
-   - Hợp đồng escrow sẽ hiển thị trong tab "Hợp đồng" (nếu có)
+   - giao dịch kí quỹ escrow sẽ hiển thị trong tab "giao dịch kí quỹ" (nếu có)
    - Phiên đấu giá sẽ được liệt kê trong "Lịch sử đấu giá" với status=Completed
 
 5. **Quyền Hạn:**

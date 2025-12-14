@@ -658,3 +658,76 @@ export const getAuctionDetail = async (auctionId: string): Promise<any> => {
     throw error;
   }
 };
+
+/**
+ * Check if a harvest has an active auction
+ * Active auction statuses: 'Pending', 'Approved', 'OnGoing'
+ */
+export const checkHarvestHasActiveAuction = async (harvestId: string): Promise<boolean> => {
+  try {
+    // Get all farmer auctions
+    const auctions = await getFarmerAuctions();
+    
+    // Filter active auctions
+    const activeAuctions = auctions.filter(auction => 
+      auction.status === 'Pending' || 
+      auction.status === 'Approved' || 
+      auction.status === 'OnGoing'
+    );
+    
+    // Check each active auction for the harvest
+    for (const auction of activeAuctions) {
+      const sessionHarvests = await getAuctionSessionHarvests(auction.id);
+      const hasHarvest = sessionHarvests.some(sh => sh.harvestId === harvestId);
+      if (hasHarvest) {
+        console.log(`Harvest ${harvestId} has active auction:`, auction.id, auction.status);
+        return true;
+      }
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error checking harvest active auction:', error);
+    // Return false to allow operations on error (fail-open approach)
+    return false;
+  }
+};
+
+/**
+ * Check if any harvest from a crop has an active auction
+ * Used to block creation of new harvests when crop has active auctions
+ * Active auction statuses: 'Pending', 'Approved', 'OnGoing'
+ */
+export const checkCropHasActiveAuction = async (cropId: string): Promise<boolean> => {
+  try {
+    // Get all farmer auctions
+    const auctions = await getFarmerAuctions();
+    
+    // Filter active auctions
+    const activeAuctions = auctions.filter(auction => 
+      auction.status === 'Pending' || 
+      auction.status === 'Approved' || 
+      auction.status === 'OnGoing'
+    );
+    
+    // Check each active auction's harvests for matching crop
+    for (const auction of activeAuctions) {
+      const sessionHarvests = await getAuctionSessionHarvests(auction.id);
+      
+      // Check each harvest to see if it belongs to the crop
+      for (const sessionHarvest of sessionHarvests) {
+        const harvestDetail = await getHarvestById(sessionHarvest.harvestId);
+        if (harvestDetail && (harvestDetail.cropId === cropId || harvestDetail.cropID === cropId)) {
+          console.log(`Crop ${cropId} has active auction:`, auction.id, auction.status);
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error checking crop active auction:', error);
+    // Return false to allow operations on error (fail-open approach)
+    return false;
+  }
+};

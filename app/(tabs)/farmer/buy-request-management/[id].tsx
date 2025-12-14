@@ -185,17 +185,17 @@ export default function BuyRequestDetailScreen() {
 
             <View style={styles.divider} />
 
-            <View style={styles.infoRow}>
+            {/* <View style={styles.infoRow}>
               <Text style={styles.label}>Số điện thoại:</Text>
               <Text style={styles.value}>{wholesaler.phoneNumber}</Text>
-            </View>
+            </View> */}
 
             <View style={styles.divider} />
 
-            <View style={styles.infoRow}>
+            {/* <View style={styles.infoRow}>
               <Text style={styles.label}>Email:</Text>
               <Text style={styles.value}>{wholesaler.email}</Text>
-            </View>
+            </View> */}
 
             <View style={styles.divider} />
 

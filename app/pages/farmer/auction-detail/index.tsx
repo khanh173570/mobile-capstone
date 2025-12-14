@@ -515,7 +515,7 @@ export default function AuctionDetailScreen() {
     >
       <View style={styles.harvestHeader}>
         <View style={styles.harvestIcon}>
-          <Leaf size={20} color="#22C55E" />
+          {/* <Leaf size={20} color="#22C55E" /> */}
         </View>
         <View style={styles.harvestInfo}>
           <Text style={styles.harvestTitle}>Vụ thu hoạch #{item.id.slice(-8)}</Text>
@@ -653,16 +653,14 @@ export default function AuctionDetailScreen() {
             <Text style={styles.subsectionTitle}>Thông tin giá</Text>
             <View style={styles.subsectionContent}>
               <View style={styles.infoRow}>
-                <DollarSign size={20} color="#059669" />
                 <Text style={styles.infoLabel}>Giá khởi điểm</Text>
                 <Text style={styles.infoValue}>{formatPrice(auction.startingPrice)}</Text>
               </View>
               
               {auction.currentPrice && (
                 <View style={styles.infoRow}>
-                  <DollarSign size={20} color="#DC2626" />
                   <Text style={styles.infoLabel}>Giá hiện tại</Text>
-                  <Text style={[styles.infoValue, { color: '#DC2626', fontWeight: 'bold' }]}>
+                  <Text style={styles.infoValue}>
                     {formatPrice(auction.currentPrice)}
                   </Text>
                 </View>
@@ -670,9 +668,8 @@ export default function AuctionDetailScreen() {
 
               {auction.enableBuyNow && auction.buyNowPrice && (
                 <View style={styles.infoRow}>
-                  <DollarSign size={20} color="#2563EB" />
                   <Text style={styles.infoLabel}>Giá mua ngay</Text>
-                  <Text style={[styles.infoValue, { color: '#2563EB' }]}>
+                  <Text style={styles.infoValue}>
                     {formatPrice(auction.buyNowPrice)}
                   </Text>
                 </View>
@@ -693,25 +690,22 @@ export default function AuctionDetailScreen() {
             <Text style={styles.subsectionTitle}>Thời gian</Text>
             <View style={styles.subsectionContent}>
               <View style={styles.infoRow}>
-                <Calendar size={20} color="#16A34A" />
-                <Text style={[styles.infoLabel, { color: '#16A34A', fontWeight: '600' }]}>Bắt đầu</Text>
-                <Text style={[styles.infoValue, { color: getDateStatusColor(auction.publishDate) }]}>
+                <Text style={styles.infoLabel}>Bắt đầu</Text>
+                <Text style={styles.infoValue}>
                   {formatDate(auction.publishDate)}
                 </Text>
               </View>
               
               <View style={styles.infoRow}>
-                <Clock size={20} color="#16A34A" />
-                <Text style={[styles.infoLabel, { color: '#16A34A', fontWeight: '600' }]}>Kết thúc</Text>
-                <Text style={[styles.infoValue, { color: getDateStatusColor(auction.endDate) }]}>
+                <Text style={styles.infoLabel}>Kết thúc</Text>
+                <Text style={styles.infoValue}>
                   {formatDate(auction.endDate)}
                 </Text>
               </View>
 
               <View style={styles.infoRow}>
-                <Calendar size={20} color="#16A34A" />
-                <Text style={[styles.infoLabel, { color: '#16A34A', fontWeight: '600' }]}>Thu hoạch dự kiến</Text>
-                <Text style={[styles.infoValue, { color: getDateStatusColor(auction.expectedHarvestDate) }]}>
+                <Text style={styles.infoLabel}>Thu hoạch dự kiến</Text>
+                <Text style={styles.infoValue}>
                   {formatDate(auction.expectedHarvestDate)}
                 </Text>
               </View>
@@ -725,8 +719,7 @@ export default function AuctionDetailScreen() {
             <Text style={styles.subsectionTitle}>Thông tin sản phẩm</Text>
             <View style={styles.subsectionContent}>
               <View style={styles.infoRow}>
-                <Package size={20} color="#16A34A" />
-                <Text style={[styles.infoLabel, { color: '#16A34A', fontWeight: '600' }]}>Số lượng dự kiến</Text>
+                <Text style={styles.infoLabel}>Số lượng dự kiến</Text>
                 <Text style={styles.infoValue}>
                   {auction.expectedTotalQuantity > 0 
                     ? `${auction.expectedTotalQuantity} kg` 
@@ -761,11 +754,11 @@ export default function AuctionDetailScreen() {
 
         {/* Crops Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Thông tin cây trồng</Text>
+          <Text style={styles.sectionTitle}>Thông tin vườn</Text>
           {cropsLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="small" color="#22C55E" />
-              <Text style={styles.loadingText}>Đang tải thông tin cây trồng...</Text>
+              <Text style={styles.loadingText}>Đang tải thông tin vườn...</Text>
             </View>
           ) : (
             <View style={styles.cropsContainer}>
@@ -776,7 +769,7 @@ export default function AuctionDetailScreen() {
                     <View key={crop.id} style={styles.cropCard}>
                       <View style={styles.cropHeader}>
                         <View style={styles.cropIcon}>
-                          <Leaf size={20} color="#22C55E" />
+                          {/* <Leaf size={20} color="#22C55E" /> */}
                         </View>
                         <View style={styles.cropInfo}>
                           <Text style={styles.cropTitle}>{crop.name}</Text>
@@ -827,7 +820,6 @@ export default function AuctionDetailScreen() {
                             
                             {currentHarvest.harvestDate ? (
                               <View style={styles.harvestDetailRow}>
-                                <Calendar size={16} color="#059669" />
                                 <Text style={styles.harvestDetailLabel}>Ngày thu hoạch:</Text>
                                 <Text style={styles.harvestDetailValue}>
                                   {formatDate(currentHarvest.harvestDate)}
@@ -835,7 +827,6 @@ export default function AuctionDetailScreen() {
                               </View>
                             ) : (
                               <View style={styles.harvestDetailRow}>
-                                <Calendar size={16} color="#F59E0B" />
                                 <Text style={styles.harvestDetailLabel}>Bắt đầu:</Text>
                                 <Text style={styles.harvestDetailValue}>
                                   {formatDate(currentHarvest.startDate)}
@@ -845,7 +836,6 @@ export default function AuctionDetailScreen() {
 
                             {currentHarvest.salePrice > 0 && (
                               <View style={styles.harvestDetailRow}>
-                                <DollarSign size={16} color="#059669" />
                                 <Text style={styles.harvestDetailLabel}>Giá bán:</Text>
                                 <Text style={styles.harvestDetailValue}>
                                   {formatPrice(currentHarvest.salePrice)}
@@ -882,17 +872,12 @@ export default function AuctionDetailScreen() {
                                 };
                                 return (
                                   <View key={gradeDetail.id} style={styles.gradeDetailRow}>
-                                    <View style={styles.gradeDetailContent}>
-                                      <Text style={[styles.gradeName, { color: gradeColors[gradeDetail.grade] }]}>
-                                        {gradeNames[gradeDetail.grade] || `Hạng ${gradeDetail.grade}`}
-                                      </Text>
-                                      <Text style={styles.gradeQuantity}>
-                                        {gradeDetail.quantity} {gradeDetail.unit || 'kg'}
-                                      </Text>
-                                    </View>
-                                    <View style={styles.gradeBadge}>
-                                      <View style={[styles.gradeIndicator, { backgroundColor: gradeColors[gradeDetail.grade] }]} />
-                                    </View>
+                                    <Text style={styles.gradeName}>
+                                      {gradeNames[gradeDetail.grade] || `Hạng ${gradeDetail.grade}`}
+                                    </Text>
+                                    <Text style={styles.gradeQuantity}>
+                                      {gradeDetail.quantity} {gradeDetail.unit || 'kg'}
+                                    </Text>
                                   </View>
                                 );
                               })}

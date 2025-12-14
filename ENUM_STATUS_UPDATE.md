@@ -4,7 +4,7 @@
 
 Cập nhật các enum status từ backend để đồng bộ với hệ thống:
 - **CropStatus** - Trạng thái vườn canh tác
-- **EscrowStatus** - Trạng thái hợp đồng ký quỹ
+- **EscrowStatus** - Trạng thái giao dịch kí quỹ ký quỹ
 - **TransactionType** - Loại giao dịch
 - **PaymentType** - Loại thanh toán
 
@@ -282,7 +282,7 @@ Các file đã cập nhật đồng bộ giữa:
 
 3. **CropStatus vs EscrowStatus**: 
    - CropStatus = Trạng thái vườn (7 trạng thái)
-   - EscrowStatus = Trạng thái hợp đồng ký quỹ (9 trạng thái)
+   - EscrowStatus = Trạng thái giao dịch kí quỹ ký quỹ (9 trạng thái)
    - Khác nhau hoàn toàn, không trộn lẫn
 
 4. **PaymentType**: Dùng để track loại thanh toán (PayOS vs Wallet)

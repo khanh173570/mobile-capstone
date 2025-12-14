@@ -222,7 +222,7 @@ const RegisterScreen: React.FC = () => {
         if (response.isSuccess) {
           Alert.alert(
             'Đăng ký thành công',
-            'Tài khoản của bạn đã được tạo. Vui lòng đăng nhập.',
+            'Người dùng vui lòng chờ hệ thống xác nhận tài khoản và nhận thông báo thành công ở email nhé',
             [{ text: 'OK', onPress: () => router.replace('/auth') }]
           );
         } else {
@@ -350,6 +350,7 @@ const RegisterScreen: React.FC = () => {
               autoCapitalize="none"
             />
           </View>
+          <Text style={styles.emailHint}>Vui lòng nhập chính xác email để nhận thông báo xác nhận tài khoản</Text>
 
           {/* Phone Number */}
           <View style={styles.inputContainer}>
@@ -461,7 +462,10 @@ const RegisterScreen: React.FC = () => {
             ]}
           >
             {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <ActivityIndicator color="#FFFFFF" />
+                <Text style={styles.registerButtonText}>Đang đăng ký tài khoản, vui lòng chờ...</Text>
+              </View>
             ) : (
               <Text style={styles.registerButtonText}>Đăng ký</Text>
             )}
@@ -540,6 +544,14 @@ const styles = StyleSheet.create({
   },
   inputIcon: { marginRight: 12 },
   input: { flex: 1, height: 56, fontSize: 16, color: '#1F2937' },
+  emailHint: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: -10,
+    marginBottom: 16,
+    marginLeft: 8,
+    fontStyle: 'italic',
+  },
   registerButton: {
     backgroundColor: '#22C55E',
     borderRadius: 12,

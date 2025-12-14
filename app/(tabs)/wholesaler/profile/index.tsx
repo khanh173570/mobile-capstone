@@ -11,16 +11,14 @@ import {
   Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Mail, MapPin, Phone, LogOut, User, MapPinned, Building2, FileText, X, Wallet, CreditCard, Shield } from 'lucide-react-native';
+import { Mail, MapPin, Phone, LogOut, User, MapPinned, Building2, FileText, Wallet, CreditCard, Shield } from 'lucide-react-native';
 import { getCurrentUser, logout } from '../../../../services/authService';
-import ReportHistoryScreen from '../../../../components/wholesaler/ReportHistoryScreen';
 
 export default function WholesalerProfileScreen() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [logoutLoading, setLogoutLoading] = useState(false);
-  const [reportModalVisible, setReportModalVisible] = useState(false);
 
   useEffect(() => {
     loadUserData();
@@ -130,7 +128,7 @@ export default function WholesalerProfileScreen() {
           {/* Email */}
           <View style={styles.infoRow}>
             <View style={styles.iconContainer}>
-              <Mail size={20} color="#3B82F6" />
+              <Mail size={20} color="#6B7280" />
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.label}>Email</Text>
@@ -141,7 +139,7 @@ export default function WholesalerProfileScreen() {
           {/* Phone */}
           <View style={[styles.infoRow, styles.borderTop]}>
             <View style={styles.iconContainer}>
-              <Phone size={20} color="#059669" />
+              <Phone size={20} color="#6B7280" />
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.label}>Số điện thoại</Text>
@@ -152,7 +150,7 @@ export default function WholesalerProfileScreen() {
           {/* Province */}
           <View style={[styles.infoRow, styles.borderTop]}>
             <View style={styles.iconContainer}>
-              <Building2 size={20} color="#F59E0B" />
+              <Building2 size={20} color="#6B7280" />
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.label}>Tỉnh/Thành phố</Text>
@@ -163,7 +161,7 @@ export default function WholesalerProfileScreen() {
           {/* District/Commune */}
           <View style={[styles.infoRow, styles.borderTop]}>
             <View style={styles.iconContainer}>
-              <MapPinned size={20} color="#EC4899" />
+              <MapPinned size={20} color="#6B7280" />
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.label}>Quận/Phường</Text>
@@ -174,7 +172,7 @@ export default function WholesalerProfileScreen() {
           {/* Address */}
           <View style={[styles.infoRow, styles.borderTop]}>
             <View style={styles.iconContainer}>
-              <MapPin size={20} color="#8B5CF6" />
+              <MapPin size={20} color="#6B7280" />
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.label}>Địa chỉ chi tiết</Text>
@@ -202,12 +200,12 @@ export default function WholesalerProfileScreen() {
           <View style={styles.servicesGrid}>
             <TouchableOpacity
               style={styles.serviceCard}
-              onPress={() => router.push('/pages/wholesaler/wholesaler-escrow-contracts')}
+              onPress={() => router.push('/(tabs)/wholesaler/profile/transactions' as any)}
             >
               <View style={styles.serviceIconContainer}>
-                <Shield size={24} color="#3B82F6" />
+                <Shield size={24} color="#22C55E" />
               </View>
-              <Text style={styles.serviceTitle}>Hợp đồng</Text>
+              <Text style={styles.serviceTitle}>Giao dịch</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -215,14 +213,14 @@ export default function WholesalerProfileScreen() {
               onPress={() => router.push('/(tabs)/wholesaler/profile/wallet')}
             >
               <View style={styles.serviceIconContainer}>
-                <Wallet size={24} color="#3B82F6" />
+                <Wallet size={24} color="#22C55E" />
               </View>
               <Text style={styles.serviceTitle}>Ví của tôi</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.serviceCard}
-              onPress={() => setReportModalVisible(true)}
+              onPress={() => router.push('/(tabs)/wholesaler/profile/reports' as any)}
             >
               <View style={styles.serviceIconContainer}>
                 <FileText size={24} color="#3B82F6" />
@@ -235,7 +233,7 @@ export default function WholesalerProfileScreen() {
               onPress={() => router.push('/(tabs)/wholesaler/profile/withdraw')}
             >
               <View style={styles.serviceIconContainer}>
-                <CreditCard size={24} color="#3B82F6" />
+                <CreditCard size={24} color="#F97316" />
               </View>
               <Text style={styles.serviceTitle}>Rút tiền</Text>
             </TouchableOpacity>
@@ -279,22 +277,6 @@ export default function WholesalerProfileScreen() {
       </ScrollView>
 
       {/* Report Modal */}
-      <Modal
-        visible={reportModalVisible}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setReportModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Lịch sử báo cáo</Text>
-            <TouchableOpacity onPress={() => setReportModalVisible(false)} style={styles.closeButton}>
-              <X size={24} color="#111827" />
-            </TouchableOpacity>
-          </View>
-          <ReportHistoryScreen isTab={true} />
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -358,7 +340,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   profileNameContainer: {
-    flex: 1,
     flex: 1,
   },
   profileName: {
@@ -529,29 +510,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-    paddingTop: 50,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  closeButton: {
-    padding: 8,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
   },
   contractButton: {
     backgroundColor: '#16A34A',

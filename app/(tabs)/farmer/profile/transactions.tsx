@@ -7,17 +7,14 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
-  TouchableOpacity,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { FileText, ArrowLeft, RefreshCw } from 'lucide-react-native';
-import { EscrowContractCard } from '../../../components/shared/EscrowContractCard';
-import { EscrowDetailModal } from '../../../components/shared/EscrowDetailModal';
-import { getWholesalerEscrows, EscrowContract } from '../../../services/escrowContractService';
-import { getAuctionDetail } from '../../../services/auctionService';
+import { Shield } from 'lucide-react-native';
+import { EscrowContractCard } from '../../../../components/shared/EscrowContractCard';
+import { EscrowDetailModal } from '../../../../components/shared/EscrowDetailModal';
+import { getFarmerEscrows, EscrowContract } from '../../../../services/escrowContractService';
+import { getAuctionDetail } from '../../../../services/auctionService';
 
-export default function WholesalerEscrowContractsScreen() {
-  const router = useRouter();
+export default function FarmerTransactionsScreen() {
   const [escrows, setEscrows] = useState<EscrowContract[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -27,7 +24,7 @@ export default function WholesalerEscrowContractsScreen() {
   const fetchEscrows = async () => {
     setLoading(true);
     try {
-      const data = await getWholesalerEscrows();
+      const data = await getFarmerEscrows();
       
       // Fetch auction details to get sessionCode for each escrow
       const enrichedData = await Promise.all(
@@ -51,7 +48,7 @@ export default function WholesalerEscrowContractsScreen() {
       setEscrows(enrichedData);
     } catch (error) {
       console.error('Error fetching escrows:', error);
-      Alert.alert('Lỗi', 'Không thể tải danh sách giao dịch ký quỹ');
+      Alert.alert('Lỗi', 'Không thể tải danh sách giao dịch kí quỹ');
     } finally {
       setLoading(false);
     }
@@ -74,9 +71,9 @@ export default function WholesalerEscrowContractsScreen() {
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
-      <FileText size={48} color="#D1D5DB" />
-      <Text style={styles.emptyText}>Không có giao dịch ký quỹ nào</Text>
-      <Text style={styles.emptySubText}>Các giao dịch ký quỹ cọc tiền của bạn sẽ hiển thị ở đây</Text>
+      <Shield size={48} color="#D1D5DB" />
+      <Text style={styles.emptyText}>Không có giao dịch kí quỹ nào</Text>
+      <Text style={styles.emptySubText}>Các giao dịch kí quỹ cọc tiền của bạn sẽ hiển thị ở đây</Text>
     </View>
   );
 
@@ -89,16 +86,13 @@ export default function WholesalerEscrowContractsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.pageHeader}>
-        <Text style={styles.pageTitle}>Giao dịch</Text>
-      </View>
       <FlatList
         data={escrows}
         renderItem={({ item }) => (
           <View style={styles.cardContainer}>
             <EscrowContractCard
               contract={item}
-              role="wholesaler"
+              role="farmer"
               onPress={() => handleContractPress(item)}
             />
           </View>
@@ -115,7 +109,7 @@ export default function WholesalerEscrowContractsScreen() {
       <EscrowDetailModal
         visible={modalVisible}
         contract={selectedEscrow}
-        role="wholesaler"
+        role="farmer"
         onClose={() => {
           setModalVisible(false);
           setSelectedEscrow(null);
@@ -132,18 +126,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
-  },
-  pageHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  pageTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
   },
   listContent: {
     padding: 16,

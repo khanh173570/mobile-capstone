@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Shield, ArrowLeft } from 'lucide-react-native';
+import { Shield, ArrowLeft, RefreshCw } from 'lucide-react-native';
 import { EscrowContractCard } from '../../../components/shared/EscrowContractCard';
 import { EscrowDetailModal } from '../../../components/shared/EscrowDetailModal';
 import { getFarmerEscrows, EscrowContract } from '../../../services/escrowContractService';
@@ -51,7 +51,7 @@ export default function FarmerEscrowContractsScreen() {
       setEscrows(enrichedData);
     } catch (error) {
       console.error('Error fetching escrows:', error);
-      Alert.alert('Lỗi', 'Không thể tải danh sách hợp đồng');
+      Alert.alert('Lỗi', 'Không thể tải danh sách giao dịch kí quỹ');
     } finally {
       setLoading(false);
     }
@@ -75,8 +75,8 @@ export default function FarmerEscrowContractsScreen() {
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <Shield size={48} color="#D1D5DB" />
-      <Text style={styles.emptyText}>Không có hợp đồng nào</Text>
-      <Text style={styles.emptySubText}>Các hợp đồng cọc tiền của bạn sẽ hiển thị ở đây</Text>
+      <Text style={styles.emptyText}>Không có giao dịch kí quỹ nào</Text>
+      <Text style={styles.emptySubText}>Các giao dịch kí quỹ cọc tiền của bạn sẽ hiển thị ở đây</Text>
     </View>
   );
 
@@ -89,15 +89,9 @@ export default function FarmerEscrowContractsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#1F2937" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Quản lý hợp đồng</Text>
-        <View style={{ width: 24 }} />
+      <View style={styles.pageHeader}>
+        <Text style={styles.pageTitle}>Giao dịch</Text>
       </View>
-
       <FlatList
         data={escrows}
         renderItem={({ item }) => (
@@ -139,18 +133,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  pageHeader: {
     paddingHorizontal: 16,
     paddingVertical: 16,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
-  headerTitle: {
-    fontSize: 18,
+  pageTitle: {
+    fontSize: 20,
     fontWeight: '700',
     color: '#111827',
   },

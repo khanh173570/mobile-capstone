@@ -38,6 +38,7 @@ interface CreateBidModalProps {
   existingBid?: BidResponse;
   auctionStatus?: string;
   userProfile?: { userId: string; fullName: string } | null;
+  startingPrice?: number;
 }
 
 export default function CreateBidModal({
@@ -51,8 +52,9 @@ export default function CreateBidModal({
   existingBid,
   auctionStatus,
   userProfile,
+  startingPrice = 0,
 }: CreateBidModalProps) {
-  const [isAutoBid, setIsAutoBid] = useState(!existingBid);
+  const [isAutoBid, setIsAutoBid] = useState(false); // Default to manual bid (safer)
   const [autoBidMaxLimit, setAutoBidMaxLimit] = useState<string>('');
   const [manualBidAmount, setManualBidAmount] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -139,6 +141,49 @@ export default function CreateBidModal({
     setSelectedSuggestion(value);
   };
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+    }).format(amount);
+  };
+
+  const handleConfirmBid = () => {
+    // Prevent double submission
+    if (loading) {
+      console.log('⚠️ Already processing, ignoring duplicate click');
+      return;
+    }
+    
+    // If updating existing bid, skip fee notification
+    if (existingBid) {
+      handleCreateOrUpdateBid();
+      return;
+    }
+
+    // Calculate 10% fee
+    const feeAmount = startingPrice * 0.1;
+    const feeText = formatCurrency(feeAmount);
+
+    Alert.alert(
+      'Xác nhận tham gia đấu giá',
+      `Khi bạn tham gia đấu giá, bạn phải đóng 1 khoản phí bằng 10% giá khởi điểm của phiên đấu giá này.\n\nPhí tham gia: ${feeText}`,
+      [
+        {
+          text: 'Hủy',
+          style: 'cancel',
+        },
+        {
+          text: 'Đồng ý',
+          onPress: () => {
+            console.log('✅ User confirmed fee, proceeding to create bid');
+            handleCreateOrUpdateBid();
+          },
+        },
+      ]
+    );
+  };
+
   const handleCreateOrUpdateBid = async () => {
     console.log('=== BidModal: handleCreateOrUpdateBid ===');
     console.log('existingBid:', existingBid);
@@ -204,7 +249,7 @@ export default function CreateBidModal({
             console.log('🧪 DEBUG: Auto-triggering BidPlaced event for updated bid');
             signalRService.debugTriggerBidPlaced({
               auctionId: auctionSessionId,
-              bidId: response.data?.bidId || existingBid.bidId || 'generated-' + Date.now(),
+              bidId: 'updated-' + Date.now(),
               userId: userProfile?.userId || 'unknown',
               userName: userProfile?.fullName || 'Thương Lái',
               bidAmount: amountValue,
@@ -214,49 +259,76 @@ export default function CreateBidModal({
             });
           }, 500);
 
-          await sendLocalNotification({
-            title: '💰 Cập nhật giá thành công',
-            body: `Giá mới: ${amountValue.toLocaleString('vi-VN')} ₫`,
-            type: 'auction_log',
-            auctionId: auctionSessionId,
-            data: {
-              bidAmount: amountValue,
-              sessionCode,
-            },
-          });
-
           // Wait a bit for backend to process
           await new Promise(resolve => setTimeout(resolve, 500));
 
-          Alert.alert('Thành công', 'Cập nhật giá thành công!', [
-            {
-              text: 'OK',
-              onPress: () => {
-                onBidCreated?.();
-                onClose();
-                setManualBidAmount('');
-                setAutoBidMaxLimit('');
-                setSelectedSuggestion(null);
-              },
-            },
-          ]);
+          // Show success alert with details
+          Alert.alert(
+            'Cập nhật thành công!',
+            `Bạn đã thay đổi giá thành công!\n\nPhiên đấu giá: ${sessionCode}\nGiá cũ: ${existingBid.bidAmount.toLocaleString('vi-VN')} ₫\nGiá mới: ${amountValue.toLocaleString('vi-VN')} ₫`,
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  onBidCreated?.();
+                  onClose();
+                  setManualBidAmount('');
+                  setAutoBidMaxLimit('');
+                  setSelectedSuggestion(null);
+                }
+              }
+            ]
+          );
         } else {
           Alert.alert('Lỗi', response.message || 'Không thể cập nhật giá');
         }
       } else {
         // Create new bid
+        console.log('🔍 Debug Before CreateBid:', {
+          isAutoBid,
+          manualBidAmount,
+          autoBidMaxLimit,
+          currentPrice,
+          minBidIncrement,
+          auctionSessionId,
+        });
+        
+        // Validate inputs
+        if (isAutoBid) {
+          if (!autoBidMaxLimit || isNaN(parseFloat(autoBidMaxLimit))) {
+            Alert.alert('Lỗi', 'Vui lòng nhập giá tối đa hợp lệ cho đấu giá tự động');
+            setLoading(false);
+            return;
+          }
+        }
+        
+        // Create bid - only 3 fields:
+        // Manual: { isAutoBid: false, auctionSessionId }
+        // Auto: { isAutoBid: true, autoBidMaxLimit, auctionSessionId }
+        
         const request: CreateBidRequest = {
           isAutoBid,
           auctionSessionId,
-          ...(isAutoBid && { autoBidMaxLimit: parseFloat(autoBidMaxLimit) }),
-          // Manual bid: no bidAmount needed, backend will auto-calculate
         };
-
-        console.log('🔵 CreateBid Request:', {
+        
+        // Only add autoBidMaxLimit if auto bid
+        if (isAutoBid && autoBidMaxLimit) {
+          const maxLimitValue = parseFloat(autoBidMaxLimit);
+          if (!isNaN(maxLimitValue) && maxLimitValue > 0) {
+            request.autoBidMaxLimit = maxLimitValue;
+          }
+        }
+        
+        console.log('🔍 CreateBid Request:', {
           isAutoBid,
           auctionSessionId,
-          autoBidMaxLimit: isAutoBid ? parseFloat(autoBidMaxLimit) : 'N/A',
+          autoBidMaxLimit: request.autoBidMaxLimit,
+          note: isAutoBid ? 'Auto bid with max limit' : 'Manual bid - join only',
         });
+        
+        console.log('🔍 Final Request Object:', JSON.stringify(request, null, 2));
+
+        console.log('🔵 Final Request Object:', JSON.stringify(request, null, 2));
 
         const response = await createBid(request);
 
@@ -279,45 +351,26 @@ export default function CreateBidModal({
           console.log('   manualBidAmount:', manualBidAmount);
           console.log('   Calculated displayValue:', displayValue);
 
-          // Send local notification
-          await sendLocalNotification({
-            title: '💰 Đặt giá thành công',
-            body: `${isAutoBid ? 'Giá tối đa' : 'Giá đặt'}: ${displayValue.toLocaleString('vi-VN')} ₫`,
-            type: 'auction_log',
+          // Close modal and trigger callback without alert
+          console.log('🧪 DEBUG: Auto-triggering BidPlaced event IMMEDIATELY');
+          // Trigger event IMMEDIATELY
+          signalRService.debugTriggerBidPlaced({
             auctionId: auctionSessionId,
-            data: {
-              bidType: isAutoBid ? 'auto' : 'manual',
-              bidValue: displayValue,
-              sessionCode,
-            },
+            bidId: 'generated-' + Date.now(),
+            userId: userProfile?.userId || 'unknown',
+            userName: userProfile?.fullName || 'Thương Lái',
+            bidAmount: displayValue,
+            previousPrice: currentPrice,
+            newPrice: displayValue,
+            placedAt: new Date().toISOString(),
           });
 
-          Alert.alert('Thành công', 'Đặt giá thành công!', [
-            {
-              text: 'OK',
-              onPress: () => {
-                console.log('🧪 DEBUG: Auto-triggering BidPlaced event IMMEDIATELY');
-                // Trigger event IMMEDIATELY on OK
-                signalRService.debugTriggerBidPlaced({
-                  auctionId: auctionSessionId,
-                  bidId: response.data?.bidId || 'generated-' + Date.now(),
-                  userId: userProfile?.userId || 'unknown',
-                  userName: userProfile?.fullName || 'Thương Lái',
-                  bidAmount: displayValue,
-                  previousPrice: currentPrice,
-                  newPrice: displayValue,
-                  placedAt: new Date().toISOString(),
-                });
-
-                // Then call onBidCreated and close modal
-                onBidCreated?.();
-                onClose();
-                setManualBidAmount('');
-                setAutoBidMaxLimit('');
-                setSelectedSuggestion(null);
-              },
-            },
-          ]);
+          // Then call onBidCreated and close modal
+          onBidCreated?.();
+          onClose();
+          setManualBidAmount('');
+          setAutoBidMaxLimit('');
+          setSelectedSuggestion(null);
         } else {
           console.error('❌ Bid creation failed:', {
             isSuccess: response.isSuccess,
@@ -333,10 +386,10 @@ export default function CreateBidModal({
       
       const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra';
       
-      // Check if error is due to someone else bidding
-      if (errorMessage.includes('Invalid input') || 
-          errorMessage.toLowerCase().includes('outbid') ||
-          errorMessage.toLowerCase().includes('higher bid')) {
+      // Check if error is due to someone else bidding (only check outbid/higher bid messages)
+      if (errorMessage.toLowerCase().includes('outbid') ||
+          errorMessage.toLowerCase().includes('higher bid') ||
+          errorMessage.toLowerCase().includes('đã đặt giá cao hơn')) {
         Alert.alert(
           '⏰ Ai đó đã đặt giá cao hơn',
           'Có người khác vừa đặt giá cao hơn của bạn. Vui lòng kiểm tra giá hiện tại và thử lại.',
@@ -632,7 +685,7 @@ export default function CreateBidModal({
               styles.bidButton,
               (!isValid || loading) && styles.bidButtonDisabled,
             ]}
-            onPress={handleCreateOrUpdateBid}
+            onPress={handleConfirmBid}
             disabled={!isValid || loading}
           >
             {loading ? (

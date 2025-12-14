@@ -16,7 +16,8 @@ import {
 import { useRouter } from 'expo-router';
 import { 
   getCurrentUser, 
-  getCurrentFarm, 
+  getCurrentFarm,
+  getUserProfile,
   User
 } from '../../../../services/authService';
 import { 
@@ -73,10 +74,30 @@ export default function HomeScreen() {
 
   const loadData = async () => {
     try {
-      const user = await getCurrentUser();
-      if (user) {
-        setUserData(user);
-        
+      // Try to get fresh user profile with reputation score
+      try {
+        const profileResponse = await getUserProfile();
+        if (profileResponse.isSuccess && profileResponse.data) {
+          setUserData(profileResponse.data);
+          // Update storage with fresh data
+          await AsyncStorage.setItem('user', JSON.stringify(profileResponse.data));
+        } else {
+          // Fallback to storage
+          const user = await getCurrentUser();
+          if (user) {
+            setUserData(user);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading user profile from API:', error);
+        // Fallback to storage
+        const user = await getCurrentUser();
+        if (user) {
+          setUserData(user);
+        }
+      }
+      
+      if (userData || await getCurrentUser()) {
         // Load farm data
         const farm = await getCurrentFarm();
         if (farm) {
@@ -417,6 +438,24 @@ export default function HomeScreen() {
                 <Text style={[styles.farmDetailValue, {color: farmData.isActive ? '#22C55E' : '#F59E0B'}]}>
                   {farmData.isActive ? 'Hoạt động' : 'Tạm dừng'}
                 </Text>
+              </View>
+            </View>
+
+            {/* Reputation Score */}
+            <View style={styles.farmDetailItem}>
+              <View style={[styles.farmDetailIcon, { backgroundColor: '#FEF3C7' }]}>
+                <Text style={{ fontSize: 20 }}>⭐</Text>
+              </View>
+              <View style={styles.farmDetailContent}>
+                <Text style={styles.farmDetailLabel}>Điểm uy tín</Text>
+                <Text style={[styles.farmDetailValue, { color: '#F59E0B', fontWeight: '600' }]}>
+                  {userData?.reputationScore ?? 0} điểm
+                </Text>
+                {userData?.reputation?.trustScore !== undefined && (
+                  <Text style={[styles.farmDetailLabel, { fontSize: 11, marginTop: 2 }]}>
+                    Trust Score: {userData.reputation.trustScore}
+                  </Text>
+                )}
               </View>
             </View>
 

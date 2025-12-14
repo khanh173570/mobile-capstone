@@ -1,38 +1,38 @@
-# Cập Nhật Tính Năng Quản Lý Hợp Đồng Cọc Tiền - Chi Tiết Thực Hiện
+# Cập Nhật Tính Năng Quản Lý giao dịch kí quỹ Cọc Tiền - Chi Tiết Thực Hiện
 
 ## 📋 Tóm Tắt Thay Đổi
 
-Đã hoàn tất cập nhật hệ thống quản lý hợp đồng cọc tiền với các tính năng chi tiết và giao diện riêng biệt cho nông dân và nhà bán buôn.
+Đã hoàn tất cập nhật hệ thống quản lý giao dịch kí quỹ cọc tiền với các tính năng chi tiết và giao diện riêng biệt cho nông dân và nhà bán buôn.
 
 ---
 
 ## 🎯 Những Gì Đã Thực Hiện
 
-### 1. **Tạo Màn Hình Quản Lý Hợp Đồng Riêng Biệt**
+### 1. **Tạo Màn Hình Quản Lý giao dịch kí quỹ Riêng Biệt**
 
 #### **Nông Dân:**
 - Đường dẫn: `app/(tabs)/farmer/escrow-contracts/`
-  - `index.tsx` - Danh sách tất cả hợp đồng cọc
-  - `_layout.tsx` - Header với tiêu đề "Quản lý hợp đồng"
+  - `index.tsx` - Danh sách tất cả giao dịch kí quỹ cọc
+  - `_layout.tsx` - Header với tiêu đề "Quản lý giao dịch kí quỹ"
 
 **Tính năng:**
-- Hiển thị danh sách hợp đồng cọc với EscrowContractCard
+- Hiển thị danh sách giao dịch kí quỹ cọc với EscrowContractCard
 - Pull-to-refresh để cập nhật danh sách
 - Loading state khi đang tải
-- Empty state khi không có hợp đồng
+- Empty state khi không có giao dịch kí quỹ
 - Click vào card → Mở modal chi tiết
 - Tự động refresh danh sách khi quay lại từ màn hình khác
 
 #### **Nhà Bán Buôn:**
 - Đường dẫn: `app/(tabs)/wholesaler/escrow-contracts/`
-  - `index.tsx` - Danh sách tất cả hợp đồng cọc
-  - `_layout.tsx` - Header với tiêu đề "Quản lý hợp đồng"
+  - `index.tsx` - Danh sách tất cả giao dịch kí quỹ cọc
+  - `_layout.tsx` - Header với tiêu đề "Quản lý giao dịch kí quỹ"
 
 **Tính năng:** Giống nông dân, nhưng hiển thị từ quan điểm của nhà bán buôn
 
 ---
 
-### 2. **Cập Nhật Modal Chi Tiết Hợp Đồng**
+### 2. **Cập Nhật Modal Chi Tiết giao dịch kí quỹ**
 
 **File:** `components/shared/EscrowDetailModal.tsx`
 
@@ -67,8 +67,8 @@
 - Số điện thoại
 - Địa chỉ
 
-**Phần Hợp Đồng:**
-- ID Hợp đồng
+**Phần giao dịch kí quỹ:**
+- ID giao dịch kí quỹ
 - ID Đấu giá
 - Ngày tạo
 - Ngày thanh toán (nếu có)
@@ -109,7 +109,7 @@ export const getUserById = async (userId: string): Promise<User | null>
 **File:** `app/(tabs)/farmer/profile/index.tsx`
 
 **Thay đổi:**
-- Thêm nút "Hợp đồng cọc tiền" (màu purple #8B5CF6)
+- Thêm nút "giao dịch kí quỹ cọc tiền" (màu purple #8B5CF6)
 - Click nút → Navigate tới `/(tabs)/farmer/escrow-contracts/index`
 - Nút được thêm vào mục "Escrow Contracts Section"
 - Có icon Shield
@@ -140,8 +140,8 @@ escrowButtonText: {
 **File:** `app/(tabs)/wholesaler/profile/index.tsx`
 
 **Thay đổi:**
-- Thêm section "Hợp đồng cọc tiền" (sau phần Báo cáo)
-- Thêm nút "Quản lý hợp đồng" (màu purple #8B5CF6)
+- Thêm section "giao dịch kí quỹ cọc tiền" (sau phần Báo cáo)
+- Thêm nút "Quản lý giao dịch kí quỹ" (màu purple #8B5CF6)
 - Click nút → Navigate tới `/(tabs)/wholesaler/escrow-contracts/index`
 - Icon: Shield
 - Thêm import Shield từ lucide-react-native
@@ -170,10 +170,10 @@ escrowButtonText: {
 
 ### **Nông Dân:**
 1. Vào Profile
-2. Scroll xuống tìm "Hợp đồng cọc tiền"
-3. Click nút "Hợp đồng cọc tiền"
-4. Xem danh sách tất cả hợp đồng của mình
-5. Click hợp đồng → Modal mở
+2. Scroll xuống tìm "giao dịch kí quỹ cọc tiền"
+3. Click nút "giao dịch kí quỹ cọc tiền"
+4. Xem danh sách tất cả giao dịch kí quỹ của mình
+5. Click giao dịch kí quỹ → Modal mở
 6. Xem chi tiết đầy đủ:
    - Thông tin đấu giá
    - Thông tin người mua
@@ -185,10 +185,10 @@ escrowButtonText: {
 
 ### **Nhà Bán Buôn:**
 1. Vào Profile
-2. Scroll xuống tìm "Hợp đồng cọc tiền"
-3. Click nút "Quản lý hợp đồng"
-4. Xem danh sách tất cả hợp đồng của mình
-5. Click hợp đồng → Modal mở
+2. Scroll xuống tìm "giao dịch kí quỹ cọc tiền"
+3. Click nút "Quản lý giao dịch kí quỹ"
+4. Xem danh sách tất cả giao dịch kí quỹ của mình
+5. Click giao dịch kí quỹ → Modal mở
 6. Xem chi tiết đầy đủ:
    - Thông tin đấu giá
    - Thông tin nông dân
@@ -244,7 +244,7 @@ Tất cả tệp đã kiểm tra và không có lỗi TypeScript:
 ## 🎨 Giao Diện
 
 ### **Màu Sắc:**
-- **Hợp đồng cọc tiền button:** Purple (#8B5CF6)
+- **giao dịch kí quỹ cọc tiền button:** Purple (#8B5CF6)
 - **Status colors:** Theo hệ thống (0-8)
 - **Header:** Trắng với text tối
 

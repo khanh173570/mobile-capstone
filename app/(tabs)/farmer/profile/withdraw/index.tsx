@@ -11,6 +11,8 @@ import {
   TextInput,
   Modal,
   Image,
+  Animated,
+  Switch,
 } from 'react-native';
 import { router } from 'expo-router';
 import {
@@ -50,6 +52,8 @@ export default function FarmerWithdrawScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedWithdrawRequest, setSelectedWithdrawRequest] = useState<WithdrawRequest | null>(null);
   const [userId, setUserId] = useState<string>('');
   const [walletId, setWalletId] = useState<string>('');
 
@@ -60,8 +64,9 @@ export default function FarmerWithdrawScreen() {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [selectedAccount, setSelectedAccount] = useState<UserBankAccount | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [showBankSelector, setShowBankSelector] = useState(false);
+  const [showAllBanks, setShowAllBanks] = useState(false);
   const [bankSearch, setBankSearch] = useState('');
+  const [isPrimary, setIsPrimary] = useState(false);
   const [editingAccount, setEditingAccount] = useState<UserBankAccount | null>(null);
 
   const getFilteredBanks = (searchText: string) => {
@@ -75,6 +80,7 @@ export default function FarmerWithdrawScreen() {
   };
 
   const filteredBanks = getFilteredBanks(bankSearch);
+  const displayedBanks = showAllBanks ? filteredBanks : filteredBanks.slice(0, 16);
 
   const formatNumber = (num: string) => {
     const numericValue = num.replace(/[^0-9]/g, '');
@@ -85,6 +91,16 @@ export default function FarmerWithdrawScreen() {
   const getNumericValue = (formatted: string) => {
     return parseFloat(formatted.replace(/\./g, '')) || 0;
   };
+
+  const validateWithdrawAmount = (amount: string) => {
+    const numericAmount = getNumericValue(amount);
+    if (numericAmount === 0) return null;
+    if (numericAmount < 5000) return 'invalid';
+    if (numericAmount > (wallet?.balance || 0)) return 'exceeded';
+    return 'valid';
+  };
+
+  const withdrawAmountStatus = validateWithdrawAmount(withdrawAmount);
 
   useEffect(() => {
     loadData();
@@ -132,7 +148,7 @@ export default function FarmerWithdrawScreen() {
 
     Alert.alert(
       'Xác nhận thêm tài khoản',
-      `Bạn có chắc muốn thêm tài khoản ${selectedBank.shortName} - ${accountNumber}?`,
+      `Bạn có chắc muốn thêm tài khoản ngân hàng ${selectedBank.shortName} - ${accountNumber}${isPrimary ? ' làm tài khoản chính' : ''}?`,
       [
         { text: 'Hủy', style: 'cancel' },
         {
@@ -145,22 +161,28 @@ export default function FarmerWithdrawScreen() {
                   accountNumber,
                   accountName,
                   bankId: selectedBank.id,
-                  isPrimary: true,
+                  isPrimary,
                 });
-                Alert.alert('Thành công', 'Cập nhật tài khoản thành công!');
+                Alert.alert('Thành công', 'Cập nhật tài khoản ngân hàng thành công!');
               } else {
                 await createUserBankAccount({
                   userId,
                   accountNumber,
                   accountName,
                   bankId: selectedBank.id,
-                  isPrimary: true,
+                  isPrimary,
                 });
-                Alert.alert('Thành công', 'Thêm tài khoản thành công!');
+                Alert.alert('Thành công', 'Thêm tài khoản ngân hàng thành công!');
               }
-
+              
               setShowAddAccount(false);
-              resetForm();
+              setSelectedBank(null);
+              setAccountNumber('');
+              setAccountName('');
+              setBankSearch('');
+              setShowAllBanks(false);
+              setIsPrimary(false);
+              setEditingAccount(null);
               await loadData();
             } catch (error: any) {
               Alert.alert('Lỗi', error.message || 'Không thể thêm tài khoản');
@@ -173,27 +195,19 @@ export default function FarmerWithdrawScreen() {
     );
   };
 
-  const resetForm = () => {
-    setSelectedBank(null);
-    setAccountNumber('');
-    setAccountName('');
-    setBankSearch('');
-    setShowBankSelector(false);
-    setEditingAccount(null);
-  };
-
   const handleEditAccount = (account: UserBankAccount) => {
     setEditingAccount(account);
     setSelectedBank(account.bank || null);
     setAccountNumber(account.accountNumber);
     setAccountName(account.accountName);
+    setIsPrimary(account.isPrimary);
     setShowAddAccount(true);
   };
 
   const handleDeleteAccount = (account: UserBankAccount) => {
     Alert.alert(
       'Xác nhận xóa',
-      `Xóa tài khoản ${account.accountName}?`,
+      `Bạn có chắc muốn xóa tài khoản ${account.accountName} - ${account.bank?.shortName}?`,
       [
         { text: 'Hủy', style: 'cancel' },
         {
@@ -202,7 +216,7 @@ export default function FarmerWithdrawScreen() {
           onPress: async () => {
             try {
               await deleteUserBankAccount(account.id);
-              Alert.alert('Thành công', 'Đã xóa tài khoản!');
+              Alert.alert('Thành công', 'Đã xóa tài khoản ngân hàng!');
               await loadData();
             } catch (error: any) {
               Alert.alert('Lỗi', error.message || 'Không thể xóa tài khoản');
@@ -211,6 +225,16 @@ export default function FarmerWithdrawScreen() {
         },
       ]
     );
+  };
+
+  const handleWithdrawAmountChange = (text: string) => {
+    const formatted = formatNumber(text);
+    setWithdrawAmount(formatted);
+  };
+
+  const handleViewWithdrawDetail = (request: WithdrawRequest) => {
+    setSelectedWithdrawRequest(request);
+    setShowDetailModal(true);
   };
 
   const handleCreateWithdraw = async () => {
@@ -237,7 +261,7 @@ export default function FarmerWithdrawScreen() {
 
     Alert.alert(
       'Xác nhận rút tiền',
-      `Rút ${amount.toLocaleString('vi-VN')} ₫ vào tài khoản ${selectedAccount.accountName}?`,
+      `Bạn sắp rút ${amount.toLocaleString('vi-VN')} ₫ vào tài khoản ${selectedAccount.accountName}.\n\nHành động này không thể hoàn tác.`,
       [
         { text: 'Hủy', style: 'cancel' },
         {
@@ -252,19 +276,23 @@ export default function FarmerWithdrawScreen() {
                 amount,
               });
 
-              Alert.alert('Thành công', 'Yêu cầu rút tiền đã được tạo!', [
-                {
-                  text: 'OK',
-                  onPress: () => {
-                    setShowWithdrawModal(false);
-                    setWithdrawAmount('');
-                    setSelectedAccount(null);
-                    loadData();
+              Alert.alert(
+                'Thành công',
+                'Yêu cầu rút tiền đã được tạo. Vui lòng đợi xử lý.',
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      setShowWithdrawModal(false);
+                      setWithdrawAmount('');
+                      setSelectedAccount(null);
+                      loadData();
+                    },
                   },
-                },
-              ]);
+                ]
+              );
             } catch (error: any) {
-              Alert.alert('Lỗi', error.message || 'Không thể tạo yêu cầu');
+              Alert.alert('Lỗi', error.message || 'Không thể tạo yêu cầu rút tiền');
             } finally {
               setSubmitting(false);
             }
@@ -276,40 +304,20 @@ export default function FarmerWithdrawScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <ArrowLeft size={24} color="#111827" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Rút tiền</Text>
-          <View style={{ width: 24 }} />
-        </View>
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#22C55E" />
-        </View>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#22C55E" />
+        <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Rút tiền</Text>
-        <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
-          <RefreshCw size={24} color="#111827" />
-        </TouchableOpacity>
-      </View>
-
       <ScrollView
-        style={styles.content}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
-        {/* Balance Card */}
         <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>Số dư ví</Text>
           <Text style={styles.balanceAmount}>
@@ -317,77 +325,100 @@ export default function FarmerWithdrawScreen() {
           </Text>
         </View>
 
-        {/* Bank Accounts Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Tài khoản ngân hàng</Text>
             <TouchableOpacity
               style={styles.addButton}
-              onPress={() => {
-                resetForm();
-                setShowAddAccount(true);
-              }}
+              onPress={() => setShowAddAccount(true)}
             >
               <Plus size={18} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
 
           {bankAccounts.length > 0 ? (
-            <>
-              {bankAccounts.map((account) => (
-                <View key={account.id} style={styles.accountCard}>
-                  <View style={styles.accountLeft}>
-                    <View style={styles.accountIcon}>
-                      <Landmark size={24} color="#22C55E" />
-                    </View>
-                    <View style={styles.accountInfo}>
-                      <Text style={styles.accountName}>{account.accountName}</Text>
-                      <Text style={styles.accountNumber}>{account.accountNumber}</Text>
-                      <Text style={styles.accountBank}>
-                        {account.bank?.shortName || 'Ngân hàng'}
-                      </Text>
-                    </View>
+            bankAccounts.map((account) => (
+              <View key={account.id} style={styles.accountCard}>
+                {account.bank?.logo ? (
+                  <Image
+                    source={{ uri: account.bank.logo }}
+                    style={styles.accountBankLogo}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View style={styles.accountIcon}>
+                    <Landmark size={24} color="#22C55E" />
                   </View>
-                  <View style={styles.accountActions}>
-                    <TouchableOpacity onPress={() => handleEditAccount(account)}>
-                      <Edit2 size={20} color="#22C55E" />
+                )}
+                <View style={styles.accountInfo}>
+                  <Text style={styles.accountName}>{account.accountName}</Text>
+                  <Text style={styles.accountNumber}>
+                    {account.accountNumber}
+                  </Text>
+                  <Text style={styles.accountBank}>
+                    {account.bank?.shortName || 'Ngân hàng'}
+                  </Text>
+                </View>
+                <View style={styles.accountActions}>
+                  {account.isPrimary && (
+                    <View style={styles.primaryBadge}>
+                      <Text style={styles.primaryBadgeText}>Chính</Text>
+                    </View>
+                  )}
+                  <View style={styles.actionButtons}>
+                    <TouchableOpacity
+                      style={styles.editButton}
+                      onPress={() => handleEditAccount(account)}
+                    >
+                      <Edit2 size={16} color="#22C55E" />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleDeleteAccount(account)}>
-                      <Trash2 size={20} color="#EF4444" />
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={() => handleDeleteAccount(account)}
+                    >
+                      <Trash2 size={16} color="#EF4444" />
                     </TouchableOpacity>
                   </View>
                 </View>
-              ))}
-
-              <TouchableOpacity
-                style={styles.withdrawButton}
-                onPress={() => setShowWithdrawModal(true)}
-              >
-                <TrendingDown size={20} color="#FFFFFF" />
-                <Text style={styles.withdrawButtonText}>Rút tiền</Text>
-              </TouchableOpacity>
-            </>
+              </View>
+            ))
           ) : (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>
-                Chưa có tài khoản. Hãy thêm tài khoản để rút tiền.
+                Chưa có tài khoản ngân hàng. Hãy thêm tài khoản để rút tiền.
               </Text>
             </View>
           )}
+
+          {bankAccounts.length > 0 && (
+            <TouchableOpacity
+              style={styles.withdrawButton}
+              onPress={() => setShowWithdrawModal(true)}
+            >
+              <TrendingDown size={20} color="#FFFFFF" />
+              <Text style={styles.withdrawButtonText}>Rút tiền</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        {/* Withdraw History */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Lịch sử rút tiền</Text>
 
           {withdrawRequests.length > 0 ? (
             withdrawRequests.map((request) => (
-              <View key={request.id} style={styles.historyCard}>
+              <TouchableOpacity
+                key={request.id}
+                style={styles.historyCard}
+                onPress={() => handleViewWithdrawDetail(request)}
+              >
                 <View style={styles.historyLeft}>
                   <View
                     style={[
                       styles.historyIcon,
-                      { backgroundColor: getWithdrawStatusColor(request.status) + '20' },
+                      {
+                        backgroundColor:
+                          getWithdrawStatusColor(request.status) + '20',
+                      },
                     ]}
                   >
                     <TrendingDown
@@ -400,92 +431,163 @@ export default function FarmerWithdrawScreen() {
                       -{request.amount.toLocaleString('vi-VN')} ₫
                     </Text>
                     <Text style={styles.historyDate}>
-                      {new Date(request.createdAt).toLocaleDateString('vi-VN')}
+                      {new Date(request.createdAt).toLocaleDateString('vi-VN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                      })}
+                    </Text>
+                    <Text style={styles.historyTime}>
+                      {new Date(request.createdAt).toLocaleTimeString('vi-VN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
                     </Text>
                   </View>
                 </View>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    { backgroundColor: getWithdrawStatusColor(request.status) + '20' },
-                  ]}
-                >
-                  <Text
+                <View style={styles.historyRight}>
+                  <View
                     style={[
-                      styles.statusBadgeText,
-                      { color: getWithdrawStatusColor(request.status) },
+                      styles.statusBadge,
+                      {
+                        backgroundColor:
+                          getWithdrawStatusColor(request.status) + '20',
+                      },
                     ]}
                   >
-                    {getWithdrawStatusName(request.status)}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.statusBadgeText,
+                        { color: getWithdrawStatusColor(request.status) },
+                      ]}
+                    >
+                      {getWithdrawStatusName(request.status)}
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))
           ) : (
             <View style={styles.emptyState}>
-              <Clock size={32} color="#D1D5DB" />
-              <Text style={styles.emptyStateText}>Chưa có yêu cầu rút tiền</Text>
+              <Clock size={32} color="#9CA3AF" />
+              <Text style={styles.emptyStateText}>
+                Chưa có yêu cầu rút tiền nào
+              </Text>
             </View>
           )}
         </View>
       </ScrollView>
 
-      {/* Add Account Modal */}
       <Modal
         visible={showAddAccount}
-        transparent
+        transparent={true}
         animationType="slide"
         onRequestClose={() => {
           setShowAddAccount(false);
-          resetForm();
+          setBankSearch('');
+          setShowAllBanks(false);
+          setIsPrimary(false);
+          setEditingAccount(null);
+          setSelectedBank(null);
+          setAccountNumber('');
+          setAccountName('');
         }}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {editingAccount ? 'Chỉnh sửa tài khoản' : 'Thêm tài khoản'}
+                {editingAccount ? 'Chỉnh sửa tài khoản' : 'Thêm tài khoản ngân hàng'}
               </Text>
-              <TouchableOpacity onPress={() => { setShowAddAccount(false); resetForm(); }}>
-                <Text style={{ fontSize: 24, color: '#6B7280' }}>✕</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowAddAccount(false);
+                  setBankSearch('');
+                  setShowAllBanks(false);
+                  setIsPrimary(false);
+                  setEditingAccount(null);
+                  setSelectedBank(null);
+                  setAccountNumber('');
+                  setAccountName('');
+                }}
+              >
+                <Text style={styles.closeButton}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalForm}>
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.modalContent}>
               <Text style={styles.label}>Chọn ngân hàng</Text>
-              <TouchableOpacity
-                style={styles.bankSelector}
-                onPress={() => setShowBankSelector(!showBankSelector)}
-              >
-                <Text style={styles.bankSelectorText}>
-                  {selectedBank ? selectedBank.shortName : 'Chọn ngân hàng...'}
-                </Text>
-              </TouchableOpacity>
+              
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Tìm kiếm ngân hàng..."
+                placeholderTextColor="#9CA3AF"
+                value={bankSearch}
+                onChangeText={setBankSearch}
+              />
+              
+              <View style={styles.bankGrid}>
+                {displayedBanks.map((bank) => (
+                  <TouchableOpacity
+                    key={bank.id}
+                    style={[
+                      styles.bankGridItem,
+                      selectedBank?.id === bank.id && styles.bankGridItemSelected,
+                    ]}
+                    onPress={() => setSelectedBank(bank)}
+                  >
+                    {bank.logo ? (
+                      <Image
+                        source={{ uri: bank.logo }}
+                        style={styles.bankGridLogo}
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <Landmark size={40} color="#22C55E" />
+                    )}
+                    <Text style={styles.bankGridName} numberOfLines={2}>
+                      {bank.shortName}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-              {showBankSelector && (
-                <>
-                  <TextInput
-                    style={styles.searchInput}
-                    placeholder="Tìm kiếm ngân hàng..."
-                    value={bankSearch}
-                    onChangeText={setBankSearch}
-                  />
-                  <View style={styles.bankList}>
-                    {filteredBanks.map((bank) => (
-                      <TouchableOpacity
-                        key={bank.id}
-                        style={styles.bankOption}
-                        onPress={() => {
-                          setSelectedBank(bank);
-                          setShowBankSelector(false);
-                          setBankSearch('');
-                        }}
-                      >
-                        <Text style={styles.bankOptionText}>{bank.name}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </>
+              {!showAllBanks && filteredBanks.length > 16 && (
+                <TouchableOpacity
+                  style={styles.showMoreButton}
+                  onPress={() => setShowAllBanks(true)}
+                >
+                  <Text style={styles.showMoreText}>Xem thêm ({filteredBanks.length - 16} ngân hàng)</Text>
+                </TouchableOpacity>
+              )}
+
+              {showAllBanks && filteredBanks.length > 16 && (
+                <TouchableOpacity
+                  style={styles.showLessButton}
+                  onPress={() => setShowAllBanks(false)}
+                >
+                  <Text style={styles.showLessText}>Ẩn bớt</Text>
+                </TouchableOpacity>
+              )}
+
+              {selectedBank && (
+                <View style={styles.selectedBankInfo}>
+                  {selectedBank.logo ? (
+                    <Image
+                      source={{ uri: selectedBank.logo }}
+                      style={styles.selectedBankInfoLogo}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <Landmark size={32} color="#22C55E" />
+                  )}
+                  <Text
+                    style={styles.selectedBankInfoText}
+                    numberOfLines={2}
+                  >
+                    Đã chọn: {selectedBank.name}
+                  </Text>
+                </View>
               )}
 
               <Text style={styles.label}>Số tài khoản</Text>
@@ -505,85 +607,295 @@ export default function FarmerWithdrawScreen() {
                 onChangeText={setAccountName}
               />
 
-              <TouchableOpacity
-                style={styles.submitButton}
-                onPress={handleAddBankAccount}
-                disabled={submitting}
-              >
-                {submitting ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.submitButtonText}>
-                    {editingAccount ? 'Cập nhật' : 'Thêm tài khoản'}
+              <View style={styles.switchContainer}>
+                <View>
+                  <Text style={styles.switchLabel}>Đặt làm tài khoản chính</Text>
+                  <Text style={styles.switchDescription}>
+                    Tài khoản chính sẽ được ưu tiên hiển thị
                   </Text>
-                )}
-              </TouchableOpacity>
+                </View>
+                <Switch
+                  value={isPrimary}
+                  onValueChange={setIsPrimary}
+                  trackColor={{ false: '#D1D5DB', true: '#86EFAC' }}
+                  thumbColor={isPrimary ? '#22C55E' : '#F3F4F6'}
+                />
+              </View>
+
+              <View style={styles.buttonGroup}>
+                <TouchableOpacity
+                  style={[styles.button, styles.cancelButton]}
+                  onPress={() => {
+                    setShowAddAccount(false);
+                    setBankSearch('');
+                    setShowAllBanks(false);
+                    setIsPrimary(false);
+                    setEditingAccount(null);
+                    setSelectedBank(null);
+                    setAccountNumber('');
+                    setAccountName('');
+                  }}
+                >
+                  <Text style={styles.cancelButtonText}>Hủy</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.button, styles.submitButton]}
+                  onPress={handleAddBankAccount}
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.submitButtonText}>
+                      {editingAccount ? 'Cập nhật' : 'Thêm'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             </ScrollView>
           </View>
         </View>
       </Modal>
 
-      {/* Withdraw Modal */}
       <Modal
         visible={showWithdrawModal}
-        transparent
+        transparent={true}
         animationType="slide"
         onRequestClose={() => setShowWithdrawModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Rút tiền</Text>
               <TouchableOpacity onPress={() => setShowWithdrawModal(false)}>
-                <Text style={{ fontSize: 24, color: '#6B7280' }}>✕</Text>
+                <Text style={styles.closeButton}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalForm}>
-              <Text style={styles.label}>Chọn tài khoản</Text>
-              <ScrollView style={styles.accountSelector} horizontal showsHorizontalScrollIndicator={false}>
+            <ScrollView style={styles.modalContent}>
+              <Text style={styles.label}>Chọn tài khoản nhận tiền</Text>
+              <View style={styles.accountSelectList}>
                 {bankAccounts.map((account) => (
                   <TouchableOpacity
                     key={account.id}
                     style={[
                       styles.accountSelectItem,
-                      selectedAccount?.id === account.id && styles.accountSelectItemActive,
+                      selectedAccount?.id === account.id &&
+                        styles.accountSelectItemSelected,
                     ]}
                     onPress={() => setSelectedAccount(account)}
                   >
-                    <Text style={styles.accountSelectText} numberOfLines={1}>
-                      {account.bank?.shortName}
-                    </Text>
-                    <Text style={styles.accountSelectNumber} numberOfLines={1}>
-                      {account.accountNumber}
-                    </Text>
+                    <View>
+                      <Text style={styles.accountSelectName}>
+                        {account.accountName}
+                      </Text>
+                      <Text style={styles.accountSelectBank}>
+                        {account.bank?.shortName} - {account.accountNumber}
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </View>
 
-              <Text style={styles.label}>Số tiền rút (₫)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Nhập số tiền (tối thiểu 5.000)"
-                value={withdrawAmount}
-                onChangeText={(text) => setWithdrawAmount(formatNumber(text))}
-                keyboardType="numeric"
-              />
-
-              <Text style={styles.note}>
-                Số dư: {(wallet?.balance || 0).toLocaleString('vi-VN')} ₫
+              <Text style={styles.label}>Số tiền rút</Text>
+              <View>
+                <TextInput
+                  style={[
+                    styles.input,
+                    withdrawAmountStatus === 'valid' && styles.inputValid,
+                    withdrawAmountStatus === 'exceeded' && styles.inputError,
+                    withdrawAmountStatus === 'invalid' && styles.inputError,
+                  ]}
+                  placeholder="Nhập số tiền (tối thiểu 5.000 ₫)"
+                  placeholderTextColor="#9CA3AF"
+                  value={withdrawAmount}
+                  onChangeText={handleWithdrawAmountChange}
+                  keyboardType="numeric"
+                />
+                {withdrawAmount && (
+                  <View style={styles.amountValidation}>
+                    {withdrawAmountStatus === 'valid' && (
+                      <Text style={styles.validText}>
+                        ✓ Số tiền hợp lệ: {withdrawAmount} ₫
+                      </Text>
+                    )}
+                    {withdrawAmountStatus === 'exceeded' && (
+                      <Text style={styles.errorText}>
+                        ✗ Số tiền vượt quá số dư ({(wallet?.balance || 0).toLocaleString('vi-VN')} ₫)
+                      </Text>
+                    )}
+                    {withdrawAmountStatus === 'invalid' && (
+                      <Text style={styles.errorText}>
+                        ✗ Số tiền tối thiểu là 5.000 ₫
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </View>
+              <Text style={styles.amountNote}>
+                Số dư hiện tại: {(wallet?.balance || 0).toLocaleString('vi-VN')} ₫
               </Text>
 
+              <View style={styles.buttonGroup}>
+                <TouchableOpacity
+                  style={[styles.button, styles.cancelButton]}
+                  onPress={() => setShowWithdrawModal(false)}
+                >
+                  <Text style={styles.cancelButtonText}>Hủy</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.button, styles.submitButton]}
+                  onPress={handleCreateWithdraw}
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.submitButtonText}>Rút tiền</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showDetailModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowDetailModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Chi tiết yêu cầu rút tiền</Text>
+              <TouchableOpacity onPress={() => setShowDetailModal(false)}>
+                <Text style={styles.closeButton}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalContent}>
+              {selectedWithdrawRequest && (
+                <View style={styles.detailContainer}>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Số tiền</Text>
+                    <Text style={styles.detailAmountValue}>
+                      {selectedWithdrawRequest.amount.toLocaleString('vi-VN')} ₫
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Trạng thái</Text>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        {
+                          backgroundColor:
+                            getWithdrawStatusColor(selectedWithdrawRequest.status) + '20',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusBadgeText,
+                          { color: getWithdrawStatusColor(selectedWithdrawRequest.status) },
+                        ]}
+                      >
+                        {getWithdrawStatusName(selectedWithdrawRequest.status)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {(() => {
+                    const bankAccount = bankAccounts.find(
+                      (acc) => acc.id === selectedWithdrawRequest.userBankAccountId
+                    );
+                    return bankAccount ? (
+                      <View style={styles.detailRowColumn}>
+                        <Text style={styles.detailLabel}>Tài khoản ngân hàng</Text>
+                        <View style={styles.bankInfoContainer}>
+                          {bankAccount.bank?.logo && (
+                            <Image
+                              source={{ uri: bankAccount.bank.logo }}
+                              style={styles.detailBankLogo}
+                              resizeMode="contain"
+                            />
+                          )}
+                          <View style={styles.bankInfoText}>
+                            <Text style={styles.bankInfoName}>
+                              {bankAccount.bank?.name || 'N/A'}
+                            </Text>
+                            <Text style={styles.bankInfoAccount}>
+                              {bankAccount.accountName} - {bankAccount.accountNumber}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    ) : null;
+                  })()}
+
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Ngày tạo</Text>
+                    <Text style={styles.detailValue}>
+                      {new Date(selectedWithdrawRequest.createdAt).toLocaleDateString('vi-VN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                      })}
+                      {' '}
+                      {new Date(selectedWithdrawRequest.createdAt).toLocaleTimeString('vi-VN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Mã giao dịch</Text>
+                    <Text style={styles.detailValue}>
+                      {selectedWithdrawRequest.transactionId}
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailRowColumn}>
+                    <Text style={styles.detailLabel}>Ghi chú từ Admin</Text>
+                    {selectedWithdrawRequest.reason ? (
+                      <View style={styles.reasonBox}>
+                        <Text style={styles.reasonText}>
+                          {selectedWithdrawRequest.reason}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.detailValue}>Chưa cập nhật</Text>
+                    )}
+                  </View>
+
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Cập nhật lúc</Text>
+                    <Text style={styles.detailValue}>
+                      {selectedWithdrawRequest.updatedAt
+                        ? new Date(selectedWithdrawRequest.updatedAt).toLocaleDateString('vi-VN', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                          }) +
+                          ' ' +
+                          new Date(selectedWithdrawRequest.updatedAt).toLocaleTimeString('vi-VN', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : 'Chưa cập nhật'}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
               <TouchableOpacity
-                style={styles.submitButton}
-                onPress={handleCreateWithdraw}
-                disabled={submitting || !selectedAccount}
+                style={[styles.button, styles.submitButton, { marginTop: 24 }]}
+                onPress={() => setShowDetailModal(false)}
               >
-                {submitting ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.submitButtonText}>Rút tiền</Text>
-                )}
+                <Text style={styles.submitButtonText}>Đóng</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -598,36 +910,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  centerContainer: {
+  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#F9FAFB',
   },
-  content: {
-    flex: 1,
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#6B7280',
   },
   balanceCard: {
     margin: 16,
     padding: 20,
-    backgroundColor: '#F0FDF4',
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#22C55E',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   balanceLabel: {
     fontSize: 13,
@@ -637,7 +940,7 @@ const styles = StyleSheet.create({
   balanceAmount: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#22C55E',
+    color: '#111827',
   },
   section: {
     marginHorizontal: 16,
@@ -647,7 +950,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 16,
@@ -655,36 +958,36 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#22C55E',
     justifyContent: 'center',
     alignItems: 'center',
   },
   accountCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    padding: 14,
+    marginBottom: 10,
     backgroundColor: '#FFFFFF',
-    padding: 16,
     borderRadius: 12,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#22C55E',
-  },
-  accountLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   accountIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: '#F0FDF4',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 12,
+  },
+  accountBankLogo: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
     marginRight: 12,
   },
   accountInfo: {
@@ -702,48 +1005,81 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   accountBank: {
-    fontSize: 12,
-    color: '#22C55E',
-    fontWeight: '500',
+    fontSize: 11,
+    color: '#9CA3AF',
   },
   accountActions: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  actionButtons: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
+  },
+  editButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#D1FAE5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#FEE2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  primaryBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: '#D1FAE5',
+    borderRadius: 6,
+  },
+  primaryBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#16A34A',
+  },
+  emptyState: {
+    padding: 32,
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 12,
   },
   withdrawButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F97316',
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: '#22C55E',
+    paddingVertical: 14,
+    borderRadius: 12,
     gap: 8,
-    marginTop: 8,
+    marginTop: 12,
   },
   withdrawButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  emptyState: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 24,
-    alignItems: 'center',
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 12,
-  },
   historyCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    padding: 14,
+    marginBottom: 10,
     backgroundColor: '#FFFFFF',
-    padding: 16,
     borderRadius: 12,
-    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   historyLeft: {
     flexDirection: 'row',
@@ -753,7 +1089,7 @@ const styles = StyleSheet.create({
   historyIcon: {
     width: 40,
     height: 40,
-    borderRadius: 8,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -764,39 +1100,94 @@ const styles = StyleSheet.create({
   historyAmount: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
+    color: '#EF4444',
     marginBottom: 4,
   },
   historyDate: {
     fontSize: 12,
     color: '#6B7280',
+    marginBottom: 2,
+  },
+  historyTime: {
+    fontSize: 11,
+    color: '#9CA3AF',
+  },
+  historyRight: {
+    alignItems: 'flex-end',
   },
   statusBadge: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
   },
   statusBadgeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
+  },
+  showMoreButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  showMoreText: {
+    color: '#22C55E',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  showLessButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  showLessText: {
+    color: '#EF4444',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  selectedBankInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#D1FAE5',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    marginTop: 16,
+    gap: 14,
+    borderWidth: 1,
+    borderColor: '#22C55E',
+  },
+  selectedBankInfoLogo: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+  },
+  selectedBankInfoText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#16A34A',
+    flex: 1,
+    lineHeight: 20,
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
   },
-  modalContent: {
+  modalContainer: {
+    flex: 1,
+    marginTop: 80,
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '90%',
-    paddingTop: 0,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
@@ -806,105 +1197,257 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
   },
-  modalForm: {
-    padding: 16,
+  closeButton: {
+    fontSize: 24,
+    color: '#6B7280',
+  },
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
-    marginBottom: 8,
+    color: '#374151',
+    marginBottom: 10,
     marginTop: 16,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
+  searchInput: {
+    paddingHorizontal: 14,
     paddingVertical: 10,
-    fontSize: 14,
-    backgroundColor: '#F9FAFB',
-  },
-  bankSelector: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: '#F9FAFB',
-  },
-  bankSelectorText: {
+    borderColor: '#E5E7EB',
     fontSize: 14,
+    marginBottom: 14,
     color: '#111827',
   },
-  searchInput: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    backgroundColor: '#F9FAFB',
-    marginTop: 8,
-    marginBottom: 8,
+  bankGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingVertical: 12,
+    gap: 8,
+    justifyContent: 'space-between',
   },
-  bankList: {
-    maxHeight: 200,
+  bankGridItem: {
+    width: 75,
+    height: 75,
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 6,
+  },
+  bankGridItemSelected: {
+    borderColor: '#22C55E',
+    backgroundColor: '#D1FAE5',
+  },
+  bankGridLogo: {
+    width: 44,
+    height: 44,
+    marginBottom: 4,
+  },
+  bankGridName: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#111827',
+    textAlign: 'center',
+    lineHeight: 12,
+  },
+  input: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  inputValid: {
+    borderColor: '#10B981',
+    backgroundColor: '#F0FDF4',
+  },
+  inputError: {
+    borderColor: '#EF4444',
+    backgroundColor: '#FEF2F2',
+  },
+  amountValidation: {
+    marginTop: -8,
+    marginBottom: 12,
+  },
+  validText: {
+    fontSize: 12,
+    color: '#10B981',
+    fontWeight: '600',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#EF4444',
+    fontWeight: '600',
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 10,
+    marginTop: 16,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  bankOption: {
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  bankOptionText: {
+  switchLabel: {
     fontSize: 14,
+    fontWeight: '600',
     color: '#111827',
+    marginBottom: 4,
   },
-  accountSelector: {
-    marginTop: 8,
+  switchDescription: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  accountSelectList: {
     marginBottom: 16,
   },
   accountSelectItem: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
     padding: 12,
-    marginRight: 8,
-    minWidth: 100,
+    marginBottom: 8,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
   },
-  accountSelectItemActive: {
-    backgroundColor: '#22C55E',
+  accountSelectItemSelected: {
+    backgroundColor: '#D1FAE5',
+    borderColor: '#16A34A',
   },
-  accountSelectText: {
-    fontSize: 12,
+  accountSelectName: {
+    fontSize: 14,
     fontWeight: '600',
     color: '#111827',
+    marginBottom: 4,
   },
-  accountSelectNumber: {
-    fontSize: 11,
+  accountSelectBank: {
+    fontSize: 12,
     color: '#6B7280',
-    marginTop: 4,
   },
-  note: {
+  amountNote: {
     fontSize: 12,
     color: '#6B7280',
     marginTop: 8,
-    marginBottom: 16,
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 24,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  button: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#F3F4F6',
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
   },
   submitButton: {
     backgroundColor: '#22C55E',
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
   },
   submitButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  detailContainer: {
+    paddingVertical: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  detailRowColumn: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  detailLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  detailValue: {
+    fontSize: 14,
+    color: '#111827',
+    textAlign: 'right',
+    flex: 1,
+    marginLeft: 16,
+  },
+  detailAmountValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#EF4444',
+  },
+  reasonBox: {
+    marginTop: 10,
+    padding: 14,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  reasonText: {
+    fontSize: 14,
+    color: '#991B1B',
+    lineHeight: 20,
+  },
+  bankInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  detailBankLogo: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  bankInfoText: {
+    flex: 1,
+  },
+  bankInfoName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  bankInfoAccount: {
+    fontSize: 13,
+    color: '#6B7280',
   },
 });

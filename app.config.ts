@@ -8,7 +8,7 @@ export default {
     slug: "agrimart-shop-new",
     version: "1.0.0",
     orientation: "portrait",
-    icon: "./assets/images/logoA.jpg",
+    icon: "./assets/images/agriMart.png",
     scheme: "agrimart",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
@@ -28,7 +28,7 @@ export default {
       package: "com.agrimart.shop",
       versionCode: 1,
       adaptiveIcon: {
-        foregroundImage: "./assets/images/logoA.jpg",
+        foregroundImage: "./assets/images/agriMart.png",
         backgroundColor: "#22C55E"
       },
       permissions: [
@@ -46,7 +46,7 @@ export default {
     web: {
       bundler: "metro",
       output: "single",
-      favicon: "./assets/images/logoA.jpg",
+      favicon: "./assets/images/agriMart.png",
     },
     plugins: ["expo-router", "expo-font", "expo-web-browser"],
     experiments: {

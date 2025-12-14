@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Alert, TextInput } from 'react-native';
 import { X, Plus } from 'lucide-react-native';
 import { CreateHarvestGradeDetailData, GRADE_LABELS, createHarvestGradeDetail } from '../../services/harvestGradeDetailService';
+import { checkHarvestHasActiveAuction } from '../../services/auctionService';
 
 interface CreateGradeModalProps {
   visible: boolean;
@@ -17,6 +18,41 @@ export default function CreateGradeModal({ visible, harvestId, existingGrades = 
   const [selectedGrade, setSelectedGrade] = useState<GradeType | null>(null);
   const [quantity, setQuantity] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingAuction, setCheckingAuction] = useState(false);
+  const [hasActiveAuction, setHasActiveAuction] = useState(false);
+
+  // Check for active auctions when modal opens
+  useEffect(() => {
+    if (visible && harvestId) {
+      checkActiveAuction();
+    }
+  }, [visible, harvestId]);
+
+  const checkActiveAuction = async () => {
+    setCheckingAuction(true);
+    try {
+      const hasActive = await checkHarvestHasActiveAuction(harvestId);
+      setHasActiveAuction(hasActive);
+      
+      if (hasActive) {
+        Alert.alert(
+          'Không thể tạo đánh giá mới',
+          'Mùa vụ này đang có đấu giá đang diễn ra (Pending/Approved/OnGoing). Vui lòng chờ đến khi đấu giá kết thúc.',
+          [
+            {
+              text: 'Đóng',
+              onPress: onClose,
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Error checking active auction:', error);
+      setHasActiveAuction(false);
+    } finally {
+      setCheckingAuction(false);
+    }
+  };
 
   const resetForm = () => {
     setSelectedGrade(null);
@@ -59,6 +95,15 @@ export default function CreateGradeModal({ visible, harvestId, existingGrades = 
   };
 
   const handleSubmit = async () => {
+    // Double check for active auction before submitting
+    if (hasActiveAuction) {
+      Alert.alert(
+        'Không thể tạo đánh giá mới',
+        'Mùa vụ này đang có đấu giá đang diễn ra. Vui lòng chờ đến khi đấu giá kết thúc.'
+      );
+      return;
+    }
+
     if (!validateForm()) return;
 
     try {
@@ -130,8 +175,8 @@ export default function CreateGradeModal({ visible, harvestId, existingGrades = 
                           opacity: isExisting ? 0.5 : 1,
                         },
                       ]}
-                      onPress={() => !isExisting && setSelectedGrade(grade)}
-                      disabled={isExisting}
+                      onPress={() => !isExisting && !hasActiveAuction && setSelectedGrade(grade)}
+                      disabled={isExisting || hasActiveAuction}
                     >
                       <View style={styles.gradeButtonContent}>
                         <Text style={[styles.gradeButtonText, { color: isExisting ? '#9CA3AF' : colors.text }]}>
@@ -162,7 +207,7 @@ export default function CreateGradeModal({ visible, harvestId, existingGrades = 
                 value={quantity}
                 onChangeText={setQuantity}
                 keyboardType="decimal-pad"
-                editable={!loading}
+                editable={!loading && !hasActiveAuction}
               />
             </View>
           </View>
@@ -177,13 +222,13 @@ export default function CreateGradeModal({ visible, harvestId, existingGrades = 
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+              style={[styles.submitButton, (loading || hasActiveAuction) && styles.submitButtonDisabled]}
               onPress={handleSubmit}
-              disabled={loading}
+              disabled={loading || hasActiveAuction}
             >
               <Plus size={18} color="#fff" />
               <Text style={styles.submitButtonText}>
-                {loading ? 'Đang tạo...' : 'Tạo mới'}
+                {loading || checkingAuction ? 'Đang tạo...' : 'Tạo mới'}
               </Text>
             </TouchableOpacity>
           </View>

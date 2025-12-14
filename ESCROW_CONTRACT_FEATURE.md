@@ -203,7 +203,7 @@ interface EscrowDetailModalProps {
   - Updated `handleRefresh()` - Now refreshes both profile and escrows
 
 - New UI Section:
-  - Added "Hợp đồng cọc tiền" (Escrow Contracts) section
+  - Added "giao dịch kí quỹ cọc tiền" (Escrow Contracts) section
   - Displays loading state while fetching
   - Shows list of EscrowContractCard components
   - Shows empty state when no contracts
@@ -245,7 +245,7 @@ interface EscrowDetailModalProps {
   - `fetchEscrows()` - Fetches wholesaler's escrow contracts
 
 - New UI Section:
-  - Added "Hợp đồng cọc tiền" (Escrow Contracts) section
+  - Added "giao dịch kí quỹ cọc tiền" (Escrow Contracts) section
   - Positioned after "Báo cáo" section
   - Displays loading state while fetching
   - Shows list of EscrowContractCard components
@@ -270,7 +270,7 @@ interface EscrowDetailModalProps {
 
 ### Farmer Workflow
 1. Navigate to Profile screen
-2. Scroll to "Hợp đồng cọc tiền" section
+2. Scroll to "giao dịch kí quỹ cọc tiền" section
 3. See list of all escrow contracts
 4. Click on a contract to view details
 5. In modal:
@@ -283,7 +283,7 @@ interface EscrowDetailModalProps {
 
 ### Wholesaler Workflow
 1. Navigate to Profile screen
-2. Scroll to "Hợp đồng cọc tiền" section
+2. Scroll to "giao dịch kí quỹ cọc tiền" section
 3. See list of all escrow contracts
 4. Click on a contract to view details
 5. In modal:
@@ -391,7 +391,7 @@ Status 4: Hoàn thành (Completed) - Dark Green
 
 ## Error Handling
 
-- **Fetch Errors:** Alert user with message "Không thể tải danh sách hợp đồng" (Cannot load contracts)
+- **Fetch Errors:** Alert user with message "Không thể tải danh sách giao dịch kí quỹ" (Cannot load contracts)
 - **Update Errors:** Alert user with message "Không thể cập nhật trạng thái. Vui lòng thử lại." (Cannot update status)
 - **Payment URL Errors:** Alert user with message "Không thể lấy link thanh toán. Vui lòng thử lại." (Cannot get payment URL)
 

@@ -195,7 +195,7 @@ Successfully implemented two major features for the mobile auction application:
 ## Error Handling
 
 ### Escrow Payment Errors
-- "Không tìm thấy thông tin hợp đồng ký quỹ" - Missing escrow data
+- "Không tìm thấy thông tin giao dịch kí quỹ ký quỹ" - Missing escrow data
 - "Bạn đã thanh toán đủ số tiền ký quỹ" - Already paid
 - Network/API errors logged to console
 

@@ -31,12 +31,16 @@ import {
 import { useRouter } from 'expo-router';
 import { getUserProfile, logout, getCurrentUser } from '../../../../services/authService';
 import type { User as UserType } from '../../../../services/authService';
+import CertificationListModal from '../../../../components/farmer/CertificationListModal';
+import CreateCertificationModal from '../../../../components/farmer/CreateCertificationModal';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const [user, setUser] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showCertListModal, setShowCertListModal] = useState(false);
+  const [showCreateCertModal, setShowCreateCertModal] = useState(false);
 
   const fetchUserProfile = async () => {
     try {
@@ -187,7 +191,7 @@ export default function ProfileScreen() {
         <View style={styles.infoSection}>
           <View style={styles.infoCard}>
             {/* Email */}
-            <View style={styles.infoRow}>
+            {/* <View style={styles.infoRow}>
               <Mail size={20} color="#6B7280" style={styles.infoIcon} />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Email</Text>
@@ -195,10 +199,10 @@ export default function ProfileScreen() {
                   {user?.email || 'Chưa cập nhật'}
                 </Text>
               </View>
-            </View>
+            </View> */}
 
             {/* Phone */}
-            <View style={styles.infoRow}>
+            {/* <View style={styles.infoRow}>
               <Phone size={20} color="#6B7280" style={styles.infoIcon} />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Số điện thoại</Text>
@@ -206,7 +210,7 @@ export default function ProfileScreen() {
                   {user?.phoneNumber || 'Chưa cập nhật'}
                 </Text>
               </View>
-            </View>
+            </View> */}
 
             {/* Address */}
             <View style={[styles.infoRow, styles.lastInfoRow]}>
@@ -259,12 +263,22 @@ export default function ProfileScreen() {
           <View style={styles.servicesGrid}>
             <TouchableOpacity
               style={styles.serviceCard}
-              onPress={() => router.push('/pages/farmer/farmer-escrow-contracts' as any)}
+              onPress={() => router.push('/(tabs)/farmer/profile/transactions')}
             >
               <View style={styles.serviceIconContainer}>
                 <Shield size={24} color="#22C55E" />
               </View>
-              <Text style={styles.serviceTitle}>Hợp đồng</Text>
+              <Text style={styles.serviceTitle}>Giao dịch</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.serviceCard}
+              onPress={() => setShowCertListModal(true)}
+            >
+              <View style={styles.serviceIconContainer}>
+                <Award size={24} color="#8B5CF6" />
+              </View>
+              <Text style={styles.serviceTitle}>Chứng chỉ</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -275,16 +289,6 @@ export default function ProfileScreen() {
                 <Wallet size={24} color="#22C55E" />
               </View>
               <Text style={styles.serviceTitle}>Ví của tôi</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.serviceCard}
-              onPress={() => router.push('/(tabs)/farmer/profile/transactions' as any)}
-            >
-              <View style={styles.serviceIconContainer}>
-                <History size={24} color="#3B82F6" />
-              </View>
-              <Text style={styles.serviceTitle}>Giao dịch</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -317,6 +321,24 @@ export default function ProfileScreen() {
       
        
       </ScrollView>
+
+      {/* Certification Modals */}
+      <CertificationListModal
+        visible={showCertListModal}
+        onClose={() => setShowCertListModal(false)}
+        onCreateNew={() => {
+          setShowCertListModal(false);
+          setShowCreateCertModal(true);
+        }}
+      />
+      
+      <CreateCertificationModal
+        visible={showCreateCertModal}
+        onClose={() => setShowCreateCertModal(false)}
+        onSuccess={() => {
+          setShowCertListModal(true);
+        }}
+      />
     </View>
   );
 }

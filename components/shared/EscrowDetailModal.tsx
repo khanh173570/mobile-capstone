@@ -139,7 +139,7 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
         <View style={styles.modalContent}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Chi tiết hợp đồng</Text>
+            <Text style={styles.headerTitle}>Chi tiết giao dịch kí quỹ</Text>
             <TouchableOpacity onPress={onClose} disabled={loading}>
               <MaterialIcons name="close" size={24} color="#1F2937" />
             </TouchableOpacity>
@@ -209,11 +209,11 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
                       label="Tên"
                       value={`${farmerInfo.firstName || ''} ${farmerInfo.lastName || ''}`}
                     />
-                    <DetailRow label="Email" value={farmerInfo.email || 'N/A'} />
+                    {/* <DetailRow label="Email" value={farmerInfo.email || 'N/A'} />
                     <DetailRow
                       label="Số điện thoại"
                       value={farmerInfo.phoneNumber || 'N/A'}
-                    />
+                    /> */}
                     <DetailRow
                       label="Địa chỉ"
                       value={farmerInfo.address || 'N/A'}
@@ -230,11 +230,11 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
                       label="Tên"
                       value={`${winnerInfo.firstName || ''} ${winnerInfo.lastName || ''}`}
                     />
-                    <DetailRow label="Email" value={winnerInfo.email || 'N/A'} />
+                    {/* <DetailRow label="Email" value={winnerInfo.email || 'N/A'} />
                     <DetailRow
                       label="Số điện thoại"
                       value={winnerInfo.phoneNumber || 'N/A'}
-                    />
+                    /> */}
                     <DetailRow
                       label="Địa chỉ"
                       value={winnerInfo.address || 'N/A'}
@@ -416,34 +416,34 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
     flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
+    backgroundColor: '#FFFFFF',
+    marginTop: 40,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#E5E7EB',
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#111827',
   },
   scrollContent: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 24,
   },
   loadingContainer: {
     paddingVertical: 40,

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Alert, TextInput } from 'react-native';
 import { X } from 'lucide-react-native';
 import { UpdateHarvestGradeDetailData, updateHarvestGradeDetail, HarvestGradeDetail, GRADE_LABELS } from '../../services/harvestGradeDetailService';
+import { checkHarvestHasActiveAuction } from '../../services/auctionService';
 
 interface EditGradeModalProps {
   visible: boolean;
@@ -13,12 +14,30 @@ interface EditGradeModalProps {
 export default function EditGradeModal({ visible, grade, onClose, onSuccess }: EditGradeModalProps) {
   const [quantity, setQuantity] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingAuction, setCheckingAuction] = useState(false);
+  const [hasActiveAuction, setHasActiveAuction] = useState(false);
 
   useEffect(() => {
-    if (grade) {
+    if (grade && visible) {
       setQuantity(grade.quantity.toString());
+      checkActiveAuction();
     }
   }, [grade, visible]);
+
+  const checkActiveAuction = async () => {
+    if (!grade?.harvestID) return;
+    
+    setCheckingAuction(true);
+    try {
+      const hasActive = await checkHarvestHasActiveAuction(grade.harvestID);
+      setHasActiveAuction(hasActive);
+    } catch (error) {
+      console.error('Error checking active auction:', error);
+      setHasActiveAuction(false);
+    } finally {
+      setCheckingAuction(false);
+    }
+  };
 
   const resetForm = () => {
     setQuantity('');
@@ -45,6 +64,15 @@ export default function EditGradeModal({ visible, grade, onClose, onSuccess }: E
   };
 
   const handleSubmit = async () => {
+    // Check if harvest has active auction
+    if (hasActiveAuction) {
+      Alert.alert(
+        'Không thể cập nhật',
+        'Mùa vụ này đang có đấu giá đang diễn ra (Pending/Approved/OnGoing). Vui lòng chờ đến khi đấu giá kết thúc.'
+      );
+      return;
+    }
+
     if (!validateForm() || !grade) return;
 
     try {
@@ -82,7 +110,14 @@ export default function EditGradeModal({ visible, grade, onClose, onSuccess }: E
       <View style={styles.overlay}>
         <View style={styles.container}>
           <View style={styles.header}>
-            <Text style={styles.title}>Cập nhật đánh giá mùa vụ</Text>
+            <Text style={styles.title}>
+              {hasActiveAuction ? 'Xem đánh giá mùa vụ' : 'Cập nhật đánh giá mùa vụ'}
+            </Text>
+            {hasActiveAuction && (
+              <View style={styles.viewOnlyBadge}>
+                <Text style={styles.viewOnlyBadgeText}>Đang có đấu giá</Text>
+              </View>
+            )}
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
               <X size={24} color="#374151" />
             </TouchableOpacity>
@@ -107,29 +142,40 @@ export default function EditGradeModal({ visible, grade, onClose, onSuccess }: E
                 value={quantity}
                 onChangeText={setQuantity}
                 keyboardType="decimal-pad"
-                editable={!loading}
+                editable={!loading && !hasActiveAuction}
               />
             </View>
           </View>
 
           <View style={styles.footer}>
-            <TouchableOpacity 
-              style={styles.cancelButton}
-              onPress={handleClose}
-              disabled={loading}
-            >
-              <Text style={styles.cancelButtonText}>Hủy</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              <Text style={styles.submitButtonText}>
-                {loading ? 'Đang cập nhật...' : 'Cập nhật'}
-              </Text>
-            </TouchableOpacity>
+            {hasActiveAuction ? (
+              <TouchableOpacity 
+                style={[styles.submitButton, { flex: 1 }]}
+                onPress={handleClose}
+              >
+                <Text style={styles.submitButtonText}>Đóng</Text>
+              </TouchableOpacity>
+            ) : (
+              <>
+                <TouchableOpacity 
+                  style={styles.cancelButton}
+                  onPress={handleClose}
+                  disabled={loading}
+                >
+                  <Text style={styles.cancelButtonText}>Hủy</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+                  onPress={handleSubmit}
+                  disabled={loading}
+                >
+                  <Text style={styles.submitButtonText}>
+                    {loading ? 'Đang cập nhật...' : 'Cập nhật'}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
       </View>
@@ -166,6 +212,19 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#111827',
+    flex: 1,
+  },
+  viewOnlyBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  viewOnlyBadgeText: {
+    color: '#92400E',
+    fontSize: 12,
+    fontWeight: '600',
   },
   closeButton: {
     padding: 8,

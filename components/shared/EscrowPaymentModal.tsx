@@ -16,6 +16,7 @@ interface EscrowPaymentModalProps {
   visible: boolean;
   escrowId: string;
   amount: number;
+  fullPrice?: number;
   onClose: () => void;
   onPaymentSuccess: () => void;
   onPaymentFailure?: () => void;
@@ -26,11 +27,14 @@ export default function EscrowPaymentModal({
   visible,
   escrowId,
   amount,
+  fullPrice,
   onClose,
   onPaymentSuccess,
   onPaymentFailure,
   onOpenPaymentWebView,
 }: EscrowPaymentModalProps) {
+  // Calculate deposit (30% of full price) if fullPrice is provided
+  const depositAmount = fullPrice ? fullPrice * 0.3 : amount;
   const [loading, setLoading] = useState(false);
   const [selectedOption, setSelectedOption] = useState<'wallet' | 'qr' | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -65,7 +69,7 @@ export default function EscrowPaymentModal({
       if (result) {
         Alert.alert(
           'Thanh toán thành công',
-          `Đã thanh toán cọc ${amount.toLocaleString('vi-VN')} ₫ thành công!`,
+          `Đã thanh toán cọc ${depositAmount.toLocaleString('vi-VN')} ₫ thành công!`,
           [
             {
               text: 'OK',
@@ -125,10 +129,20 @@ export default function EscrowPaymentModal({
 
           {/* Amount */}
           <View style={styles.amountSection}>
-            <Text style={styles.amountLabel}>Số tiền thanh toán</Text>
+            <View style={styles.depositInfoBox}>
+              <Text style={styles.depositInfoText}>
+                💡 Số tiền cọc là 30% giá trị đơn hàng
+              </Text>
+            </View>
+            <Text style={styles.amountLabel}>Số tiền cọc cần thanh toán (30%)</Text>
             <Text style={styles.amountValue}>
-              {amount.toLocaleString('vi-VN')} ₫
+              {depositAmount.toLocaleString('vi-VN')} ₫
             </Text>
+            {fullPrice && (
+              <Text style={styles.fullPriceText}>
+                Tổng giá trị: {fullPrice.toLocaleString('vi-VN')} ₫
+              </Text>
+            )}
           </View>
 
           {/* Payment Options or Confirmation */}
@@ -176,8 +190,19 @@ export default function EscrowPaymentModal({
               <Text style={styles.confirmTitle}>
                 Xác nhận {selectedOption === 'wallet' ? 'từ ví' : 'qua QR'}
               </Text>
+              <View style={styles.confirmDepositBox}>
+                <Text style={styles.confirmDepositLabel}>Số tiền cọc (30%)</Text>
+                <Text style={styles.confirmDepositAmount}>
+                  {depositAmount.toLocaleString('vi-VN')} ₫
+                </Text>
+                {fullPrice && (
+                  <Text style={styles.confirmFullPriceText}>
+                    Tổng giá trị: {fullPrice.toLocaleString('vi-VN')} ₫
+                  </Text>
+                )}
+              </View>
               <Text style={styles.confirmMessage}>
-                Bạn sắp thanh toán {amount.toLocaleString('vi-VN')} ₫ để hoàn tất giao dịch.
+                Phần còn lại (70%) sẽ thanh toán khi nhận hàng
               </Text>
               <Text style={styles.confirmWarning}>
                 ⚠️ Hành động này không thể hoàn tác
@@ -272,6 +297,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
+  depositInfoBox: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#3B82F6',
+    marginBottom: 12,
+  },
+  depositInfoText: {
+    fontSize: 13,
+    color: '#1E40AF',
+    textAlign: 'center',
+  },
   amountLabel: {
     fontSize: 13,
     color: '#6B7280',
@@ -280,7 +319,12 @@ const styles = StyleSheet.create({
   amountValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#10B981',
+    color: '#22C55E',
+  },
+  fullPriceText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
   },
   optionsContainer: {
     maxHeight: 350,
@@ -336,12 +380,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#111827',
-    marginBottom: 12,
+    marginBottom: 16,
     textAlign: 'center',
   },
+  confirmDepositBox: {
+    backgroundColor: '#F0FDF4',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#22C55E',
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  confirmDepositLabel: {
+    fontSize: 13,
+    color: '#166534',
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  confirmDepositAmount: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#22C55E',
+  },
+  confirmFullPriceText: {
+    fontSize: 12,
+    color: '#166534',
+    marginTop: 6,
+  },
   confirmMessage: {
-    fontSize: 14,
-    color: '#374151',
+    fontSize: 13,
+    color: '#6B7280',
     marginBottom: 16,
     textAlign: 'center',
     lineHeight: 20,

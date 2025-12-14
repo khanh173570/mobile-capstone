@@ -7,17 +7,14 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
-  TouchableOpacity,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { FileText, ArrowLeft, RefreshCw } from 'lucide-react-native';
-import { EscrowContractCard } from '../../../components/shared/EscrowContractCard';
-import { EscrowDetailModal } from '../../../components/shared/EscrowDetailModal';
-import { getWholesalerEscrows, EscrowContract } from '../../../services/escrowContractService';
-import { getAuctionDetail } from '../../../services/auctionService';
+import { FileText } from 'lucide-react-native';
+import { EscrowContractCard } from '../../../../components/shared/EscrowContractCard';
+import { EscrowDetailModal } from '../../../../components/shared/EscrowDetailModal';
+import { getWholesalerEscrows, EscrowContract } from '../../../../services/escrowContractService';
+import { getAuctionDetail } from '../../../../services/auctionService';
 
-export default function WholesalerEscrowContractsScreen() {
-  const router = useRouter();
+export default function WholesalerTransactionsScreen() {
   const [escrows, setEscrows] = useState<EscrowContract[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -82,16 +79,13 @@ export default function WholesalerEscrowContractsScreen() {
 
   const renderLoading = () => (
     <View style={styles.loadingContainer}>
-      <ActivityIndicator size="large" color="#22C55E" />
+      <ActivityIndicator size="large" color="#3B82F6" />
       <Text style={styles.loadingText}>Đang tải...</Text>
     </View>
   );
 
   return (
     <View style={styles.container}>
-      <View style={styles.pageHeader}>
-        <Text style={styles.pageTitle}>Giao dịch</Text>
-      </View>
       <FlatList
         data={escrows}
         renderItem={({ item }) => (
@@ -132,18 +126,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
-  },
-  pageHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  pageTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
   },
   listContent: {
     padding: 16,

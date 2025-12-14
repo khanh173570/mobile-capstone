@@ -12,8 +12,6 @@ import {
 import { router } from 'expo-router';
 import {
   Wallet as WalletIcon,
-  ArrowLeft,
-  Plus,
   RefreshCw,
   CreditCard,
   TrendingUp,
@@ -21,6 +19,8 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   Clock,
+  Eye,
+  EyeOff,
 } from 'lucide-react-native';
 import {
   getMyWallet,
@@ -33,8 +33,6 @@ import {
   getLedgerDirectionColor,
   formatCurrency,
 } from '../../../../../services/walletService';
-import { getUserProfile } from '../../../../../services/authService';
-import AddFundsModal from '../../../../../components/wholesaler/AddFundsModal';
 import { handleError } from '../../../../../utils/errorHandler';
 
 export default function FarmerWalletScreen() {
@@ -42,25 +40,12 @@ export default function FarmerWalletScreen() {
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showAddFundsModal, setShowAddFundsModal] = useState(false);
-  const [userId, setUserId] = useState<string>('');
+  const [showBalance, setShowBalance] = useState(true);
 
   useEffect(() => {
-    loadUserProfile();
     loadWallet();
     loadLedgers();
   }, []);
-
-  const loadUserProfile = async () => {
-    try {
-      const profile = await getUserProfile();
-      if (profile && profile.data) {
-        setUserId(profile.data.id);
-      }
-    } catch (error) {
-      console.error('Error loading user profile:', error);
-    }
-  };
 
   const loadWallet = async () => {
     try {
@@ -90,19 +75,6 @@ export default function FarmerWalletScreen() {
     loadLedgers();
   };
 
-  const handleAddFunds = () => {
-    if (!userId) {
-      Alert.alert('Lỗi', 'Không thể xác định người dùng');
-      return;
-    }
-    setShowAddFundsModal(true);
-  };
-
-  const handleAddFundsSuccess = () => {
-    loadWallet();
-    loadLedgers();
-  };
-
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleDateString('vi-VN', {
@@ -117,13 +89,6 @@ export default function FarmerWalletScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <ArrowLeft size={24} color="#111827" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Ví của tôi</Text>
-          <View style={{ width: 24 }} />
-        </View>
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#22C55E" />
         </View>
@@ -133,16 +98,6 @@ export default function FarmerWalletScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Ví của tôi</Text>
-        <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
-          <RefreshCw size={24} color="#111827" />
-        </TouchableOpacity>
-      </View>
-
       <ScrollView
         style={styles.content}
         refreshControl={
@@ -170,9 +125,21 @@ export default function FarmerWalletScreen() {
             </View>
           </View>
 
-          <Text style={styles.balanceLabel}>Số dư khả dụng</Text>
+          <View style={styles.balanceLabelRow}>
+            <Text style={styles.balanceLabel}>Số dư khả dụng</Text>
+            <TouchableOpacity
+              onPress={() => setShowBalance(!showBalance)}
+              style={styles.eyeButton}
+            >
+              {showBalance ? (
+                <Eye size={20} color="#6B7280" />
+              ) : (
+                <EyeOff size={20} color="#6B7280" />
+              )}
+            </TouchableOpacity>
+          </View>
           <Text style={styles.balanceAmount}>
-            {formatCurrency(wallet?.balance || 0)}
+            {showBalance ? formatCurrency(wallet?.balance || 0) : '********'}
           </Text>
 
           <View style={styles.walletInfo}>
@@ -185,16 +152,7 @@ export default function FarmerWalletScreen() {
           {/* Action Buttons */}
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={styles.addFundsButton}
-              onPress={handleAddFunds}
-              disabled={wallet?.walletStatus !== 0}
-            >
-              <Plus size={20} color="#FFFFFF" />
-              <Text style={styles.addFundsButtonText}>Nạp tiền</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.withdrawButton}
+              style={[styles.withdrawButton, { flex: 1 }]}
               onPress={() => router.push('/(tabs)/farmer/profile/withdraw' as any)}
             >
               <ArrowUpRight size={20} color="#FFFFFF" />
@@ -207,11 +165,6 @@ export default function FarmerWalletScreen() {
         <View style={styles.transactionSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Lịch sử biến động</Text>
-            <TouchableOpacity
-              onPress={() => router.push('/(tabs)/farmer/profile/transactions' as any)}
-            >
-              <Text style={styles.viewAllText}>Xem tất cả</Text>
-            </TouchableOpacity>
           </View>
 
           {ledgers.length > 0 ? (
@@ -268,15 +221,6 @@ export default function FarmerWalletScreen() {
           )}
         </View>
       </ScrollView>
-
-      {userId && (
-        <AddFundsModal
-          visible={showAddFundsModal}
-          onClose={() => setShowAddFundsModal(false)}
-          onSuccess={handleAddFundsSuccess}
-          userId={userId}
-        />
-      )}
     </View>
   );
 }
@@ -286,28 +230,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
+  content: {
+    flex: 1,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  content: {
-    flex: 1,
   },
   balanceCard: {
     margin: 16,
@@ -332,10 +261,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  balanceLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   balanceLabel: {
     fontSize: 14,
     color: '#6B7280',
-    marginBottom: 8,
+  },
+  eyeButton: {
+    padding: 4,
   },
   balanceAmount: {
     fontSize: 36,

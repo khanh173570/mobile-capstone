@@ -44,6 +44,7 @@ import { useAuctionContext } from '../../../../../hooks/useAuctionContext';
 import { getBidsForAuction, getAllBidsForAuction, BidResponse, BidLog } from '../../../../../services/bidService';
 import { sendLocalNotification } from '../../../../../services/notificationService';
 import { signalRService, BidPlacedEvent, BuyNowEvent } from '../../../../../services/signalRService';
+import { getUserByUsername, User } from '../../../../../services/authService';
 
 interface Auction {
     id: string;
@@ -97,6 +98,8 @@ export default function WholesalerAuctionDetailScreen() {
   const [showBidsModal, setShowBidsModal] = useState(false);
   const [lastViewedBidTime, setLastViewedBidTime] = useState<string | null>(null);
   const [displayPrice, setDisplayPrice] = useState<number>(0); // Track current price separately for instant UI update
+  const [farmerData, setFarmerData] = useState<User | null>(null);
+  const [loadingFarmer, setLoadingFarmer] = useState(false);
 
   // Debug: Log state changes
   useEffect(() => {
@@ -404,6 +407,27 @@ export default function WholesalerAuctionDetailScreen() {
       await loadAllBids(auctionId as string);
     }
   };
+
+  // Load farmer data
+  useEffect(() => {
+    const loadFarmer = async () => {
+      if (!auction?.farmerId) return;
+      
+      try {
+        setLoadingFarmer(true);
+        const farmerUser = await getUserByUsername(auction.farmerId);
+        if (farmerUser) {
+          setFarmerData(farmerUser);
+        }
+      } catch (error) {
+        console.error('Error loading farmer data:', error);
+      } finally {
+        setLoadingFarmer(false);
+      }
+    };
+
+    loadFarmer();
+  }, [auction?.farmerId]);
 
   // Update countdown every second
   useEffect(() => {
@@ -814,7 +838,6 @@ export default function WholesalerAuctionDetailScreen() {
         {/* Status Section */}
         <View style={styles.section}>
           <View style={styles.auctionHeader}>
-            <Text style={styles.sessionCode}>{auction.sessionCode}</Text>
             {statusInfo && (
               <View
                 style={[
@@ -827,6 +850,7 @@ export default function WholesalerAuctionDetailScreen() {
                 </Text>
               </View>
             )}
+            <Text style={styles.sessionCode}>{auction.sessionCode}</Text>
           </View>
 
           <View style={styles.divider} />
@@ -902,23 +926,40 @@ export default function WholesalerAuctionDetailScreen() {
             </View>
           </View>
 
-          <View style={styles.miniDivider} />
-
-          {/* Quantity Information */}
-          <View style={styles.subsectionContainer}>
-            <Text style={styles.subsectionTitle}>Thông tin sản phẩm</Text>
-            <View style={styles.subsectionContent}>
-              <View style={styles.infoRow}>
-                {/* <Package size={20} color="#16A34A" /> */}
-                <Text style={[styles.infoLabel, { color: '#16A34A', fontWeight: '600' }]}>Số lượng dự kiến</Text>
-                <Text style={styles.infoValue}>
-                  {auction.expectedTotalQuantity > 0 
-                    ? `${auction.expectedTotalQuantity} kg` 
-                    : 'Chưa xác định'}
-                </Text>
+          {/* Farmer Information */}
+          {farmerData && (
+            <>
+              <View style={styles.miniDivider} />
+              <View style={styles.subsectionContainer}>
+                <Text style={styles.subsectionTitle}>Thông tin nông dân</Text>
+                <View style={styles.subsectionContent}>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Họ tên</Text>
+                    <Text style={styles.infoValue}>
+                      {farmerData.firstName && farmerData.lastName 
+                        ? `${farmerData.firstName} ${farmerData.lastName}` 
+                        : 'Chưa cập nhật'}
+                    </Text>
+                  </View>
+                  {/* <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Số điện thoại</Text>
+                    <Text style={styles.infoValue}>{farmerData.phoneNumber || 'Chưa cập nhật'}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Email</Text>
+                    <Text style={styles.infoValue}>{farmerData.email || 'Chưa cập nhật'}</Text>
+                  </View> */}
+                  {farmerData.address && (
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Địa chỉ</Text>
+                      <Text style={styles.infoValue}>{farmerData.address}</Text>
+                    </View>
+                  )}
+                </View>
               </View>
-            </View>
-          </View>
+            </>
+          )}
+
         </View>
 
         {/* Escrow Payment Section - Only show if user is winner */}
@@ -1009,17 +1050,12 @@ export default function WholesalerAuctionDetailScreen() {
                       
                       return (
                         <View key={gradeDetail.id} style={styles.gradeDetailRow}>
-                          <View style={styles.gradeDetailContent}>
-                            <Text style={[styles.gradeName, { color: gradeInfo.color }]}>
-                              {gradeInfo.name}
-                            </Text>
-                            <Text style={styles.gradeQuantity}>
-                              {gradeDetail.quantity} {gradeDetail.unit || 'kg'}
-                            </Text>
-                          </View>
-                          <View style={styles.gradeBadge}>
-                            <View style={[styles.gradeIndicator, { backgroundColor: gradeInfo.color }]} />
-                          </View>
+                          <Text style={styles.gradeName}>
+                            {gradeInfo.name}
+                          </Text>
+                          <Text style={styles.gradeQuantity}>
+                            {gradeDetail.quantity} {gradeDetail.unit || 'kg'}
+                          </Text>
                         </View>
                       );
                     })}
@@ -1049,20 +1085,7 @@ export default function WholesalerAuctionDetailScreen() {
 
               {/* Farm Information */}
               {farm && (
-                <>
-                  <Text style={styles.subsectionTitle}>Thông tin Nông trại</Text>
-                  <View style={styles.farmCard}>
-                    <View style={styles.farmHeader}>
-                      <View style={styles.farmIcon}>
-                        <MapPin size={20} color="#22C55E" />
-                      </View>
-                      <View style={styles.farmInfo}>
-                        <Text style={styles.farmTitle}>{farm.name}</Text>
-                        <Text style={styles.farmSubtitle}>Mã vườn: {farm.id.substring(0, 8)}...</Text>
-                      </View>
-                    </View>
-                  </View>
-                </>
+                <Text style={styles.subsectionTitle}>Thông tin vườn - {farm.name}</Text>
               )}
 
               {/* Crop Details */}
@@ -1070,9 +1093,6 @@ export default function WholesalerAuctionDetailScreen() {
               <Text style={styles.subsectionTitle}>Thông tin vườn trồng</Text>
               <View style={styles.cropCard}>
                 <View style={styles.cropHeader}>
-                  <View style={styles.cropIcon}>
-                    <Leaf size={20} color="#22C55E" />
-                  </View>
                   <View style={styles.cropInfo}>
                     <Text style={styles.cropTitle}>{crop.name}</Text>
                     <Text style={styles.cropSubtitle}>
@@ -1167,17 +1187,12 @@ export default function WholesalerAuctionDetailScreen() {
                           };
                           return (
                             <View key={gradeDetail.id} style={styles.gradeDetailRow}>
-                              <View style={styles.gradeDetailContent}>
-                                <Text style={[styles.gradeName, { color: gradeColors[gradeDetail.grade] }]}>
-                                  {gradeNames[gradeDetail.grade] || `Hạng ${gradeDetail.grade}`}
-                                </Text>
-                                <Text style={styles.gradeQuantity}>
-                                  {gradeDetail.quantity} {gradeDetail.unit || 'kg'}
-                                </Text>
-                              </View>
-                              <View style={styles.gradeBadge}>
-                                <View style={[styles.gradeIndicator, { backgroundColor: gradeColors[gradeDetail.grade] }]} />
-                              </View>
+                              <Text style={styles.gradeName}>
+                                {gradeNames[gradeDetail.grade] || `Hạng ${gradeDetail.grade}`}
+                              </Text>
+                              <Text style={styles.gradeQuantity}>
+                                {gradeDetail.quantity} {gradeDetail.unit || 'kg'}
+                              </Text>
                             </View>
                           );
                         })}
@@ -1272,6 +1287,7 @@ export default function WholesalerAuctionDetailScreen() {
               existingBid={selectedBidForEdit}
               auctionStatus={auction.status}
               userProfile={userProfile}
+              startingPrice={auction.startingPrice}
             />
           )}
 
@@ -1366,9 +1382,9 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   section: {
-    marginTop: 24,
-    marginHorizontal: 16,
-    paddingTop: 16,
+    marginTop: 16,
+    marginHorizontal: 12,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
   },
@@ -1379,14 +1395,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   subsectionContainer: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   countdownContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginVertical: 16,
-    paddingHorizontal: 8,
+    marginVertical: 12,
+    paddingHorizontal: 6,
   },
   subsectionTitle: {
     fontSize: 14,
@@ -1396,17 +1412,17 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   subsectionContent: {
-    paddingLeft: 8,
+    paddingLeft: 6,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   infoLabel: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#6B7280',
-    marginLeft: 12,
+    marginLeft: 8,
     flex: 1,
   },
   infoValue: {
@@ -1424,18 +1440,18 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: '#E5E7EB',
-    marginVertical: 16,
+    marginVertical: 12,
   },
   miniDivider: {
     height: 1,
     backgroundColor: '#F3F4F6',
-    marginVertical: 12,
+    marginVertical: 8,
   },
   auctionHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+    gap: 8,
   },
   sessionCode: {
     fontSize: 16,
@@ -1491,8 +1507,8 @@ const styles = StyleSheet.create({
   cropCard: {
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 10,
+    padding: 10,
     backgroundColor: '#F9FAFB',
   },
   cropHeader: {
@@ -1547,10 +1563,10 @@ const styles = StyleSheet.create({
   harvestCard: {
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 10,
+    padding: 10,
     backgroundColor: '#F9FAFB',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   harvestHeader: {
     marginBottom: 12,
@@ -1563,18 +1579,18 @@ const styles = StyleSheet.create({
   currentHarvestDetails: {
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
+    padding: 10,
+    marginBottom: 10,
   },
   harvestDetailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   harvestDetailLabel: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#6B7280',
-    marginLeft: 10,
+    marginLeft: 8,
     flex: 1,
   },
   harvestDetailValue: {
@@ -1654,9 +1670,9 @@ const styles = StyleSheet.create({
 
   // Bidding Button
   bidButton: {
-    marginHorizontal: 16,
-    marginTop: 24,
-    marginBottom: 16,
+    marginHorizontal: 12,
+    marginTop: 16,
+    marginBottom: 12,
     paddingVertical: 14,
     paddingHorizontal: 24,
     backgroundColor: '#FFFFFF',

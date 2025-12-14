@@ -21,6 +21,8 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   Clock,
+  Eye,
+  EyeOff,
 } from 'lucide-react-native';
 import {
   getMyWallet,
@@ -44,6 +46,7 @@ export default function WalletScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showAddFundsModal, setShowAddFundsModal] = useState(false);
   const [userId, setUserId] = useState<string>('');
+  const [showBalance, setShowBalance] = useState(true);
 
   useEffect(() => {
     loadUserProfile();
@@ -153,9 +156,21 @@ export default function WalletScreen() {
             </View>
           </View>
 
-          <Text style={styles.balanceLabel}>Số dư khả dụng</Text>
+          <View style={styles.balanceLabelRow}>
+            <Text style={styles.balanceLabel}>Số dư khả dụng</Text>
+            <TouchableOpacity
+              onPress={() => setShowBalance(!showBalance)}
+              style={styles.eyeButton}
+            >
+              {showBalance ? (
+                <Eye size={20} color="#6B7280" />
+              ) : (
+                <EyeOff size={20} color="#6B7280" />
+              )}
+            </TouchableOpacity>
+          </View>
           <Text style={styles.balanceAmount}>
-            {formatCurrency(wallet?.balance || 0)}
+            {showBalance ? formatCurrency(wallet?.balance || 0) : '********'}
           </Text>
 
           <View style={styles.walletInfo}>
@@ -287,6 +302,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
+  content: {
+    flex: 1,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -297,30 +315,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
     color: '#6B7280',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  refreshButton: {
-    padding: 4,
-  },
-  content: {
-    flex: 1,
   },
   balanceCard: {
     margin: 16,
@@ -348,10 +342,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  balanceLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   balanceLabel: {
     fontSize: 14,
     color: '#6B7280',
-    marginBottom: 8,
+  },
+  eyeButton: {
+    padding: 4,
   },
   balanceAmount: {
     fontSize: 36,

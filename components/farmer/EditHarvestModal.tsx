@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { X, Calendar } from 'lucide-react-native';
 import { UpdateHarvestData, Harvest } from '../../services/harvestService';
+import { checkHarvestHasActiveAuction } from '../../services/auctionService';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 interface EditHarvestModalProps {
@@ -27,6 +28,8 @@ export default function EditHarvestModal({ visible, harvest, isViewOnly = false,
   const [loading, setLoading] = useState(false);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showHarvestDatePicker, setShowHarvestDatePicker] = useState(false);
+  const [checkingAuction, setCheckingAuction] = useState(false);
+  const [hasActiveAuction, setHasActiveAuction] = useState(false);
   
   const [formData, setFormData] = useState<UpdateHarvestData>({
     harvestDate: new Date().toISOString(),
@@ -48,10 +51,37 @@ export default function EditHarvestModal({ visible, harvest, isViewOnly = false,
         note: harvest.note || '',
         salePrice: harvest.salePrice,
       });
+      
+      // Check if harvest has active auction
+      checkActiveAuction();
     }
   }, [visible, harvest]);
 
+  const checkActiveAuction = async () => {
+    if (!harvest?.id) return;
+    
+    setCheckingAuction(true);
+    try {
+      const hasActive = await checkHarvestHasActiveAuction(harvest.id);
+      setHasActiveAuction(hasActive);
+    } catch (error) {
+      console.error('Error checking active auction:', error);
+      setHasActiveAuction(false);
+    } finally {
+      setCheckingAuction(false);
+    }
+  };
+
   const handleSubmit = async () => {
+    // Check if harvest has active auction
+    if (hasActiveAuction) {
+      Alert.alert(
+        'Không thể cập nhật',
+        'Mùa vụ này đang có đấu giá đang diễn ra (Pending/Approved/OnGoing). Vui lòng chờ đến khi đấu giá kết thúc.'
+      );
+      return;
+    }
+
     // Validation - check required fields
     if (formData.totalQuantity <= 0) {
       Alert.alert('Lỗi thông số ( sản lượng > 0 )', 'Vui lòng nhập sản lượng thu hoạch hợp lệ');
@@ -135,9 +165,9 @@ export default function EditHarvestModal({ visible, harvest, isViewOnly = false,
       <View style={styles.modalContainer}>
         <View style={styles.modalHeader}>
           <Text style={styles.modalTitle}>
-            {isViewOnly ? 'Xem chi tiết mùa vụ' : 'Cập nhật mùa vụ'}
+            {isViewOnly || hasActiveAuction ? 'Xem chi tiết mùa vụ' : 'Cập nhật mùa vụ'}
           </Text>
-          {isViewOnly && (
+          {(isViewOnly || hasActiveAuction) && (
             <View style={styles.viewOnlyBadge}>
               <Text style={styles.viewOnlyBadgeText}>Đang có đấu giá</Text>
             </View>
@@ -170,7 +200,7 @@ export default function EditHarvestModal({ visible, harvest, isViewOnly = false,
             <TouchableOpacity
               style={styles.dateButton}
               onPress={() => setShowHarvestDatePicker(true)}
-              disabled={loading || isViewOnly}
+              disabled={loading || isViewOnly || hasActiveAuction}
             >
               <Calendar size={20} color="#6B7280" />
               <Text style={styles.dateButtonText}>
@@ -200,7 +230,7 @@ export default function EditHarvestModal({ visible, harvest, isViewOnly = false,
                 keyboardType="numeric"
                 value={formData.totalQuantity > 0 ? formData.totalQuantity.toString() : ''}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, totalQuantity: parseFloat(text) || 0 }))}
-                editable={!loading && !isViewOnly}
+                editable={!loading && !isViewOnly && !hasActiveAuction}
               />
               <View style={[styles.textInput, styles.unitInput, styles.unitInputDisabled]}>
                 <Text style={styles.unitText}>kg</Text>
@@ -217,7 +247,7 @@ export default function EditHarvestModal({ visible, harvest, isViewOnly = false,
               keyboardType="numeric"
               value={formData.salePrice > 0 ? formData.salePrice.toString() : ''}
               onChangeText={(text) => setFormData(prev => ({ ...prev, salePrice: parseFloat(text) || 0 }))}
-              editable={!loading && !isViewOnly}
+              editable={!loading && !isViewOnly && !hasActiveAuction}
             />
           </View>
 
@@ -232,13 +262,13 @@ export default function EditHarvestModal({ visible, harvest, isViewOnly = false,
               multiline
               numberOfLines={4}
               textAlignVertical="top"
-              editable={!loading && !isViewOnly}
+              editable={!loading && !isViewOnly && !hasActiveAuction}
             />
           </View>
         </ScrollView>
 
         <View style={styles.modalFooter}>
-          {isViewOnly ? (
+          {isViewOnly || hasActiveAuction ? (
             <TouchableOpacity
               style={[styles.submitButton, { flex: 1 }]}
               onPress={onClose}

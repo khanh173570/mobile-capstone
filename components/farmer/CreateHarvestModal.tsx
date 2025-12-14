@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { X, Calendar } from 'lucide-react-native';
 import { CreateHarvestData } from '../../services/harvestService';
+import { checkCropHasActiveAuction } from '../../services/auctionService';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 interface CreateHarvestModalProps {
@@ -26,6 +27,8 @@ interface CreateHarvestModalProps {
 export default function CreateHarvestModal({ visible, cropId, cropPlantingDate, onClose, onSubmit }: CreateHarvestModalProps) {
   const [loading, setLoading] = useState(false);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [checkingAuction, setCheckingAuction] = useState(false);
+  const [hasActiveAuction, setHasActiveAuction] = useState(false);
   
   const [formData, setFormData] = useState<CreateHarvestData>({
     startDate: new Date().toISOString(),
@@ -33,7 +36,49 @@ export default function CreateHarvestModal({ visible, cropId, cropPlantingDate, 
     cropID: cropId,
   });
 
+  // Check for active auctions when modal opens
+  useEffect(() => {
+    if (visible && cropId) {
+      checkActiveAuction();
+    }
+  }, [visible, cropId]);
+
+  const checkActiveAuction = async () => {
+    setCheckingAuction(true);
+    try {
+      const hasActive = await checkCropHasActiveAuction(cropId);
+      setHasActiveAuction(hasActive);
+      
+      if (hasActive) {
+        Alert.alert(
+          'Không thể tạo mùa vụ mới',
+          'Cây trồng này đang có đấu giá đang diễn ra (Pending/Approved/OnGoing). Vui lòng chờ đến khi đấu giá kết thúc.',
+          [
+            {
+              text: 'Đóng',
+              onPress: onClose,
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Error checking active auction:', error);
+      setHasActiveAuction(false);
+    } finally {
+      setCheckingAuction(false);
+    }
+  };
+
   const handleSubmit = async () => {
+    // Double check for active auction before submitting
+    if (hasActiveAuction) {
+      Alert.alert(
+        'Không thể tạo mùa vụ mới',
+        'Cây trồng này đang có đấu giá đang diễn ra. Vui lòng chờ đến khi đấu giá kết thúc.'
+      );
+      return;
+    }
+
     console.log('=== CreateHarvest Submit ===');
     console.log('FormData:', formData);
     console.log('CropPlantingDate:', cropPlantingDate);
@@ -156,7 +201,7 @@ export default function CreateHarvestModal({ visible, cropId, cropPlantingDate, 
             <TouchableOpacity
               style={styles.dateButton}
               onPress={() => setShowStartDatePicker(true)}
-              disabled={loading}
+              disabled={loading || hasActiveAuction}
             >
               <Calendar size={20} color="#6B7280" />
               <Text style={styles.dateButtonText}>
@@ -165,7 +210,7 @@ export default function CreateHarvestModal({ visible, cropId, cropPlantingDate, 
             </TouchableOpacity>
           </View>
 
-          {showStartDatePicker && (
+          {showStartDatePicker && !hasActiveAuction && (
             <DateTimePicker
               value={new Date(formData.startDate)}
               mode="date"
@@ -198,7 +243,7 @@ export default function CreateHarvestModal({ visible, cropId, cropPlantingDate, 
               multiline
               numberOfLines={4}
               textAlignVertical="top"
-              editable={!loading}
+              editable={!loading && !hasActiveAuction}
             />
           </View>
 
@@ -219,11 +264,11 @@ export default function CreateHarvestModal({ visible, cropId, cropPlantingDate, 
           </TouchableOpacity>
           
           <TouchableOpacity
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+            style={[styles.submitButton, (loading || hasActiveAuction) && styles.submitButtonDisabled]}
             onPress={handleSubmit}
-            disabled={loading}
+            disabled={loading || hasActiveAuction}
           >
-            {loading ? (
+            {loading || checkingAuction ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <Text style={styles.submitButtonText}>Tạo mùa vụ</Text>

@@ -32,7 +32,7 @@ export default function EscrowContractsList() {
       const data = await getWholesalerEscrows();
       setEscrows(data);
     } catch (error) {
-      handleError(error, 'Không thể tải danh sách hợp đồng');
+      handleError(error, 'Không thể tải danh sách giao dịch kí quỹ');
     } finally {
       setLoading(false);
     }
@@ -74,7 +74,7 @@ export default function EscrowContractsList() {
           <View style={styles.headerLeft}>
             <FileText size={24} color="#3B82F6" />
             <View style={styles.headerTextContainer}>
-              <Text style={styles.contractTitle}>Hợp đồng ký quỹ</Text>
+              <Text style={styles.contractTitle}>Giao dịch ký quỹ</Text>
               <Text style={styles.auctionId} numberOfLines={1}>
                 ID: {item.auctionId.substring(0, 8)}...
               </Text>
@@ -192,7 +192,7 @@ export default function EscrowContractsList() {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={styles.loadingText}>Đang tải hợp đồng...</Text>
+        <Text style={styles.loadingText}>Đang tải giao dịch kí quỹ...</Text>
       </View>
     );
   }
@@ -201,9 +201,9 @@ export default function EscrowContractsList() {
     return (
       <View style={styles.centerContainer}>
         <FileText size={64} color="#D1D5DB" />
-        <Text style={styles.emptyTitle}>Chưa có hợp đồng</Text>
+        <Text style={styles.emptyTitle}>Chưa có giao dịch kí quỹ</Text>
         <Text style={styles.emptyText}>
-          Bạn chưa có hợp đồng ký quỹ nào. Hợp đồng sẽ được tạo khi bạn thắng đấu giá.
+          Bạn chưa có giao dịch kí quỹ ký quỹ nào. Giao dịch sẽ được tạo khi bạn thắng đấu giá.
         </Text>
       </View>
     );

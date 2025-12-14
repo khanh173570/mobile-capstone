@@ -32,7 +32,7 @@ export default function FarmerEscrowContractsList() {
       const data = await getFarmerEscrows();
       setEscrows(data);
     } catch (error) {
-      handleError(error, 'Không thể tải danh sách hợp đồng');
+      handleError(error, 'Không thể tải danh sách giao dịch ký quỹ');
     } finally {
       setLoading(false);
     }
@@ -74,7 +74,7 @@ export default function FarmerEscrowContractsList() {
           <View style={styles.headerLeft}>
             <FileText size={24} color="#22C55E" />
             <View style={styles.headerTextContainer}>
-              <Text style={styles.contractTitle}>Hợp đồng ký quỹ</Text>
+              <Text style={styles.contractTitle}>Giao dịch ký quỹ</Text>
               <Text style={styles.auctionId} numberOfLines={1}>
                 ID: {item.auctionId.substring(0, 8)}...
               </Text>
@@ -131,7 +131,7 @@ export default function FarmerEscrowContractsList() {
 
           <View style={styles.timelineItem}>
             <Calendar size={14} color="#6B7280" />
-            <Text style={styles.timelineLabel}>Tạo hợp đồng:</Text>
+            <Text style={styles.timelineLabel}>Tạo giao dịch:</Text>
             <Text style={styles.timelineValue}>{formatDate(item.createdAt)}</Text>
           </View>
 
@@ -205,7 +205,7 @@ export default function FarmerEscrowContractsList() {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#22C55E" />
-        <Text style={styles.loadingText}>Đang tải hợp đồng...</Text>
+        <Text style={styles.loadingText}>Đang tải giao dịch kí quỹ...</Text>
       </View>
     );
   }
@@ -214,9 +214,9 @@ export default function FarmerEscrowContractsList() {
     return (
       <View style={styles.centerContainer}>
         <FileText size={64} color="#D1D5DB" />
-        <Text style={styles.emptyTitle}>Chưa có hợp đồng</Text>
+        <Text style={styles.emptyTitle}>Chưa có giao dich</Text>
         <Text style={styles.emptyText}>
-          Bạn chưa có hợp đồng ký quỹ nào. Hợp đồng sẽ được tạo khi có người thắng đấu giá của bạn.
+          Bạn chưa có giao dịch ký quỹ nào. Giao dịch sẽ được tạo khi có người thắng đấu giá của bạn.
         </Text>
       </View>
     );

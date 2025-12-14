@@ -61,12 +61,12 @@ export default function BuyRequestHistoryDetailScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.backButton}
           onPress={() => router.back()}
+          style={styles.backButton}
         >
-          <ChevronLeft size={24} color="#059669" />
+          <ArrowLeft size={24} color="#111827" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Chi tiết lịch sử</Text>
+        <Text style={styles.headerTitle}>Chi tiết yêu cầu</Text>
         <View style={{ width: 24 }} />
       </View>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -92,15 +92,15 @@ export default function BuyRequestHistoryDetailScreen() {
           <Text style={styles.sectionTitle}>Thông tin yêu cầu</Text>
 
           <View style={styles.infoCard}>
-            <View style={styles.infoRow}>
+            {/* <View style={styles.infoRow}>
               <View style={styles.infoIcon}>
                 <Tag size={18} color="#6B7280" />
               </View>
-              <View style={styles.infoContent}>
+              {/* <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Mã yêu cầu</Text>
                 <Text style={styles.infoValue}>{buyRequest.id}</Text>
-              </View>
-            </View>
+              </View> */}
+            {/* </View> */} 
 
             <View style={styles.divider} />
 
@@ -244,14 +244,15 @@ export default function BuyRequestHistoryDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F9FAFB',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
@@ -261,7 +262,7 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   backButton: {
-    padding: 8,
+    padding: 4,
   },
   content: {
     flex: 1,

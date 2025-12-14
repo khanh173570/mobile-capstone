@@ -293,6 +293,7 @@ const styles = StyleSheet.create({
   backButton: {
     alignItems: 'center',
     marginTop: 16,
+    marginBottom: 40,
     paddingVertical: 8,
   },
   backButtonText: {

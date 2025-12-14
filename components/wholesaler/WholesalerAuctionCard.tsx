@@ -52,12 +52,6 @@ export default function WholesalerAuctionCard({
             </Text>
           </View>
         </View>
-        {isWinner && (
-          <View style={styles.winnerBadge}>
-            <Award size={16} color="#F59E0B" />
-            <Text style={styles.winnerText}>Thắng</Text>
-          </View>
-        )}
       </View>
 
       {/* Dates */}

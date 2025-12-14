@@ -160,58 +160,60 @@ export default function AuctionBrowseScreen() {
       if (profile && profile.data) {
         setUserId(profile.data.id);
       }
-      
-      // Load crop types
-      try {
-        const types = await getCustardAppleTypes();
-        console.log('🌾 Crop types loaded:', types.length);
-        setCropTypes(types);
-      } catch (error) {
-        console.error('❌ Error loading crop types:', error);
-      }
-      
-      // Load provinces with fallback
-      try {
-        const provinceList = await getProvinces();
-        console.log('📍 Provinces loaded:', provinceList.length);
-        setProvinces(provinceList);
-        
-        // Set default province: Tây Ninh
-        const tayNinhProvince = provinceList.find((p) => p.name.includes('Tây Ninh'));
-        console.log('🔍 Found Tây Ninh:', tayNinhProvince);
-        
-        if (tayNinhProvince) {
-          setSelectedProvince(tayNinhProvince.id);
-          console.log('✅ Setting Tây Ninh as default');
-          
-          // Load wards for Tây Ninh
-          try {
-            const wardList = await getWardsFromProvince(tayNinhProvince.id);
-            console.log('📍 Wards loaded for Tây Ninh:', wardList.length);
-            setWards(wardList);
-            
-            // Auto-select first ward
-            if (wardList.length > 0) {
-              const firstWard = wardList[0];
-              console.log('✅ Auto-selecting first ward:', firstWard.name);
-              setSearchFilters((prev) => ({
-                ...prev,
-                district: firstWard.id,
-              }));
-            }
-          } catch (wardError) {
-            console.error('❌ Error loading wards, allowing manual input:', wardError);
-            // Fallback: cho phép nhập tay nếu API lỗi
-          }
-        }
-      } catch (provinceError) {
-        console.error('❌ Error loading provinces, allowing manual input:', provinceError);
-        // Fallback: cho phép nhập tay nếu API lỗi
-      }
     } catch (error) {
       console.error('❌ Error loading initial data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Lazy load crop types when dropdown is opened
+  const loadCropTypes = async () => {
+    if (cropTypes.length > 0) return; // Already loaded
+    
+    try {
+      const types = await getCustardAppleTypes();
+      console.log('🌾 Crop types loaded:', types.length);
+      setCropTypes(types);
+    } catch (error) {
+      console.error('❌ Error loading crop types:', error);
+      Alert.alert('Lỗi', 'Không thể tải danh sách loại cây trồng');
+    }
+  };
+
+  // Lazy load wards when dropdown is opened
+  const loadWardsForDropdown = async () => {
+    if (!selectedProvince) {
+      // Load provinces first if not loaded
+      if (provinces.length === 0) {
+        try {
+          const provinceList = await getProvinces();
+          console.log('📍 Provinces loaded:', provinceList.length);
+          setProvinces(provinceList);
+          
+          // Set default province: Tây Ninh
+          const tayNinhProvince = provinceList.find((p) => p.name.includes('Tây Ninh'));
+          if (tayNinhProvince) {
+            setSelectedProvince(tayNinhProvince.id);
+          }
+        } catch (error) {
+          console.error('❌ Error loading provinces:', error);
+          Alert.alert('Lỗi', 'Không thể tải danh sách tỉnh thành');
+          return;
+        }
+      }
+    }
+    
+    // Load wards for selected province
+    if (selectedProvince && wards.length === 0) {
+      try {
+        const wardList = await getWardsFromProvince(selectedProvince);
+        console.log('📍 Wards loaded:', wardList.length);
+        setWards(wardList);
+      } catch (error) {
+        console.error('❌ Error loading wards:', error);
+        Alert.alert('Lỗi', 'Không thể tải danh sách phường/xã');
+      }
     }
   };
 
@@ -481,7 +483,7 @@ export default function AuctionBrowseScreen() {
               <Text style={styles.dropdownText}>
                 {searchFilters.cropType
                   ? cropTypes.find(c => c.id === searchFilters.cropType)?.name || 'Chọn loại cây trồng'
-                  : 'Chọn loại cây trồng'}
+                  : 'Chọn loại loại'}
               </Text>
               <ChevronDown size={20} color="#6B7280" />
             </TouchableOpacity>
@@ -673,9 +675,9 @@ export default function AuctionBrowseScreen() {
                 >
                   <View style={styles.historyCardHeader}>
                     <View style={styles.historyCardTitleContainer}>
-                      <Text style={styles.historyCardTitle}>
+                      {/* <Text style={styles.historyCardTitle}>
                         ID: {request.id.substring(0, 8)}...
-                      </Text>
+                      </Text> */}
                       <View
                         style={[
                           styles.statusBadge,
@@ -734,43 +736,57 @@ export default function AuctionBrowseScreen() {
       <View style={styles.footerWrapper}>
         {/* Filter Bar for History Tab */}
         {activeTab === 'history' && (
-          <View style={styles.filterBar}>
+          <View style={styles.filterBarGrid}>
             <TouchableOpacity
-              style={styles.statusFilterButton}
-              onPress={() => setShowStatusFilter(!showStatusFilter)}
+              style={[
+                styles.filterGridButton,
+                selectedStatusFilter === 'All' && styles.filterGridButtonActive,
+              ]}
+              onPress={() => handleStatusFilterChange('All')}
             >
-              <Filter size={16} color="#FFFFFF" />
-              <Text style={styles.statusFilterButtonText}>{selectedStatusFilter}</Text>
+              <Text
+                style={[
+                  styles.filterGridButtonText,
+                  selectedStatusFilter === 'All' && styles.filterGridButtonTextActive,
+                ]}
+              >
+                Tất cả
+              </Text>
             </TouchableOpacity>
-
-            {showStatusFilter && (
-              <View style={styles.statusFilterDropdownFooter}>
-                {(['All', 'Pending', 'Accepted', 'Rejected', 'Completed', 'Canceled'] as StatusFilter[]).map((status) => (
-                  <TouchableOpacity
-                    key={status}
-                    style={[
-                      styles.filterOption,
-                      selectedStatusFilter === status && styles.filterOptionSelected,
-                    ]}
-                    onPress={() => handleStatusFilterChange(status)}
-                  >
-                    <View style={styles.filterOptionContent}>
-                      <Text
-                        style={[
-                          styles.filterOptionText,
-                          selectedStatusFilter === status && styles.filterOptionTextSelected,
-                        ]}
-                      >
-                        {status === 'All' ? 'Tất cả' : getStatusLabel(status)}
-                      </Text>
-                      {selectedStatusFilter === status && (
-                        <View style={styles.filterCheckmark} />
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
+            
+            <TouchableOpacity
+              style={[
+                styles.filterGridButton,
+                selectedStatusFilter === 'Pending' && styles.filterGridButtonActive,
+              ]}
+              onPress={() => handleStatusFilterChange('Pending')}
+            >
+              <Text
+                style={[
+                  styles.filterGridButtonText,
+                  selectedStatusFilter === 'Pending' && styles.filterGridButtonTextActive,
+                ]}
+              >
+                Chờ xử lý
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                styles.filterGridButton,
+                selectedStatusFilter === 'Completed' && styles.filterGridButtonActive,
+              ]}
+              onPress={() => handleStatusFilterChange('Completed')}
+            >
+              <Text
+                style={[
+                  styles.filterGridButtonText,
+                  selectedStatusFilter === 'Completed' && styles.filterGridButtonTextActive,
+                ]}
+              >
+                Hoàn thành
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -1218,6 +1234,39 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E5E7EB',
     backgroundColor: '#F9FAFB',
     position: 'relative',
+  },
+  filterBarGrid: {
+    flexDirection: 'row',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    gap: 8,
+  },
+  filterGridButton: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterGridButtonActive: {
+    backgroundColor: '#D1FAE5',
+    borderColor: '#10B981',
+  },
+  filterGridButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  filterGridButtonTextActive: {
+    color: '#059669',
+    fontWeight: '700',
   },
   statusFilterButton: {
     flexDirection: 'row',

@@ -128,13 +128,11 @@ export default function AuctionCard({ auction, onPress, isFirst, isLast }: Aucti
         {/* Price Information */}
         <View style={styles.priceSection}>
           <View style={styles.priceRow}>
-            <IconText icon={DollarSign} size={16} color="#059669" />
             <Text style={styles.priceLabel}>Giá khởi điểm:</Text>
             <Text style={styles.startingPrice}>{formatPrice(auction.startingPrice)}</Text>
           </View>
       {typeof auction.currentPrice === "number" && (
   <View style={styles.priceRow}>
-    <IconText icon={DollarSign} size={16} color="#059669" />
     <Text style={styles.priceLabel}>Giá hiện tại:</Text>
     <Text style={styles.currentPrice}>{formatPrice(auction.currentPrice)}</Text>
   </View>
@@ -143,7 +141,6 @@ export default function AuctionCard({ auction, onPress, isFirst, isLast }: Aucti
 
 {auction.enableBuyNow && typeof auction.buyNowPrice === "number" && (
   <View style={styles.priceRow}>
-    <IconText icon={DollarSign} size={16} color="#059669" />
     <Text style={styles.priceLabel}>Mua ngay:</Text>
     <Text style={styles.buyNowPrice}>{formatPrice(auction.buyNowPrice)}</Text>
   </View>
@@ -155,21 +152,21 @@ export default function AuctionCard({ auction, onPress, isFirst, isLast }: Aucti
         <View style={styles.timeSection}>
           <View style={styles.timeRow}>
             <Text style={styles.timeLabel}>📅 Bắt đầu:</Text>
-            <Text style={[styles.timeText, { color: getDateColor(auction.publishDate) }]}>
+            <Text style={styles.timeText}>
               {formatDate(auction.publishDate)}
             </Text>
           </View>
           
           <View style={styles.timeRow}>
             <Text style={styles.timeLabel}>⏰ Kết thúc:</Text>
-            <Text style={[styles.timeText, { color: getDateColor(auction.endDate) }]}>
+            <Text style={styles.timeText}>
               {formatDate(auction.endDate)}
             </Text>
           </View>
 
           <View style={styles.timeRow}>
             <Text style={styles.timeLabel}>📅 Thu hoạch dự kiến:</Text>
-            <Text style={[styles.timeText, { color: getDateColor(auction.expectedHarvestDate) }]}>
+            <Text style={styles.timeText}>
               {formatDate(auction.expectedHarvestDate)}
             </Text>
           </View>
@@ -341,17 +338,17 @@ const styles = StyleSheet.create({
   startingPrice: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#059669',
+    color: '#1F2937',
   },
   currentPrice: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#DC2626',
+    color: '#1F2937',
   },
   buyNowPrice: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2563EB',
+    color: '#1F2937',
   },
   timeSection: {
     gap: 8,

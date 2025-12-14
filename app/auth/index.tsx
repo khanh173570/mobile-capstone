@@ -62,9 +62,12 @@ export default function LoginScreen() { // Test fix workflow
         // Handle error response
         let errorMessage = 'Đã xảy ra lỗi khi đăng nhập.';
         
+        // Get the backend message
+        let backendMessage = '';
+        
         // Check if errors is an array with messages
         if (response.errors && Array.isArray(response.errors) && response.errors.length > 0) {
-          errorMessage = response.errors.join('\n');
+          backendMessage = response.errors.join('\n');
         } 
         // Check if errors is an object
         else if (response.errors && typeof response.errors === 'object') {
@@ -79,12 +82,49 @@ export default function LoginScreen() { // Test fix workflow
             .join('\n');
           
           if (errorDetails) {
-            errorMessage = errorDetails;
+            backendMessage = errorDetails;
           }
         }
         // Use message if available
         else if (response.message) {
-          errorMessage = response.message;
+          backendMessage = response.message;
+        }
+        
+        // Translate common backend error messages to Vietnamese
+        const lowerMessage = backendMessage.toLowerCase();
+        
+        // Check for account/user not found errors
+        if (lowerMessage.includes('user') && (lowerMessage.includes('not found') || 
+            lowerMessage.includes('does not exist') || lowerMessage.includes('not exist'))) {
+          errorMessage = 'Tài khoản không tồn tại.';
+        } else if (lowerMessage.includes('account') && (lowerMessage.includes('not found') || 
+                   lowerMessage.includes('does not exist') || lowerMessage.includes('not exist'))) {
+          errorMessage = 'Tài khoản không tồn tại.';
+        } else if (lowerMessage.includes('email') && (lowerMessage.includes('not found') || 
+                   lowerMessage.includes('does not exist') || lowerMessage.includes('not exist'))) {
+          errorMessage = 'Tài khoản không tồn tại.';
+        } else if (lowerMessage.includes('not found')) {
+          errorMessage = 'Tài khoản không tồn tại.';
+        } 
+        // Check for password errors
+        else if (lowerMessage.includes('password') || lowerMessage.includes('incorrect') || 
+            lowerMessage.includes('wrong') || lowerMessage.includes('invalid password')) {
+          errorMessage = 'Sai mật khẩu. Vui lòng thử lại.';
+        } 
+        // Check for account status issues
+        else if (lowerMessage.includes('account') && lowerMessage.includes('disabled')) {
+          errorMessage = 'Tài khoản đã bị vô hiệu hóa.';
+        } else if (lowerMessage.includes('account') && lowerMessage.includes('locked')) {
+          errorMessage = 'Tài khoản đã bị khóa.';
+        } else if (lowerMessage.includes('not verified') || lowerMessage.includes('not activated') || 
+                   lowerMessage.includes('pending') || lowerMessage.includes('waiting for approval')) {
+          errorMessage = 'Tài khoản chưa được xác nhận. Vui lòng chờ hệ thống xác nhận và kiểm tra email.';
+        } else if (lowerMessage.includes('rejected') || lowerMessage.includes('denied')) {
+          errorMessage = 'Tài khoản đã bị từ chối. Vui lòng liên hệ quản trị viên.';
+        } else if (lowerMessage.includes('email') && lowerMessage.includes('not verified')) {
+          errorMessage = 'Email chưa được xác nhận. Vui lòng kiểm tra email để xác nhận tài khoản.';
+        } else if (backendMessage) {
+          errorMessage = backendMessage;
         }
         
         // Customize error message based on status code
@@ -127,7 +167,10 @@ export default function LoginScreen() { // Test fix workflow
       {/* Header Section */}
       <View style={styles.header}>
         <View style={styles.logoContainer}>
-          <Sprout size={60} color="#FFFFFF" strokeWidth={2} />
+          <Image 
+            source={require('../../assets/images/agriMart.png')} 
+            style={styles.logo}
+          />
           <Text style={styles.appTitle}>AgriMart</Text>
           <Text style={styles.subtitle}>Quản lý Nông trại thông minh</Text>
         </View>
@@ -194,7 +237,7 @@ export default function LoginScreen() { // Test fix workflow
 
           <TouchableOpacity onPress={() => router.push('/auth/role-selection')}>
             <Text style={[styles.bottomText, styles.registerText]}>
-              Đăng ký account
+              Đăng ký tài khoản
             </Text>
           </TouchableOpacity>
         </View>
@@ -227,13 +270,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#22C55E',
   },
   header: {
-    flex: 0.25,
+    flex: 0.35,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 10,
+    paddingTop: 20,
   },
   logoContainer: {
     alignItems: 'center',
+  },
+  logo: {
+    width: 100,
+    height: 100,
+    borderRadius: 16,
+    resizeMode: 'contain',
   },
   appTitle: {
     fontSize: 36,
@@ -251,7 +300,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   formContainer: {
-    flex: 0.63,
+    flex: 0.55,
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
@@ -259,6 +308,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 30,
     paddingHorizontal: 24,
     paddingTop: 40,
+    paddingBottom: 20,
   },
   welcomeText: {
     fontSize: 28,

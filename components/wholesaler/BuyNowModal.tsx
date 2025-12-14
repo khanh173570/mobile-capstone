@@ -78,9 +78,16 @@ export default function BuyNowModal({
           {/* Product Info */}
           <View style={styles.content}>
             <View style={styles.infoSection}>
-              <Text style={styles.label}>Giá mua ngay</Text>
+              <Text style={styles.label}>Giá mua ngay (100%)</Text>
               <Text style={styles.buyNowPrice}>
                 {formatCurrency(auction.buyNowPrice || auction.currentPrice)}
+              </Text>
+            </View>
+
+            <View style={styles.infoSection}>
+              <Text style={styles.label}>Số tiền cọc cần đặt (30%)</Text>
+              <Text style={styles.depositPrice}>
+                {formatCurrency((auction.buyNowPrice || auction.currentPrice) * 0.3)}
               </Text>
             </View>
 
@@ -100,7 +107,7 @@ export default function BuyNowModal({
 
             <View style={styles.warningBox}>
               <Text style={styles.warningText}>
-                Bằng cách bấm "Xác nhận mua ngay", bạn đồng ý mua sản phẩm này với giá trên. Phiên đấu giá sẽ kết thúc ngay lập tức.
+                Bằng cách bấm "Xác nhận mua ngay", bạn cam kết mua sản phẩm với giá trên. Bạn cần đặt cọc 30% giá trị đơn hàng, phần còn lại (70%) sẽ thanh toán khi nhận hàng. Phiên đấu giá sẽ kết thúc ngay lập tức.
               </Text>
             </View>
           </View>
@@ -173,7 +180,12 @@ const styles = StyleSheet.create({
   buyNowPrice: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#DC2626',
+    color: '#111827',
+  },
+  depositPrice: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#22C55E',
   },
   value: {
     fontSize: 16,

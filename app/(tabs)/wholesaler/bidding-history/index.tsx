@@ -181,14 +181,9 @@ export default function BiddingHistoryScreen() {
     <View style={styles.container}>
       {/* Filters */}
       <View style={styles.filtersSection}>
-        <FlatList
-          horizontal
-          data={filters}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => renderFilterButton(item)}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filtersContent}
-        />
+        <View style={styles.filtersContent}>
+          {filters.map((filter) => renderFilterButton(filter))}
+        </View>
       </View>
 
       {/* Auctions List */}
@@ -232,20 +227,20 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   filtersContent: {
-    paddingHorizontal: 20,
+    flexDirection: 'row',
+    paddingHorizontal: 12,
     paddingVertical: 12,
     gap: 8,
   },
   filterButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 8,
     backgroundColor: '#F3F4F6',
-    marginRight: 8,
-    marginTop: 20,
   },
   filterButtonActive: {
     backgroundColor: '#22C55E',

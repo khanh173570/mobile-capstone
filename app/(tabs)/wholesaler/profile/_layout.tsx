@@ -20,7 +20,22 @@ export default function WholesalerProfileLayout() {
       <Stack.Screen 
         name="withdraw" 
         options={{ 
-          headerShown: false 
+          title: 'Rút tiền',
+          headerShown: true 
+        }} 
+      />
+      <Stack.Screen 
+        name="transactions" 
+        options={{ 
+          title: 'Giao dịch',
+          headerShown: true 
+        }} 
+      />
+      <Stack.Screen 
+        name="reports" 
+        options={{ 
+          title: 'Báo cáo',
+          headerShown: true 
         }} 
       />
     </Stack>
