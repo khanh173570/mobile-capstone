@@ -55,6 +55,7 @@ interface Auction {
   startingPrice: number;
   currentPrice: number | null;
   minBidIncrement: number;
+  buyNowPrice?: number;
   status: string;
   expectedHarvestDate: string;
   expectedTotalQuantity: number;
@@ -1288,6 +1289,7 @@ export default function WholesalerAuctionDetailScreen() {
               auctionStatus={auction.status}
               userProfile={userProfile}
               startingPrice={auction.startingPrice}
+              buyNowPrice={auction.buyNowPrice}
             />
           )}
 

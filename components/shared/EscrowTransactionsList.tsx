@@ -45,22 +45,42 @@ export const EscrowTransactions: React.FC<EscrowTransactionsProps> = ({ escrowId
 
   const getStatusLabel = (status: string) => {
     const statusMap: { [key: string]: string } = {
-      pending: 'Chờ',
-      completed: 'Hoàn tất',
-      failed: 'Thất bại',
-      processing: 'Đang xử lý',
+      // Escrow statuses
+      PendingPayment: 'Chờ thanh toán',
+      PartiallyFunded: 'Đã đặt cọ',
+      ReadyToHarvest: 'Sẵn sàng thu hoạch',
+      FullyFunded: 'Đã thanh toán đầy đủ',
+      Completed: 'Hoàn thành',
+      Disputed: 'Đang tranh chấp',
+      Refunded: 'Đã hoàn tiền',
+      PartialRefund: 'Hoàn tiền một phần',
+      Canceled: 'Đã hủy',
+      // Transaction statuses
+      Pending: 'Chờ',
+      Failed: 'Thất bại',
+      Processing: 'Đang xử lý',
     };
-    return statusMap[status] || status;
+    return statusMap[status] || 'Hoàn thành';
   };
 
   const getStatusColor = (status: string) => {
     const colorMap: { [key: string]: string } = {
-      pending: '#F59E0B',
-      completed: '#10B981',
-      failed: '#EF4444',
-      processing: '#3B82F6',
+      // Escrow statuses
+      PendingPayment: '#F59E0B',      // Vàng - Chờ thanh toán
+      PartiallyFunded: '#3B82F6',     // Xanh dương - Đã đặt cọ
+      ReadyToHarvest: '#8B5CF6',      // Tím - Sẵn sàng thu hoạch
+      FullyFunded: '#10B981',         // Xanh lá - Đã thanh toán đầy đủ
+      Completed: '#059669',           // Xanh đậm - Hoàn thành
+      Disputed: '#EF4444',            // Đỏ - Tranh chấp
+      Refunded: '#6B7280',            // Xám - Đã hoàn tiền
+      PartialRefund: '#9CA3AF',       // Xám nhạt - Hoàn tiền một phần
+      Canceled: '#6B7280',            // Xám - Đã hủy
+      // Transaction statuses
+      Pending: '#F59E0B',
+      Failed: '#EF4444',
+      Processing: '#3B82F6',
     };
-    return colorMap[status] || '#6B7280';
+    return colorMap[status] || '#10B981';
   };
 
   if (loading) {
@@ -92,7 +112,17 @@ export const EscrowTransactions: React.FC<EscrowTransactionsProps> = ({ escrowId
   const renderTransaction = ({ item }: { item: Transaction }) => {
     const isIncoming = item.amount > 0;
     const displayAmount = Math.abs(item.amount);
-    const status = item.status || 'completed';
+    
+    // Determine status from success field
+    let status = 'Completed';
+    if (item.success === false) {
+      status = 'Failed';
+    } else if (item.success === true) {
+      status = 'Completed';
+    } else {
+      // If success is undefined or null, default to completed
+      status = 'Completed';
+    }
 
     return (
       <View style={styles.transactionItem}>
@@ -130,6 +160,7 @@ export const EscrowTransactions: React.FC<EscrowTransactionsProps> = ({ escrowId
         </View>
         <View style={styles.transactionColumn3}>
           <Text
+            numberOfLines={1}
             style={[
               styles.transactionAmount,
               isIncoming ? styles.positiveAmount : styles.negativeAmount,
@@ -203,8 +234,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   transactionColumn3: {
-    flex: 0.7,
+    flex: 0.8,
     alignItems: 'flex-end',
+    justifyContent: 'center',
+    minWidth: 50,
   },
   transactionLeft: {
     flexDirection: 'row',
@@ -245,6 +278,7 @@ const styles = StyleSheet.create({
   transactionAmount: {
     fontSize: 13,
     fontWeight: '700',
+    flexShrink: 0,
   },
   positiveAmount: {
     color: '#10B981',

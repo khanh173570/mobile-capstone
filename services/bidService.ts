@@ -5,7 +5,6 @@ const API_BASE_URL = 'https://gateway.a-379.store/api';
 export interface CreateBidRequest {
   isAutoBid: boolean;
   autoBidMaxLimit?: number;
-  bidAmount?: number;
   auctionSessionId: string;
 }
 
@@ -220,6 +219,13 @@ export const createBid = async (request: CreateBidRequest): Promise<BidApiRespon
     console.log('📤 bidService: Sending createBid request to', `${API_BASE_URL}/auction-service/bid`);
     console.log('   Request type:', request.isAutoBid ? 'AUTO BID' : 'MANUAL BID');
     console.log('   Body:', JSON.stringify(body, null, 2));
+    console.log('   Body types:', {
+      isAutoBid: typeof body.isAutoBid,
+      auctionSessionId: typeof body.auctionSessionId,
+      autoBidMaxLimit: typeof body.autoBidMaxLimit,
+      autoBidMaxLimitValue: body.autoBidMaxLimit,
+      isAutoBidMaxLimitNumber: typeof body.autoBidMaxLimit === 'number',
+    });
 
     const response = await fetchWithTokenRefresh(
       `${API_BASE_URL}/auction-service/bid`,
@@ -238,11 +244,20 @@ export const createBid = async (request: CreateBidRequest): Promise<BidApiRespon
     console.log('   Status:', response.status);
     console.log('   isSuccess:', data.isSuccess);
     console.log('   Message:', data.message);
+    console.log('   Errors:', data.errors);
     console.log('   Data:', data.data);
 
     if (!response.ok) {
       console.error('❌ createBid failed:', data.message);
-      throw new Error(data.message || 'Failed to create bid');
+      console.error('   Errors:', data.errors);
+      
+      // Create error with detailed message including errors array
+      const error: any = new Error(data.message || 'Failed to create bid');
+      error.cause = {
+        errors: data.errors || [],
+        statusCode: data.statusCode,
+      };
+      throw error;
     }
 
     console.log('✅ createBid succeeded!');

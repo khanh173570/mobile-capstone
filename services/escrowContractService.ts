@@ -220,20 +220,39 @@ export const payRemainingEscrowWithWallet = async (escrowId: string): Promise<bo
  */
 export const formatCurrency = (amount: number | null | undefined): string => {
   if (amount === null || amount === undefined) {
-    return '0 ₫';
+    return '0 VND';
   }
-  return amount.toLocaleString('vi-VN') + ' ₫';
+  return amount.toLocaleString('vi-VN') + ' VND';
 };
 
 /**
  * Get escrow status label
  */
-export const getEscrowStatusLabel = (status: number): string => {
+export const getEscrowStatusLabel = (status: number | string): string => {
+  // Handle string status (PascalCase from API)
+  const statusMap: { [key: string]: string } = {
+    PendingPayment: 'Chờ thanh toán',
+    PartiallyFunded: 'Đã đặt cọc',
+    ReadyToHarvest: 'Sẵn sàng thu hoạch',
+    FullyFunded: 'Đã thanh toán đủ',
+    Completed: 'Hoàn thành',
+    Disputed: 'Đang tranh chấp',
+    Refunded: 'Đã hoàn toàn bộ',
+    PartialRefund: 'Hoàn tiền một phần',
+    Canceled: 'Đã hủy',
+  };
+  
+  // If status is string, use map
+  if (typeof status === 'string') {
+    return statusMap[status] || 'Không xác định';
+  }
+  
+  // If status is number, use switch
   switch (status) {
     case 0:
       return 'Chờ thanh toán';
     case 1:
-      return 'Đã cọc một phần';
+      return 'Đã đặt cọc';
     case 2:
       return 'Sẵn sàng thu hoạch';
     case 3:
@@ -256,7 +275,26 @@ export const getEscrowStatusLabel = (status: number): string => {
 /**
  * Get escrow status color
  */
-export const getEscrowStatusColor = (status: number): string => {
+export const getEscrowStatusColor = (status: number | string): string => {
+  // Handle string status (PascalCase from API)
+  const colorMap: { [key: string]: string } = {
+    PendingPayment: '#F59E0B',      // Orange
+    PartiallyFunded: '#3B82F6',     // Blue
+    ReadyToHarvest: '#8B5CF6',      // Purple
+    FullyFunded: '#10B981',         // Green
+    Completed: '#059669',           // Dark Green
+    Disputed: '#EF4444',            // Red
+    Refunded: '#6B7280',            // Gray
+    PartialRefund: '#9CA3AF',       // Light Gray
+    Canceled: '#D1D5DB',            // Light Gray
+  };
+  
+  // If status is string, use map
+  if (typeof status === 'string') {
+    return colorMap[status] || '#6B7280';
+  }
+  
+  // If status is number, use switch
   switch (status) {
     case 0:
       return '#F59E0B'; // Orange - Pending

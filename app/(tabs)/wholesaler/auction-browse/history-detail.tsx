@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,14 +6,29 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Package, Calendar, DollarSign, Tag, ChevronLeft } from 'lucide-react-native';
+import { ArrowLeft, Package, Calendar, DollarSign, Tag, ChevronLeft, AlertCircle } from 'lucide-react-native';
 import { BuyRequest } from '../../../../services/buyRequestHistoryService';
+import { getBuyRequestEscrow, BuyRequestEscrow } from '../../../../services/buyRequestService';
+import { BuyRequestDepositModal } from '../../../../components/shared/BuyRequestDepositModal';
+import { BuyRequestPayRemainingModal } from '../../../../components/shared/BuyRequestPayRemainingModal';
+import { CreateDisputeModal } from '../../../../components/shared/CreateDisputeModal';
+import { DisputeInfoCard } from '../../../../components/shared/DisputeInfoCard';
+import { Dispute, getDisputeByEscrowId } from '../../../../services/disputeService';
 
 export default function BuyRequestHistoryDetailScreen() {
   const params = useLocalSearchParams();
   const buyRequest = params.buyRequest ? JSON.parse(params.buyRequest as string) : null;
+  
+  const [escrow, setEscrow] = useState<BuyRequestEscrow | null>(null);
+  const [loadingEscrow, setLoadingEscrow] = useState(false);
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showPayRemainingModal, setShowPayRemainingModal] = useState(false);
+  const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [dispute, setDispute] = useState<Dispute | null>(null);
+  const [loadingDispute, setLoadingDispute] = useState(false);
 
   if (!buyRequest) {
     return (
@@ -56,6 +71,94 @@ export default function BuyRequestHistoryDetailScreen() {
         return status;
     }
   };
+
+  const getEscrowStatusLabel = (status: string): string => {
+    switch (status) {
+      case 'PendingPayment':
+        return 'Chờ thanh toán cọc';
+      case 'Deposited':
+        return 'Đã đặt cọc';
+      case 'ReadyToHarvest':
+        return 'Sẵn sàng thu hoạch';
+      case 'Completed':
+        return 'Hoàn thành';
+      case 'Refunded':
+        return 'Đã hoàn tiền';
+      default:
+        return status;
+    }
+  };
+
+  useEffect(() => {
+    if (buyRequest && buyRequest.status === 'Accepted') {
+      loadEscrowInfo();
+    }
+  }, [buyRequest?.id, buyRequest?.status]);
+
+  const loadEscrowInfo = async () => {
+    if (!buyRequest) return;
+    
+    try {
+      setLoadingEscrow(true);
+      const escrowData = await getBuyRequestEscrow(buyRequest.id);
+      setEscrow(escrowData);
+      
+      // Load dispute if escrow exists
+      if (escrowData) {
+        loadDisputeInfo(escrowData.id);
+      }
+    } catch (error) {
+      console.error('Error loading escrow:', error);
+      // Escrow might not exist yet
+    } finally {
+      setLoadingEscrow(false);
+    }
+  };
+
+  const loadDisputeInfo = async (escrowId: string) => {
+    try {
+      setLoadingDispute(true);
+      const disputeData = await getDisputeByEscrowId(escrowId);
+      setDispute(disputeData);
+    } catch (error) {
+      console.error('Error loading dispute:', error);
+      setDispute(null);
+    } finally {
+      setLoadingDispute(false);
+    }
+  };
+
+  const handlePaymentSuccess = () => {
+    loadEscrowInfo();
+  };
+
+  const handleDisputeSuccess = () => {
+    if (escrow) {
+      loadDisputeInfo(escrow.id);
+    }
+  };
+
+  // Check if should show deposit button
+  const shouldShowDepositButton = 
+    buyRequest?.status === 'Accepted' && 
+    escrow && 
+    escrow.escrowStatus === 'PendingPayment';
+
+  // Check if should show pay remaining button
+  const shouldShowPayRemainingButton =
+    buyRequest?.status === 'Accepted' &&
+    escrow &&
+    escrow.escrowStatus === 'ReadyToHarvest';
+  
+  // Calculate remaining amount (70%)
+  const remainingAmount = escrow ? escrow.totalAmount - escrow.escrowAmount : 0;
+
+  // Check if should show dispute button
+  const shouldShowDisputeButton =
+    buyRequest?.status === 'Accepted' &&
+    escrow &&
+    escrow.escrowStatus === 'FullyFunded' &&
+    !dispute;
 
   return (
     <View style={styles.container}>
@@ -235,8 +338,168 @@ export default function BuyRequestHistoryDetailScreen() {
           </View>
         )}
 
-        <View style={{ height: 20 }} />
+        {/* Dispute Section */}
+        {escrow && dispute && (
+          <View style={styles.section}>
+            <DisputeInfoCard dispute={dispute} />
+          </View>
+        )}
+
+        {/* Escrow Section - Only show when Accepted */}
+        {buyRequest.status === 'Accepted' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Thông tin ký quỹ</Text>
+            
+            {loadingEscrow ? (
+              <View style={styles.loadingCard}>
+                <ActivityIndicator size="small" color="#059669" />
+                <Text style={styles.loadingText}>Đang tải thông tin...</Text>
+              </View>
+            ) : escrow ? (
+              <View style={styles.escrowCard}>
+                <View style={styles.escrowRow}>
+                  <Text style={styles.escrowLabel}>Trạng thái:</Text>
+                  <View
+                    style={[
+                      styles.escrowStatusBadge,
+                      { backgroundColor: getStatusColor('Accepted') },
+                    ]}
+                  >
+                    <Text style={styles.escrowStatusText}>
+                      {getEscrowStatusLabel(escrow.escrowStatus)}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.escrowRow}>
+                  <Text style={styles.escrowLabel}>Tổng giá trị:</Text>
+                  <Text style={styles.escrowValue}>
+                    {escrow.totalAmount.toLocaleString('vi-VN')} VND
+                  </Text>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.escrowRow}>
+                  <Text style={styles.escrowLabel}>Tiền cọc (30%):</Text>
+                  <Text style={styles.escrowValueHighlight}>
+                    {escrow.escrowAmount.toLocaleString('vi-VN')} VND
+                  </Text>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.escrowRow}>
+                  <Text style={styles.escrowLabel}>Phí dịch vụ:</Text>
+                  <Text style={styles.escrowValue}>
+                    {escrow.feeAmount.toLocaleString('vi-VN')} VND
+                  </Text>
+                </View>
+
+                {escrow.paymentAt && (
+                  <>
+                    <View style={styles.divider} />
+                    <View style={styles.escrowRow}>
+                      <Text style={styles.escrowLabel}>Ngày thanh toán:</Text>
+                      <Text style={styles.escrowValue}>
+                        {new Date(escrow.paymentAt).toLocaleDateString('vi-VN')}
+                      </Text>
+                    </View>
+                  </>
+                )}
+              </View>
+            ) : (
+              <View style={styles.messageCard}>
+                <Text style={styles.messageText}>
+                  Thông tin ký quỹ chưa được tạo
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        <View style={{ height: 80 }} />
       </ScrollView>
+
+      {/* Payment Button - Fixed at bottom */}
+      {shouldShowDepositButton && (
+        <View style={styles.bottomActions}>
+          <TouchableOpacity
+            style={styles.depositButton}
+            onPress={() => setShowDepositModal(true)}
+          >
+            <DollarSign size={20} color="#FFFFFF" />
+            <Text style={styles.depositButtonText}>
+              Thanh toán cọc {escrow!.escrowAmount.toLocaleString('vi-VN')} VND
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Pay Remaining Button - Fixed at bottom */}
+      {shouldShowPayRemainingButton && (
+        <View style={styles.bottomActions}>
+          <TouchableOpacity
+            style={styles.payRemainingButton}
+            onPress={() => setShowPayRemainingModal(true)}
+          >
+            <DollarSign size={20} color="#FFFFFF" />
+            <Text style={styles.payRemainingButtonText}>
+              Thanh toán phần còn lại {remainingAmount.toLocaleString('vi-VN')} VND
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Dispute Button - Fixed at bottom */}
+      {shouldShowDisputeButton && (
+        <View style={styles.bottomActions}>
+          <TouchableOpacity
+            style={styles.disputeButton}
+            onPress={() => setShowDisputeModal(true)}
+          >
+            <AlertCircle size={20} color="#FFFFFF" />
+            <Text style={styles.disputeButtonText}>
+              Tạo yêu cầu tranh chấp
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Deposit Payment Modal */}
+      {escrow && (
+        <BuyRequestDepositModal
+          visible={showDepositModal}
+          escrowId={escrow.id}
+          depositAmount={escrow.escrowAmount}
+          onClose={() => setShowDepositModal(false)}
+          onPaymentSuccess={handlePaymentSuccess}
+        />
+      )}
+
+      {/* Pay Remaining Modal */}
+      {escrow && (
+        <BuyRequestPayRemainingModal
+          visible={showPayRemainingModal}
+          escrowId={escrow.id}
+          remainingAmount={remainingAmount}
+          onClose={() => setShowPayRemainingModal(false)}
+          onPaymentSuccess={handlePaymentSuccess}
+        />
+      )}
+
+      {/* Dispute Modal */}
+      {escrow && (
+        <CreateDisputeModal
+          visible={showDisputeModal}
+          escrowId={escrow.id}
+          totalAmount={escrow.totalAmount}
+          onClose={() => setShowDisputeModal(false)}
+          onSuccess={handleDisputeSuccess}
+        />
+      )}
     </View>
   );
 }
@@ -456,5 +719,115 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#059669',
     fontWeight: '700',
+  },
+  loadingCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 8,
+  },
+  escrowCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  escrowRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  escrowLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  escrowValue: {
+    fontSize: 13,
+    color: '#111827',
+    fontWeight: '600',
+  },
+  escrowValueHighlight: {
+    fontSize: 14,
+    color: '#059669',
+    fontWeight: '700',
+  },
+  escrowStatusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  escrowStatusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  bottomActions: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  depositButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#059669',
+    paddingVertical: 14,
+    borderRadius: 10,
+    gap: 8,
+  },
+  depositButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  payRemainingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#3B82F6',
+    paddingVertical: 14,
+    borderRadius: 10,
+    gap: 8,
+  },
+  payRemainingButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  disputeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EF4444',
+    paddingVertical: 14,
+    borderRadius: 10,
+    gap: 8,
+  },
+  disputeButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

@@ -1297,6 +1297,7 @@ export default function WholesalerAuctionDetailScreen() {
               auctionStatus={auction.status}
               userProfile={userProfile}
               startingPrice={auction.startingPrice}
+              buyNowPrice={auction.buyNowPrice ?? undefined}
             />
           )}
 

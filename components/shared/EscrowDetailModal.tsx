@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -19,8 +19,13 @@ import {
 } from '../../services/escrowContractService';
 import { getAuctionDetail } from '../../services/auctionService';
 import { getUserById, getUserInfoByUsername } from '../../services/authService';
+import { getBuyRequestDetail, BuyRequest } from '../../services/buyRequestService';
 import PayRemainingModal from './PayRemainingModal';
 import { EscrowTransactions } from './EscrowTransactionsList';
+import { DisputeInfoCard } from './DisputeInfoCard';
+import { CreateDisputeModal } from './CreateDisputeModal';
+import { ReviewDisputeModal } from './ReviewDisputeModal';
+import { Dispute, getDisputeByEscrowId } from '../../services/disputeService';
 
 interface EscrowDetailModalProps {
   visible: boolean;
@@ -40,10 +45,17 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [auctionInfo, setAuctionInfo] = useState<any>(null);
+  const [buyRequestInfo, setBuyRequestInfo] = useState<BuyRequest | null>(null);
   const [farmerInfo, setFarmerInfo] = useState<any>(null);
   const [winnerInfo, setWinnerInfo] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [dispute, setDispute] = useState<Dispute | null>(null);
+  const [loadingDispute, setLoadingDispute] = useState(false);
+  const [showCreateDisputeModal, setShowCreateDisputeModal] = useState(false);
+  const [showReviewDisputeModal, setShowReviewDisputeModal] = useState(false);
+  const [disputeYPosition, setDisputeYPosition] = useState(0);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const handleReadyToHarvest = async () => {
     if (!contract) return;
@@ -71,30 +83,76 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
 
     setLoadingDetails(true);
     try {
-      // Fetch auction details
-      const auctionData = await getAuctionDetail(contract.auctionId);
-      console.log('Auction data:', auctionData);
-      setAuctionInfo(auctionData);
+      let farmerIdToFetch = null;
+      let wholesalerIdToFetch = null;
+
+      // Fetch auction details if auctionId exists
+      if (contract.auctionId) {
+        try {
+          const auctionData = await getAuctionDetail(contract.auctionId);
+          setAuctionInfo(auctionData);
+          farmerIdToFetch = auctionData?.farmerId;
+        } catch (auctionError: any) {
+          // Silently handle 404 - auction might not exist or be deleted
+          if (auctionError.message?.includes('404')) {
+            console.log('Auction not found for escrow, this is expected for buy request escrows');
+          } else {
+            console.error('Error fetching auction details:', auctionError);
+          }
+          setAuctionInfo(null);
+        }
+      }
+
+      // Fetch buy request details if buyRequestId exists
+      if (contract.buyRequestId) {
+        try {
+          const buyRequestData = await getBuyRequestDetail(contract.buyRequestId);
+          console.log('Buy request data:', buyRequestData);
+          setBuyRequestInfo(buyRequestData);
+          farmerIdToFetch = buyRequestData.farmerId;
+          wholesalerIdToFetch = buyRequestData.wholesalerId;
+        } catch (buyRequestError) {
+          console.error('Error fetching buy request details:', buyRequestError);
+          setBuyRequestInfo(null);
+        }
+      }
 
       // Fetch farmer info
-      if (auctionData?.farmerId) {
-        console.log('Fetching farmer with ID:', auctionData.farmerId);
-        const farmerData = await getUserInfoByUsername(auctionData.farmerId);
+      if (farmerIdToFetch) {
+        console.log('Fetching farmer with ID:', farmerIdToFetch);
+        const farmerData = await getUserInfoByUsername(farmerIdToFetch);
         console.log('Farmer data:', farmerData);
         setFarmerInfo(farmerData);
       }
 
-      // Fetch winner info
-      if (contract.winnerId) {
-        console.log('Fetching winner with ID:', contract.winnerId);
-        const winnerData = await getUserInfoByUsername(contract.winnerId);
-        console.log('Winner data:', winnerData);
+      // Fetch winner/wholesaler info from winnerId or wholesalerId
+      const winnerIdToFetch = contract.winnerId || wholesalerIdToFetch;
+      if (winnerIdToFetch) {
+        // console.log('Fetching winner/wholesaler with ID:', winnerIdToFetch);
+        const winnerData = await getUserInfoByUsername(winnerIdToFetch);
+        // console.log('Winner/wholesaler data:', winnerData);
         setWinnerInfo(winnerData);
       }
+
+      // Fetch dispute info
+      loadDisputeInfo(contract.id);
     } catch (err) {
       console.error('Error fetching details:', err);
     } finally {
       setLoadingDetails(false);
+    }
+  };
+
+  const loadDisputeInfo = async (escrowId: string) => {
+    try {
+      setLoadingDispute(true);
+      const disputeData = await getDisputeByEscrowId(escrowId);
+      setDispute(disputeData);
+    } catch (error) {
+      console.error('Error loading dispute:', error);
+      setDispute(null);
+    } finally {
+      setLoadingDispute(false);
     }
   };
 
@@ -106,6 +164,58 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
 
   const handlePayRemaining = () => {
     setShowPaymentModal(true);
+  };
+
+  const handleDisputeSuccess = async () => {
+    if (contract) {
+      // Silent reload - fetch updated data without showing loading spinner
+      try {
+        // Reload dispute info
+        await loadDisputeInfo(contract.id);
+        
+        // Silently refetch auction/buy request details to get updated status
+        let farmerIdToFetch = null;
+        let wholesalerIdToFetch = null;
+
+        if (contract.auctionId) {
+          try {
+            const auctionData = await getAuctionDetail(contract.auctionId);
+            setAuctionInfo(auctionData);
+            farmerIdToFetch = auctionData?.farmerId;
+          } catch (auctionError) {
+            console.error('Error refetching auction details:', auctionError);
+          }
+        }
+
+        if (contract.buyRequestId) {
+          try {
+            const buyRequestData = await getBuyRequestDetail(contract.buyRequestId);
+            setBuyRequestInfo(buyRequestData);
+            farmerIdToFetch = buyRequestData.farmerId;
+            wholesalerIdToFetch = buyRequestData.wholesalerId;
+          } catch (buyRequestError) {
+            console.error('Error refetching buy request details:', buyRequestError);
+          }
+        }
+
+        // Refresh user info if needed
+        if (farmerIdToFetch && !farmerInfo) {
+          const farmerData = await getUserInfoByUsername(farmerIdToFetch);
+          setFarmerInfo(farmerData);
+        }
+
+        const winnerIdToFetch = contract.winnerId || wholesalerIdToFetch;
+        if (winnerIdToFetch && !winnerInfo) {
+          const winnerData = await getUserInfoByUsername(winnerIdToFetch);
+          setWinnerInfo(winnerData);
+        }
+      } catch (error) {
+        console.error('Error refreshing data after dispute:', error);
+      }
+      
+      // Notify parent to refresh escrow list (silent reload)
+      onStatusUpdated?.();
+    }
   };
 
   if (!contract) {
@@ -132,6 +242,25 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
   const createdDate = new Date(contract.createdAt).toLocaleDateString('vi-VN');
   const canReadyToHarvest = role === 'farmer' && contract.escrowStatus <= 1;
   const canPayRemaining = role === 'wholesaler' && contract.escrowStatus === 2;
+  const canCreateDispute = contract.escrowStatus === 3 && !dispute;
+  const canReviewDispute = role === 'farmer' && dispute !== null && dispute?.disputeStatus === 0;
+  // Show "View Dispute" button when dispute exists, but hide if farmer can review (to avoid duplicate buttons)
+  const canViewDispute = dispute !== null && !canReviewDispute;
+
+  // Debug logs for dispute review
+  console.log('=== ESCROW DETAIL MODAL DEBUG ===');
+  console.log('Role:', role);
+  console.log('Escrow Status:', contract.escrowStatus);
+  console.log('Dispute:', dispute);
+  console.log('Loading Dispute:', loadingDispute);
+  console.log('Can Create Dispute:', canCreateDispute);
+  console.log('Can Review Dispute:', canReviewDispute);
+  console.log('Can View Dispute:', canViewDispute);
+  if (dispute) {
+    console.log('Dispute Status:', dispute.disputeStatus);
+    console.log('Dispute ID:', dispute.id);
+  }
+  console.log('================================');
 
   return (
     <Modal visible={visible} transparent animationType="slide">
@@ -146,7 +275,7 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
           </View>
 
           {/* Content */}
-          <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <ScrollView ref={scrollViewRef} style={styles.scrollContent} showsVerticalScrollIndicator={false}>
             {loadingDetails ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#22C55E" />
@@ -155,7 +284,7 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
             ) : (
               <>
                 {/* Status Section */}
-                <View style={[styles.statusSection, { backgroundColor: statusColor + '15' }]}>
+                <View style={styles.statusSection}>
                   <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
                     <Text style={styles.statusText}>{statusLabel}</Text>
                   </View>
@@ -167,89 +296,170 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
                   <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Thông tin đấu giá</Text>
 
-                    {/* <DetailRow label="ID Đấu giá" value={contract.auctionId} /> */}
                     <DetailRow
                       label="Mã phiên"
-                      value={auctionInfo.sessionCode || 'N/A'}
+                      value={auctionInfo.sessionCode || 'Chưa cập nhật'}
                     />
                     <DetailRow
                       label="Ghi chú"
-                      value={auctionInfo.note || 'Không có'}
+                      value={auctionInfo.note || 'Chưa cập nhật'}
                     />
-                    {/* <DetailRow
-                      label="Giá khởi điểm"
-                      value={formatCurrency(auctionInfo.startingPrice || 0)}
-                    />
-                    <DetailRow
-                      label="Giá hiện tại"
-                      value={formatCurrency(auctionInfo.currentPrice || 0)}
-                      highlight
-                    /> */}
                     <DetailRow
                       label="Số lượng dự kiến"
-                      value={`${auctionInfo.expectedTotalQuantity || 0} kg`}
+                      value={auctionInfo.expectedTotalQuantity ? `${auctionInfo.expectedTotalQuantity} kg` : 'Chưa cập nhật'}
                     />
                     <DetailRow
                       label="Ngày thu hoạch dự kiến"
                       value={
                         auctionInfo.expectedHarvestDate
                           ? new Date(auctionInfo.expectedHarvestDate).toLocaleDateString('vi-VN')
-                          : 'N/A'
+                          : 'Chưa cập nhật'
                       }
                     />
                   </View>
                 )}
 
-                {/* Farmer Information */}
-                {farmerInfo && (
+                {/* Buy Request Information */}
+                {buyRequestInfo && (
                   <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Thông tin nông dân</Text>
+                    <Text style={styles.sectionTitle}>Thông tin yêu cầu mua</Text>
 
                     <DetailRow
-                      label="Tên"
-                      value={`${farmerInfo.firstName || ''} ${farmerInfo.lastName || ''}`}
+                      label="Mã yêu cầu"
+                      value={buyRequestInfo.requestCode || 'Chưa cập nhật'}
                     />
-                    {/* <DetailRow label="Email" value={farmerInfo.email || 'N/A'} />
                     <DetailRow
-                      label="Số điện thoại"
-                      value={farmerInfo.phoneNumber || 'N/A'}
-                    /> */}
-                    <DetailRow
-                      label="Địa chỉ"
-                      value={farmerInfo.address || 'N/A'}
+                      label="Ngày cần thiết"
+                      value={
+                        buyRequestInfo.requiredDate
+                          ? new Date(buyRequestInfo.requiredDate).toLocaleDateString('vi-VN')
+                          : 'Chưa cập nhật'
+                      }
                     />
+                    <DetailRow
+                      label="Giá dự kiến"
+                      value={buyRequestInfo.expectedPrice ? formatCurrency(buyRequestInfo.expectedPrice) : 'Chưa cập nhật'}
+                      highlight
+                    />
+                    <DetailRow
+                      label="Loại mua"
+                      value={buyRequestInfo.isBuyingBulk ? 'Mua toàn bộ' : 'Mua theo loại'}
+                    />
+                    <DetailRow
+                      label="Trạng thái"
+                      value={buyRequestInfo.status || 'Chưa cập nhật'}
+                    />
+                    <DetailRow
+                      label="Ghi chú"
+                      value={buyRequestInfo.message || 'Chưa cập nhật'}
+                    />
+                    {(buyRequestInfo.totalQuantity ?? 0) > 0 && (
+                      <DetailRow
+                        label="Tổng số lượng"
+                        value={`${buyRequestInfo.totalQuantity} kg`}
+                      />
+                    )}
                   </View>
                 )}
 
-                {/* Winner Information */}
-                {winnerInfo && (
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Thông tin thương lái</Text>
+                {/* Farmer Information - Always show */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Thông tin nông dân</Text>
 
+                  {farmerInfo ? (
+                    <>
+                      <DetailRow
+                        label="Tên"
+                        value={
+                          farmerInfo.firstName || farmerInfo.lastName
+                            ? `${farmerInfo.firstName || ''} ${farmerInfo.lastName || ''}`.trim()
+                            : 'Chưa cập nhật'
+                        }
+                      />
+                      <DetailRow 
+                        label="Email" 
+                        value={farmerInfo.email || 'Chưa cập nhật'} 
+                      />
+                      <DetailRow
+                        label="Số điện thoại"
+                        value={farmerInfo.phoneNumber || 'Chưa cập nhật'}
+                      />
+                      <DetailRow
+                        label="Địa chỉ"
+                        value={farmerInfo.address || 'Chưa cập nhật'}
+                      />
+                    </>
+                  ) : (
                     <DetailRow
-                      label="Tên"
-                      value={`${winnerInfo.firstName || ''} ${winnerInfo.lastName || ''}`}
+                      label="Trạng thái"
+                      value="Đang tải..."
                     />
-                    {/* <DetailRow label="Email" value={winnerInfo.email || 'N/A'} />
+                  )}
+                </View>
+
+                {/* Winner Information - Always show */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Thông tin thương lái</Text>
+
+                  {winnerInfo ? (
+                    <>
+                      <DetailRow
+                        label="Tên"
+                        value={
+                          winnerInfo.firstName || winnerInfo.lastName
+                            ? `${winnerInfo.firstName || ''} ${winnerInfo.lastName || ''}`.trim()
+                            : 'Chưa cập nhật'
+                        }
+                      />
+                      <DetailRow 
+                        label="Email" 
+                        value={winnerInfo.email || 'Chưa cập nhật'} 
+                      />
+                      <DetailRow
+                        label="Số điện thoại"
+                        value={winnerInfo.phoneNumber || 'Chưa cập nhật'}
+                      />
+                      <DetailRow
+                        label="Địa chỉ"
+                        value={winnerInfo.address || 'Chưa cập nhật'}
+                      />
+                    </>
+                  ) : (
                     <DetailRow
-                      label="Số điện thoại"
-                      value={winnerInfo.phoneNumber || 'N/A'}
-                    /> */}
-                    <DetailRow
-                      label="Địa chỉ"
-                      value={winnerInfo.address || 'N/A'}
+                      label="Trạng thái"
+                      value="Đang tải..."
                     />
-                  </View>
-                )}
+                  )}
+                </View>
 
                 {/* Main Details */}
                 <View style={styles.section}>
-            
+                  <Text style={styles.sectionTitle}>Chi tiết giao dịch</Text>
 
+                  <DetailRow
+                    label="Mã giao dịch"
+                    value={contract.id ? contract.id.slice(0, 8).toUpperCase() : 'Chưa cập nhật'}
+                  />
+                  <DetailRow
+                    label="Ngày tạo"
+                    value={contract.createdAt ? new Date(contract.createdAt).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}
+                  />
                   {contract.paymentAt && (
                     <DetailRow
                       label="Ngày thanh toán"
                       value={new Date(contract.paymentAt).toLocaleDateString('vi-VN')}
+                    />
+                  )}
+                  {contract.releasedAt && (
+                    <DetailRow
+                      label="Ngày phát hành"
+                      value={new Date(contract.releasedAt).toLocaleDateString('vi-VN')}
+                    />
+                  )}
+                  {contract.refundAt && (
+                    <DetailRow
+                      label="Ngày hoàn tiền"
+                      value={new Date(contract.refundAt).toLocaleDateString('vi-VN')}
                     />
                   )}
                 </View>
@@ -260,23 +470,47 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
 
                   <DetailRow
                     label="Tổng tiền"
-                    value={formatCurrency(contract.totalAmount)}
+                    value={contract.totalAmount ? formatCurrency(contract.totalAmount) : 'Chưa cập nhật'}
                     highlight
                   />
-                  <DetailRow label="Phí dịch vụ" value={formatCurrency(contract.feeAmount)} />
-                  <DetailRow label="Số tiền cọc" value={formatCurrency(contract.escrowAmount)} />
+                  <DetailRow 
+                    label="Phí dịch vụ" 
+                    value={contract.feeAmount ? formatCurrency(contract.feeAmount) : 'Chưa cập nhật'} 
+                  />
+                  <DetailRow 
+                    label="Số tiền cọc" 
+                    value={contract.escrowAmount ? formatCurrency(contract.escrowAmount) : 'Chưa cập nhật'} 
+                  />
 
                   {role === 'farmer' ? (
                     <DetailRow
                       label="Bạn sẽ nhận"
-                      value={formatCurrency(contract.sellerReceiveAmount)}
+                      value={contract.sellerReceiveAmount ? formatCurrency(contract.sellerReceiveAmount) : 'Chưa cập nhật'}
                       highlight
                     />
                   ) : (
                     <DetailRow
                       label="Bạn cần thanh toán"
-                      value={formatCurrency(contract.totalAmount)}
+                      value={contract.totalAmount ? formatCurrency(contract.totalAmount) : 'Chưa cập nhật'}
                       highlight
+                    />
+                  )}
+                  {contract.paymentTransactionId && (
+                    <DetailRow
+                      label="Mã GD thanh toán"
+                      value={contract.paymentTransactionId.slice(0, 12).toUpperCase()}
+                    />
+                  )}
+                  {contract.releasedTransactioId && (
+                    <DetailRow
+                      label="Mã GD phát hành"
+                      value={contract.releasedTransactioId.slice(0, 12).toUpperCase()}
+                    />
+                  )}
+                  {contract.refundTransactionId && (
+                    <DetailRow
+                      label="Mã GD hoàn tiền"
+                      value={contract.refundTransactionId.slice(0, 12).toUpperCase()}
                     />
                   )}
                 </View>
@@ -306,6 +540,36 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
                   )}
                      <DetailRow label="Ngày tạo" value={createdDate} />
                 </View> */}
+
+                {/* Dispute Section */}
+                {loadingDispute ? (
+                  <View 
+                    style={styles.section}
+                    onLayout={(event) => {
+                      const { y } = event.nativeEvent.layout;
+                      setDisputeYPosition(y);
+                    }}
+                  >
+                    <View style={styles.loadingCard}>
+                      <ActivityIndicator size="small" color="#EF4444" />
+                      <Text style={styles.loadingCardText}>Đang tải tranh chấp...</Text>
+                    </View>
+                  </View>
+                ) : dispute ? (
+                  <View 
+                    style={styles.section}
+                    onLayout={(event) => {
+                      const { y } = event.nativeEvent.layout;
+                      setDisputeYPosition(y);
+                    }}
+                  >
+                    <DisputeInfoCard
+                      dispute={dispute}
+                      showReviewButton={canReviewDispute}
+                      onReview={() => setShowReviewDisputeModal(true)}
+                    />
+                  </View>
+                ) : null}
 
                 {/* Transactions List */}
                 <EscrowTransactions escrowId={contract.id} />
@@ -361,6 +625,71 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
               </TouchableOpacity>
             )}
 
+            {canCreateDispute && (
+              <TouchableOpacity
+                style={[styles.button, styles.disputeButton]}
+                onPress={() => setShowCreateDisputeModal(true)}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <MaterialIcons name="report-problem" size={20} color="#FFFFFF" />
+                    <Text style={styles.disputeButtonText}>
+                      Tạo tranh chấp
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+
+            {canReviewDispute && (
+              <TouchableOpacity
+                style={[styles.button, styles.reviewDisputeButton]}
+                onPress={() => setShowReviewDisputeModal(true)}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <MaterialIcons name="rate-review" size={20} color="#FFFFFF" />
+                    <Text style={styles.reviewDisputeButtonText}>
+                      Xét duyệt tranh chấp
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+
+            {canViewDispute && (
+              <TouchableOpacity
+                style={[styles.button, styles.viewDisputeButton]}
+                onPress={() => {
+                  // Scroll to dispute section
+                  if (disputeYPosition > 0) {
+                    scrollViewRef.current?.scrollTo({ 
+                      y: disputeYPosition - 20, 
+                      animated: true 
+                    });
+                  }
+                }}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <MaterialIcons name="info" size={20} color="#FFFFFF" />
+                    <Text style={styles.viewDisputeButtonText}>
+                      Xem tranh chấp
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               style={[styles.button, styles.secondaryButton]}
               onPress={onClose}
@@ -383,6 +712,27 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
             setShowPaymentModal(false);
             onStatusUpdated?.();
           }}
+        />
+      )}
+
+      {/* Create Dispute Modal */}
+      {contract && (
+        <CreateDisputeModal
+          visible={showCreateDisputeModal}
+          escrowId={contract.id}
+          totalAmount={contract.totalAmount}
+          onClose={() => setShowCreateDisputeModal(false)}
+          onSuccess={handleDisputeSuccess}
+        />
+      )}
+
+      {/* Review Dispute Modal */}
+      {dispute && (
+        <ReviewDisputeModal
+          visible={showReviewDisputeModal}
+          disputeId={dispute.id}
+          onClose={() => setShowReviewDisputeModal(false)}
+          onSuccess={handleDisputeSuccess}
         />
       )}
     </Modal>
@@ -450,6 +800,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  loadingCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingVertical: 20,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  loadingCardText: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
   loadingText: {
     fontSize: 14,
     color: '#6B7280',
@@ -461,21 +826,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 20,
     alignItems: 'center',
+    backgroundColor: '#FAFAFA',
   },
   statusBadge: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 8,
     marginBottom: 8,
   },
   statusText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
+    textAlign: 'center',
   },
   statusDate: {
     fontSize: 12,
     color: '#6B7280',
+    textAlign: 'center',
   },
   section: {
     marginBottom: 20,
@@ -574,5 +942,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#1F2937',
+  },
+  disputeButton: {
+    backgroundColor: '#EF4444',
+  },
+  disputeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginLeft: 8,
+  },
+  reviewDisputeButton: {
+    backgroundColor: '#10B981',
+  },
+  reviewDisputeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginLeft: 8,
+  },
+  viewDisputeButton: {
+    backgroundColor: '#3B82F6',
+  },
+  viewDisputeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginLeft: 8,
   },
 });

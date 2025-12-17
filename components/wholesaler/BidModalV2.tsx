@@ -39,6 +39,7 @@ interface CreateBidModalProps {
   auctionStatus?: string;
   userProfile?: { userId: string; fullName: string } | null;
   startingPrice?: number;
+  buyNowPrice?: number;
 }
 
 export default function CreateBidModal({
@@ -53,6 +54,7 @@ export default function CreateBidModal({
   auctionStatus,
   userProfile,
   startingPrice = 0,
+  buyNowPrice,
 }: CreateBidModalProps) {
   const [isAutoBid, setIsAutoBid] = useState(false); // Default to manual bid (safer)
   const [autoBidMaxLimit, setAutoBidMaxLimit] = useState<string>('');
@@ -295,8 +297,34 @@ export default function CreateBidModal({
         
         // Validate inputs
         if (isAutoBid) {
-          if (!autoBidMaxLimit || isNaN(parseFloat(autoBidMaxLimit))) {
-            Alert.alert('Lỗi', 'Vui lòng nhập giá tối đa hợp lệ cho đấu giá tự động');
+          if (!autoBidMaxLimit || autoBidMaxLimit.trim() === '') {
+            Alert.alert('Lỗi', 'Vui lòng nhập giá tối đa cho đấu giá tự động');
+            setLoading(false);
+            return;
+          }
+          
+          // Parse and validate the number
+          const maxLimitValue = parseFloat(autoBidMaxLimit.replace(/,/g, ''));
+          if (isNaN(maxLimitValue) || maxLimitValue <= 0) {
+            Alert.alert('Lỗi', 'Giá tối đa phải là số hợp lệ và lớn hơn 0');
+            setLoading(false);
+            return;
+          }
+          
+          // Check if exceeds buy now price
+          if (buyNowPrice && maxLimitValue > buyNowPrice) {
+            Alert.alert(
+              'Giá tối đa vượt quá giá mua ngay',
+              `Giá tối đa không được vượt quá giá mua ngay: ${buyNowPrice.toLocaleString('vi-VN')} ₫\n\nNếu bạn muốn mua ngay với giá này, vui lòng sử dụng chức năng "Mua ngay".`
+            );
+            setLoading(false);
+            return;
+          }
+          
+          // Validate against current price and increment
+          const validation = validateAutoBidLimit(maxLimitValue, currentPrice, minBidIncrement);
+          if (!validation.isValid) {
+            Alert.alert('Lỗi', validation.message || 'Giá tối đa không hợp lệ');
             setLoading(false);
             return;
           }
@@ -313,16 +341,29 @@ export default function CreateBidModal({
         
         // Only add autoBidMaxLimit if auto bid
         if (isAutoBid && autoBidMaxLimit) {
-          const maxLimitValue = parseFloat(autoBidMaxLimit);
-          if (!isNaN(maxLimitValue) && maxLimitValue > 0) {
-            request.autoBidMaxLimit = maxLimitValue;
+          const maxLimitValue = parseFloat(autoBidMaxLimit.replace(/,/g, '').replace(/\./g, ''));
+          console.log('🔍 Parsing autoBidMaxLimit:', {
+            original: autoBidMaxLimit,
+            afterReplace: autoBidMaxLimit.replace(/,/g, '').replace(/\./g, ''),
+            parsed: maxLimitValue,
+            isNaN: isNaN(maxLimitValue),
+            type: typeof maxLimitValue,
+          });
+          
+          if (isNaN(maxLimitValue) || maxLimitValue <= 0) {
+            Alert.alert('Lỗi', 'Giá tối đa không hợp lệ. Vui lòng kiểm tra lại số nhập vào.');
+            setLoading(false);
+            return;
           }
+          
+          request.autoBidMaxLimit = maxLimitValue;
         }
         
         console.log('🔍 CreateBid Request:', {
           isAutoBid,
           auctionSessionId,
           autoBidMaxLimit: request.autoBidMaxLimit,
+          autoBidMaxLimitType: typeof request.autoBidMaxLimit,
           note: isAutoBid ? 'Auto bid with max limit' : 'Manual bid - join only',
         });
         
@@ -381,10 +422,28 @@ export default function CreateBidModal({
           Alert.alert('Lỗi', response.message || 'Không thể đặt giá');
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error creating/updating bid:', error);
       
-      const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra';
+      // Try to extract detailed errors from response
+      let errorMessage = 'Có lỗi xảy ra';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // If error has response data with errors array, use it
+        if (error.cause && typeof error.cause === 'object') {
+          const cause = error.cause as any;
+          if (cause.errors && Array.isArray(cause.errors) && cause.errors.length > 0) {
+            errorMessage = cause.errors.join('\n');
+          }
+        }
+      }
+      
+      console.log('📋 Error details:', {
+        message: errorMessage,
+        error: error,
+      });
       
       // Check if error is due to someone else bidding (only check outbid/higher bid messages)
       if (errorMessage.toLowerCase().includes('outbid') ||

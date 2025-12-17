@@ -18,19 +18,31 @@ import {
   getWholesalerInfo,
   FarmerBuyRequest,
   WholesalerInfo,
+  getBuyRequestEscrowForFarmer,
+  setFarmerBuyRequestReadyToHarvest,
+  BuyRequestEscrow,
 } from '../../../../services/farmerBuyRequestManagementService';
+import { DisputeInfoCard } from '../../../../components/shared/DisputeInfoCard';
+import { ReviewDisputeModal } from '../../../../components/shared/ReviewDisputeModal';
+import { Dispute, getDisputeByEscrowId } from '../../../../services/disputeService';
 
 export default function BuyRequestDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const [buyRequest, setBuyRequest] = useState<FarmerBuyRequest | null>(null);
   const [wholesaler, setWholesaler] = useState<WholesalerInfo | null>(null);
+  const [escrow, setEscrow] = useState<BuyRequestEscrow | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingEscrow, setLoadingEscrow] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [settingReady, setSettingReady] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{
     visible: boolean;
-    action: 'accept' | 'reject' | null;
+    action: 'accept' | 'reject' | 'ready' | null;
   }>({ visible: false, action: null });
+  const [dispute, setDispute] = useState<Dispute | null>(null);
+  const [loadingDispute, setLoadingDispute] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
 
   useEffect(() => {
     loadBuyRequest();
@@ -52,6 +64,11 @@ export default function BuyRequestDetailScreen() {
             console.error('Error loading wholesaler info:', error);
           }
         }
+
+        // Load escrow info if accepted
+        if (data.status === 'Accepted') {
+          loadEscrowInfo(data.id);
+        }
       }
     } catch (error) {
       console.error('Error loading buy request:', error);
@@ -61,22 +78,61 @@ export default function BuyRequestDetailScreen() {
     }
   };
 
+  const loadEscrowInfo = async (buyRequestId: string) => {
+    try {
+      setLoadingEscrow(true);
+      const escrowData = await getBuyRequestEscrowForFarmer(buyRequestId);
+      setEscrow(escrowData);
+      
+      // Load dispute if escrow exists
+      if (escrowData) {
+        loadDisputeInfo(escrowData.id);
+      }
+    } catch (error) {
+      console.error('Error loading escrow:', error);
+      // Escrow might not exist yet
+    } finally {
+      setLoadingEscrow(false);
+    }
+  };
+
+  const loadDisputeInfo = async (escrowId: string) => {
+    try {
+      setLoadingDispute(true);
+      const disputeData = await getDisputeByEscrowId(escrowId);
+      setDispute(disputeData);
+    } catch (error) {
+      console.error('Error loading dispute:', error);
+      setDispute(null);
+    } finally {
+      setLoadingDispute(false);
+    }
+  };
+
   const handleUpdateStatus = async (status: 'Accepted' | 'Rejected') => {
     if (!buyRequest) return;
 
     try {
       setUpdating(true);
       await updateBuyRequestStatus(buyRequest.id, status);
+      
+      if (status === 'Accepted') {
+        // Reload to get escrow info
+        await loadBuyRequest();
+      }
+      
       Alert.alert(
         'Thành công',
         status === 'Accepted'
-          ? 'Đã duyệt yêu cầu mua hàng'
+          ? 'Đã duyệt yêu cầu mua hàng. Chờ thương lái thanh toán cọc.'
           : 'Đã từ chối yêu cầu mua hàng',
         [
           {
             text: 'OK',
             onPress: () => {
-              router.back();
+              if (status === 'Rejected') {
+                router.back();
+              }
             },
           },
         ]
@@ -87,6 +143,42 @@ export default function BuyRequestDetailScreen() {
     } finally {
       setUpdating(false);
       setConfirmModal({ visible: false, action: null });
+    }
+  };
+
+  const handleSetReadyToHarvest = async () => {
+    if (!escrow) return;
+
+    try {
+      setSettingReady(true);
+      await setFarmerBuyRequestReadyToHarvest(escrow.id);
+      
+      // Reload escrow info
+      if (buyRequest) {
+        await loadEscrowInfo(buyRequest.id);
+      }
+      
+      Alert.alert(
+        'Thành công',
+        'Đã xác nhận sẵn sàng thu hoạch. Thương lái có thể thanh toán phần còn lại.',
+        [
+          {
+            text: 'OK',
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error setting ready to harvest:', error);
+      Alert.alert('Lỗi', 'Không thể cập nhật trạng thái sẵn sàng');
+    } finally {
+      setSettingReady(false);
+      setConfirmModal({ visible: false, action: null });
+    }
+  };
+
+  const handleDisputeReviewSuccess = () => {
+    if (escrow) {
+      loadDisputeInfo(escrow.id);
     }
   };
 
@@ -119,6 +211,23 @@ export default function BuyRequestDetailScreen() {
         return 'Hoàn thành';
       case 'Cancelled':
         return 'Đã hủy';
+      default:
+        return status;
+    }
+  };
+
+  const getEscrowStatusLabel = (status: string) => {
+    switch (status) {
+      case 'PendingPayment':
+        return 'Chờ thanh toán cọc';
+      case 'Deposited':
+        return 'Đã đặt cọc';
+      case 'ReadyToHarvest':
+        return 'Sẵn sàng thu hoạch';
+      case 'Completed':
+        return 'Hoàn thành';
+      case 'Refunded':
+        return 'Đã hoàn tiền';
       default:
         return status;
     }
@@ -190,14 +299,12 @@ export default function BuyRequestDetailScreen() {
               <Text style={styles.value}>{wholesaler.phoneNumber}</Text>
             </View> */}
 
-            <View style={styles.divider} />
-
             {/* <View style={styles.infoRow}>
               <Text style={styles.label}>Email:</Text>
               <Text style={styles.value}>{wholesaler.email}</Text>
             </View> */}
 
-            <View style={styles.divider} />
+          
 
             <View style={styles.infoRow}>
               <Text style={styles.label}>Địa chỉ:</Text>
@@ -312,6 +419,90 @@ export default function BuyRequestDetailScreen() {
           </View>
         )}
 
+        {/* Dispute Section */}
+        {escrow && dispute && (
+          <View style={styles.card}>
+            <DisputeInfoCard 
+              dispute={dispute} 
+              showReviewButton={dispute.disputeStatus === 0}
+              onReview={() => setShowReviewModal(true)}
+            />
+          </View>
+        )}
+
+        {/* Escrow Section - Only show when Accepted */}
+        {buyRequest.status === 'Accepted' && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Thông Tin Ký Quỹ</Text>
+            
+            {loadingEscrow ? (
+              <View style={styles.loadingCard}>
+                <ActivityIndicator size="small" color="#10B981" />
+                <Text style={styles.loadingCardText}>Đang tải...</Text>
+              </View>
+            ) : escrow ? (
+              <>
+                <View style={styles.infoRow}>
+                  <Text style={styles.label}>Trạng thái:</Text>
+                  <View
+                    style={[
+                      styles.escrowStatusBadge,
+                      { backgroundColor: getStatusColor('Accepted') },
+                    ]}
+                  >
+                    <Text style={styles.escrowStatusText}>
+                      {getEscrowStatusLabel(escrow.escrowStatus)}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.infoRow}>
+                  <Text style={styles.label}>Tổng giá trị:</Text>
+                  <Text style={styles.valueHighlight}>
+                    {escrow.totalAmount.toLocaleString('vi-VN')} VND
+                  </Text>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.infoRow}>
+                  <Text style={styles.label}>Tiền cọc (30%):</Text>
+                  <Text style={styles.value}>
+                    {escrow.escrowAmount.toLocaleString('vi-VN')} VND
+                  </Text>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.infoRow}>
+                  <Text style={styles.label}>Bạn sẽ nhận:</Text>
+                  <Text style={styles.valueHighlight}>
+                    {escrow.sellerReceiveAmount.toLocaleString('vi-VN')} VND
+                  </Text>
+                </View>
+
+                {escrow.paymentAt && (
+                  <>
+                    <View style={styles.divider} />
+                    <View style={styles.infoRow}>
+                      <Text style={styles.label}>Ngày thanh toán cọc:</Text>
+                      <Text style={styles.value}>
+                        {new Date(escrow.paymentAt).toLocaleDateString('vi-VN')}
+                      </Text>
+                    </View>
+                  </>
+                )}
+              </>
+            ) : (
+              <Text style={styles.emptyText}>
+                Chờ thương lái thanh toán cọc
+              </Text>
+            )}
+          </View>
+        )}
+
         {/* Metadata */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Thông Tin Bổ Sung</Text>
@@ -358,6 +549,26 @@ export default function BuyRequestDetailScreen() {
           </View>
         )}
 
+        {/* Ready to Harvest Button - Show when deposited */}
+        {escrow && escrow.escrowStatus === 'PartiallyFunded' && (
+          <View style={styles.actionSection}>
+            <TouchableOpacity
+              style={styles.readyButton}
+              onPress={() => setConfirmModal({ visible: true, action: 'ready' })}
+              disabled={settingReady}
+            >
+              {settingReady ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Check size={20} color="#FFFFFF" />
+                  <Text style={styles.readyButtonText}>Sẵn Sàng Thu Hoạch</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.bottomSpacing} />
       </ScrollView>
 
@@ -380,12 +591,16 @@ export default function BuyRequestDetailScreen() {
             <Text style={styles.confirmTitle}>
               {confirmModal.action === 'accept'
                 ? 'Xác Nhận Duyệt?'
+                : confirmModal.action === 'ready'
+                ? 'Xác Nhận Sẵn Sàng?'
                 : 'Xác Nhận Từ Chối?'}
             </Text>
 
             <Text style={styles.confirmMessage}>
               {confirmModal.action === 'accept'
                 ? 'Bạn có chắc chắn muốn duyệt yêu cầu mua hàng này không?'
+                : confirmModal.action === 'ready'
+                ? 'Xác nhận rằng hàng đã sẵn sàng để thu hoạch. Thương lái sẽ có thể thanh toán phần còn lại.'
                 : 'Bạn có chắc chắn muốn từ chối yêu cầu mua hàng này không?'}
             </Text>
 
@@ -393,7 +608,7 @@ export default function BuyRequestDetailScreen() {
               <TouchableOpacity
                 style={styles.cancelConfirmButton}
                 onPress={() => setConfirmModal({ visible: false, action: null })}
-                disabled={updating}
+                disabled={updating || settingReady}
               >
                 <Text style={styles.cancelConfirmText}>Hủy</Text>
               </TouchableOpacity>
@@ -403,22 +618,30 @@ export default function BuyRequestDetailScreen() {
                   styles.confirmButton,
                   {
                     backgroundColor:
-                      confirmModal.action === 'accept' ? '#10B981' : '#EF4444',
+                      confirmModal.action === 'accept' || confirmModal.action === 'ready' 
+                        ? '#10B981' 
+                        : '#EF4444',
                   },
                 ]}
                 onPress={() => {
                   if (confirmModal.action === 'accept' || confirmModal.action === 'reject') {
                     const status = confirmModal.action === 'accept' ? 'Accepted' : 'Rejected';
                     handleUpdateStatus(status);
+                  } else if (confirmModal.action === 'ready') {
+                    handleSetReadyToHarvest();
                   }
                 }}
-                disabled={updating}
+                disabled={updating || settingReady}
               >
-                {updating ? (
+                {(updating || settingReady) ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <Text style={styles.confirmButtonText}>
-                    {confirmModal.action === 'accept' ? 'Duyệt' : 'Từ Chối'}
+                    {confirmModal.action === 'accept' 
+                      ? 'Duyệt' 
+                      : confirmModal.action === 'ready'
+                      ? 'Xác Nhận'
+                      : 'Từ Chối'}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -426,6 +649,16 @@ export default function BuyRequestDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Review Dispute Modal */}
+      {dispute && (
+        <ReviewDisputeModal
+          visible={showReviewModal}
+          disputeId={dispute.id}
+          onClose={() => setShowReviewModal(false)}
+          onSuccess={handleDisputeReviewSuccess}
+        />
+      )}
     </View>
   );
 }
@@ -686,6 +919,53 @@ const styles = StyleSheet.create({
   },
   confirmButtonText: {
     fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  loadingCard: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  loadingCardText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 8,
+  },
+  escrowStatusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  escrowStatusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  valueHighlight: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#10B981',
+    textAlign: 'right',
+  },
+  emptyText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    paddingVertical: 12,
+  },
+  readyButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#059669',
+    borderRadius: 12,
+    paddingVertical: 14,
+    gap: 8,
+  },
+  readyButtonText: {
+    fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
   },

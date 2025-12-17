@@ -648,12 +648,23 @@ export const getAuctionDetail = async (auctionId: string): Promise<any> => {
     );
 
     if (!response.ok) {
+      // Xử lý 404 im lặng (escrow từ buy request không có auction)
+      if (response.status === 404) {
+        console.log('Auction not found (404), this is expected for buy request escrows');
+        return null;
+      }
       throw new Error(`Failed to get auction detail: ${response.status}`);
     }
 
     const data = await response.json();
     return data.data; // Returns full auction object including harvests array
-  } catch (error) {
+  } catch (error: any) {
+    // Nếu là lỗi 404, chỉ log info và return null thay vì throw
+    if (error.message?.includes('404')) {
+      console.log('Auction not found, this is expected for buy request escrows');
+      return null;
+    }
+    // Các lỗi khác vẫn throw
     console.error('Error getting auction detail:', error);
     throw error;
   }

@@ -1,7 +1,12 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { EscrowContract, formatCurrency, getEscrowStatusLabel } from '../../services/escrowContractService';
+import { 
+  EscrowContract, 
+  formatCurrency, 
+  getEscrowStatusLabel,
+  getEscrowStatusColor 
+} from '../../services/escrowContractService';
 import { AuctionSession } from './../../services/auctionService';
 
 interface EscrowContractCardProps {
@@ -15,24 +20,9 @@ export const EscrowContractCard: React.FC<EscrowContractCardProps> = ({
   onPress,
   role,
 }) => {
-  const getStatusColor = (status: number): string => {
-    const colors: Record<number, string> = {
-      0: '#F59E0B',
-      1: '#3B82F6',
-      2: '#8B5CF6',
-      3: '#10B981',
-      4: '#059669',
-      5: '#EF4444',
-      6: '#6B7280',
-      7: '#9CA3AF',
-      8: '#D1D5DB',
-    };
-    return colors[status] || '#6B7280';
-  };
-
   const createdDate = new Date(contract.createdAt).toLocaleDateString('vi-VN');
   const statusLabel = getEscrowStatusLabel(contract.escrowStatus);
-  const statusColor = getStatusColor(contract.escrowStatus);
+  const statusColor = getEscrowStatusColor(contract.escrowStatus);
 
   return (
     <TouchableOpacity
@@ -45,8 +35,8 @@ export const EscrowContractCard: React.FC<EscrowContractCardProps> = ({
           <Text style={styles.auctionId}>{contract.sessionCode}</Text>
           <Text style={styles.date}>{createdDate}</Text>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-          <Text style={styles.statusText}>{statusLabel}</Text>
+        <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
+          <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
         </View>
       </View>
 
@@ -123,15 +113,15 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
   statusBadge: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
     marginLeft: 8,
   },
   statusText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   divider: {
     height: 1,

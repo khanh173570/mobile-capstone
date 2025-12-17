@@ -82,7 +82,7 @@ export default function AuctionBrowseScreen() {
   // History tab state
   const [buyRequestHistory, setBuyRequestHistory] = useState<BuyRequest[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [selectedStatusFilter, setSelectedStatusFilter] = useState<StatusFilter>('All');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<StatusFilter | null>(null);
   const [showStatusFilter, setShowStatusFilter] = useState(false);
 
   useEffect(() => {
@@ -94,6 +94,24 @@ export default function AuctionBrowseScreen() {
       loadBuyRequestHistory();
     }
   }, [activeTab]);
+
+  // Filter buy request history by status
+  const filteredBuyRequestHistory = React.useMemo(() => {
+    if (selectedStatusFilter === null) {
+      return buyRequestHistory;
+    }
+    return buyRequestHistory.filter(request => request.status === selectedStatusFilter);
+  }, [buyRequestHistory, selectedStatusFilter]);
+
+  // Filter options for history
+  const historyFilterOptions = [
+    { value: null, label: 'Tất cả' },
+    { value: 'Pending', label: 'Chờ duyệt' },
+    { value: 'Accepted', label: 'Đã duyệt' },
+    { value: 'Rejected', label: 'Bị từ chối' },
+    { value: 'Completed', label: 'Hoàn thành' },
+    { value: 'Canceled', label: 'Đã hủy' },
+  ];
 
   const loadBuyRequestHistory = async (status?: string) => {
     try {
@@ -160,6 +178,26 @@ export default function AuctionBrowseScreen() {
       if (profile && profile.data) {
         setUserId(profile.data.id);
       }
+      
+      // Load provinces and set Tây Ninh as default
+      const provinceList = await getProvinces();
+      console.log('📍 Provinces loaded:', provinceList.length);
+      setProvinces(provinceList);
+      
+      const tayNinhProvince = provinceList.find((p) => p.name.includes('Tây Ninh'));
+      if (tayNinhProvince) {
+        setSelectedProvince(tayNinhProvince.id);
+        
+        // Load wards for Tây Ninh
+        const wardList = await getWardsFromProvince(tayNinhProvince.id);
+        console.log('📍 Wards loaded:', wardList.length);
+        setWards(wardList);
+      }
+      
+      // Load crop types
+      const types = await getCustardAppleTypes();
+      console.log('🌾 Crop types loaded:', types.length);
+      setCropTypes(types);
     } catch (error) {
       console.error('❌ Error loading initial data:', error);
     } finally {
@@ -478,12 +516,15 @@ export default function AuctionBrowseScreen() {
 
             <TouchableOpacity
               style={styles.dropdown}
-              onPress={() => setShowCropTypeDropdown(!showCropTypeDropdown)}
+              onPress={() => {
+                if (cropTypes.length === 0) loadCropTypes();
+                setShowCropTypeDropdown(!showCropTypeDropdown);
+              }}
             >
               <Text style={styles.dropdownText}>
                 {searchFilters.cropType
                   ? cropTypes.find(c => c.id === searchFilters.cropType)?.name || 'Chọn loại cây trồng'
-                  : 'Chọn loại loại'}
+                  : 'Chọn loại'}
               </Text>
               <ChevronDown size={20} color="#6B7280" />
             </TouchableOpacity>
@@ -643,6 +684,36 @@ export default function AuctionBrowseScreen() {
             <Text style={styles.historyTitle}>Lịch sử yêu cầu mua</Text>
           </View>
 
+          {/* Filter chips */}
+          <View style={styles.historyFilterContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.historyFilterScroll}
+            >
+              <Filter size={18} color="#6B7280" style={styles.historyFilterIcon} />
+              {historyFilterOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.value || 'all'}
+                  style={[
+                    styles.historyFilterChip,
+                    selectedStatusFilter === option.value && styles.historyFilterChipActive,
+                  ]}
+                  onPress={() => setSelectedStatusFilter(option.value as StatusFilter | null)}
+                >
+                  <Text
+                    style={[
+                      styles.historyFilterChipText,
+                      selectedStatusFilter === option.value && styles.historyFilterChipTextActive,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
           {/* History List */}
           {historyLoading ? (
             <View style={styles.loadingContainer}>
@@ -660,7 +731,7 @@ export default function AuctionBrowseScreen() {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 16 }}
             >
-              {buyRequestHistory.map((request) => (
+              {filteredBuyRequestHistory.map((request) => (
                 <TouchableOpacity
                   key={request.id}
                   style={styles.historyCard}
@@ -734,62 +805,6 @@ export default function AuctionBrowseScreen() {
 
       {/* Footer Navigation */}
       <View style={styles.footerWrapper}>
-        {/* Filter Bar for History Tab */}
-        {activeTab === 'history' && (
-          <View style={styles.filterBarGrid}>
-            <TouchableOpacity
-              style={[
-                styles.filterGridButton,
-                selectedStatusFilter === 'All' && styles.filterGridButtonActive,
-              ]}
-              onPress={() => handleStatusFilterChange('All')}
-            >
-              <Text
-                style={[
-                  styles.filterGridButtonText,
-                  selectedStatusFilter === 'All' && styles.filterGridButtonTextActive,
-                ]}
-              >
-                Tất cả
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[
-                styles.filterGridButton,
-                selectedStatusFilter === 'Pending' && styles.filterGridButtonActive,
-              ]}
-              onPress={() => handleStatusFilterChange('Pending')}
-            >
-              <Text
-                style={[
-                  styles.filterGridButtonText,
-                  selectedStatusFilter === 'Pending' && styles.filterGridButtonTextActive,
-                ]}
-              >
-                Chờ xử lý
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[
-                styles.filterGridButton,
-                selectedStatusFilter === 'Completed' && styles.filterGridButtonActive,
-              ]}
-              onPress={() => handleStatusFilterChange('Completed')}
-            >
-              <Text
-                style={[
-                  styles.filterGridButtonText,
-                  selectedStatusFilter === 'Completed' && styles.filterGridButtonTextActive,
-                ]}
-              >
-                Hoàn thành
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
         {/* Tabs */}
         <View style={styles.footerTabs}>
           <TouchableOpacity
@@ -1432,5 +1447,36 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontWeight: '500',
     marginTop: 12,
+  },
+  historyFilterContainer: {
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    paddingVertical: 12,
+  },
+  historyFilterScroll: {
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  historyFilterIcon: {
+    marginRight: 8,
+  },
+  historyFilterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    marginRight: 8,
+  },
+  historyFilterChipActive: {
+    backgroundColor: '#3B82F6',
+  },
+  historyFilterChipText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  historyFilterChipTextActive: {
+    color: '#FFFFFF',
   },
 });

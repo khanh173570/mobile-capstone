@@ -182,13 +182,16 @@ export const getLedgerDetail = async (ledgerId: string): Promise<Ledger> => {
 
 /**
  * Get transaction type name
- * Enum TransactionType:
+ * Enum TransactionType from Payment.Domain.Enums:
  * 1: PayEscrow (Thanh toán cọc)
  * 2: ReleaseEscrow (Phát hành cọc)
  * 3: RefundEscrow (Hoàn cọc)
  * 4: AddFunds (Nạp tiền)
  * 5: WithdrawFunds (Rút tiền)
  * 6: PayRemainingEscrow (Thanh toán phần còn lại)
+ * 7: AuctionJoinFee (Phí tham gia đấu giá)
+ * 8: RefundAuctionJoinFee (Hoàn phí tham gia đấu giá)
+ * 9: AuctionFee (Phí đấu giá)
  */
 export const getTransactionTypeName = (type: number): string => {
   const transactionTypes: { [key: number]: string } = {
@@ -198,6 +201,9 @@ export const getTransactionTypeName = (type: number): string => {
     4: 'Nạp tiền',
     5: 'Rút tiền',
     6: 'Thanh toán phần còn lại',
+    7: 'Phí tham gia đấu giá',
+    8: 'Hoàn phí tham gia đấu giá',
+    9: 'Phí đấu giá',
   };
   return transactionTypes[type] || 'Giao dịch';
 };
@@ -231,14 +237,13 @@ export const getLedgerDirectionColor = (direction: number): string => {
  */
 export const formatCurrency = (amount: number | null | undefined): string => {
   if (amount === null || amount === undefined) {
-    return '0 ₫';
+    return '0 VND';
   }
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
+  const formatted = new Intl.NumberFormat('vi-VN', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
+  return `${formatted} VND`;
 };
 
 /**

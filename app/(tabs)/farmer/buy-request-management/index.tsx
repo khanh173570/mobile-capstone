@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   FlatList,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { ChevronRight, Package, AlertCircle } from 'lucide-react-native';
+import { ChevronRight, Package, AlertCircle, Filter } from 'lucide-react-native';
 import {
   getFarmerBuyRequests,
   FarmerBuyRequest,
@@ -24,6 +24,7 @@ export default function BuyRequestManagementScreen() {
   const [pageNumber, setPageNumber] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
+  const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -113,6 +114,24 @@ export default function BuyRequestManagementScreen() {
     router.push(`/farmer/buy-request-management/${buyRequestId}`);
   };
 
+  // Filter buy requests by status
+  const filteredBuyRequests = useMemo(() => {
+    if (selectedFilter === null) {
+      return buyRequests;
+    }
+    return buyRequests.filter(request => request.status === selectedFilter);
+  }, [buyRequests, selectedFilter]);
+
+  // Filter options
+  const filterOptions = [
+    { value: null, label: 'Tất cả' },
+    { value: 'Pending', label: 'Chờ duyệt' },
+    { value: 'Accepted', label: 'Đã duyệt' },
+    { value: 'Rejected', label: 'Bị từ chối' },
+    { value: 'Completed', label: 'Hoàn thành' },
+    { value: 'Cancelled', label: 'Đã hủy' },
+  ];
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -133,7 +152,7 @@ export default function BuyRequestManagementScreen() {
         </ScrollView>
       ) : (
         <FlatList
-          data={buyRequests}
+          data={filteredBuyRequests}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <TouchableOpacity
@@ -204,6 +223,36 @@ export default function BuyRequestManagementScreen() {
           scrollEnabled={true}
         />
       )}
+
+      {/* Filter chips - Fixed above bottom tabs */}
+      <View style={styles.filterContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterScroll}
+        >
+          <Filter size={18} color="#6B7280" style={styles.filterIcon} />
+          {filterOptions.map((option) => (
+            <TouchableOpacity
+              key={option.value || 'all'}
+              style={[
+                styles.filterChip,
+                selectedFilter === option.value && styles.filterChipActive,
+              ]}
+              onPress={() => setSelectedFilter(option.value)}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  selectedFilter === option.value && styles.filterChipTextActive,
+                ]}
+              >
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
     </View>
   );
 }
@@ -218,7 +267,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 12,
-    paddingTop: 90,
+    paddingBottom: 32,
   },
   loadingContainer: {
     flex: 1,
@@ -321,5 +370,36 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#D97706',
+  },
+  filterContainer: {
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    paddingVertical: 12,
+  },
+  filterScroll: {
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  filterIcon: {
+    marginRight: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    marginRight: 8,
+  },
+  filterChipActive: {
+    backgroundColor: '#10B981',
+  },
+  filterChipText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  filterChipTextActive: {
+    color: '#FFFFFF',
   },
 });

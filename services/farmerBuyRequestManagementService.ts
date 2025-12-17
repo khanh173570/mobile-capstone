@@ -165,3 +165,90 @@ export const getWholesalerInfo = async (userId: string): Promise<WholesalerInfo>
     throw error;
   }
 };
+
+// ==================== ESCROW FUNCTIONS FOR FARMER ====================
+
+const PAYMENT_API = 'https://gateway.a-379.store/api/payment-service';
+
+export interface BuyRequestEscrow {
+  id: string;
+  auctionId: string | null;
+  buyRequestId: string;
+  winnerId: string;
+  winnerWalletId: string;
+  farmerId: string;
+  farmerWalletId: string;
+  totalAmount: number;
+  feeAmount: number;
+  sellerReceiveAmount: number;
+  escrowAmount: number;
+  escrowStatus: string;
+  paymentTransactionId: string | null;
+  paymentAt: string | null;
+  releasedTransactioId: string | null;
+  releasedAt: string | null;
+  refundTransactionId: string | null;
+  refundAt: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface BuyRequestEscrowResponse {
+  isSuccess: boolean;
+  statusCode: number;
+  message: string;
+  errors: any;
+  data: BuyRequestEscrow;
+}
+
+/**
+ * Get escrow information for a buy request (for farmer)
+ */
+export const getBuyRequestEscrowForFarmer = async (buyRequestId: string): Promise<BuyRequestEscrow> => {
+  try {
+    const response = await fetchWithTokenRefresh(
+      `${PAYMENT_API}/escrow/buyrequest/${buyRequestId}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch buy request escrow');
+    }
+
+    const result: BuyRequestEscrowResponse = await response.json();
+    return result.data;
+  } catch (error) {
+    console.error('Error fetching buy request escrow:', error);
+    throw error;
+  }
+};
+
+/**
+ * Set buy request escrow as ready to harvest (for farmer)
+ */
+export const setFarmerBuyRequestReadyToHarvest = async (escrowId: string): Promise<void> => {
+  try {
+    const response = await fetchWithTokenRefresh(
+      `${PAYMENT_API}/escrow/buyrequest/readytoharvest?escrowId=${escrowId}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to set buy request ready to harvest');
+    }
+  } catch (error) {
+    console.error('Error setting buy request ready to harvest:', error);
+    throw error;
+  }
+};
