@@ -27,6 +27,7 @@ import {
   getFarmerAuctions,
   FarmerAuction,
   filterAuctionsByStatus,
+  translateErrorMessage,
 } from '../../../../services/auctionService';
 import { getCropsByFarmId } from '../../../../services/cropService';
 import { Crop } from '../../../../services/cropService';
@@ -78,6 +79,12 @@ export default function CreateAuctionScreen() {
   const [showStartingPriceSuggestions, setShowStartingPriceSuggestions] = useState(false);
   const [showMinBidSuggestions, setShowMinBidSuggestions] = useState(false);
   const [showAntiSnipingSuggestions, setShowAntiSnipingSuggestions] = useState(false);
+  const [showBuyNowPriceSuggestions, setShowBuyNowPriceSuggestions] = useState(false);
+  
+  // Error states for real-time validation
+  const [startingPriceError, setStartingPriceError] = useState('');
+  const [minBidIncrementError, setMinBidIncrementError] = useState('');
+  const [buyNowPriceError, setBuyNowPriceError] = useState('');
   const [crops, setCrops] = useState<Crop[]>([]);
   const [loadingCrops, setLoadingCrops] = useState(false);
   const [farmId, setFarmId] = useState('');
@@ -302,6 +309,39 @@ export default function CreateAuctionScreen() {
     return selectedCrops.reduce((total, item) => total + item.totalQuantity, 0);
   };
 
+  // Real-time validation for starting price
+  const validateStartingPrice = (value: string) => {
+    const price = parseFloat(value);
+    if (isNaN(price) || price < 1000000) {
+      setStartingPriceError('Giá khởi điểm phải từ 1.000.000 VND trở lên');
+    } else {
+      setStartingPriceError('');
+    }
+  };
+
+  // Real-time validation for min bid increment
+  const validateMinBidIncrement = (value: string) => {
+    const increment = parseFloat(value);
+    if (isNaN(increment) || increment < 1000) {
+      setMinBidIncrementError('Mức tăng phải từ 1.000 VND trở lên');
+    } else {
+      setMinBidIncrementError('');
+    }
+  };
+
+  // Real-time validation for buy now price
+  const validateBuyNowPrice = (value: string) => {
+    const buyNow = parseFloat(value);
+    const starting = parseFloat(auctionData.startingPrice);
+    if (isNaN(buyNow)) {
+      setBuyNowPriceError('Vui lòng nhập giá mua ngay hợp lệ');
+    } else if (buyNow <= starting) {
+      setBuyNowPriceError('Giá mua ngay phải lớn hơn giá khởi điểm');
+    } else {
+      setBuyNowPriceError('');
+    }
+  };
+
   const validateForm = (): boolean => {
     if (selectedCrops.length === 0) {
       Alert.alert('Lỗi', 'Vui lòng chọn ít nhất 1 vườn');
@@ -344,13 +384,13 @@ export default function CreateAuctionScreen() {
       return false;
     }
 
-    if (!auctionData.startingPrice || parseFloat(auctionData.startingPrice) <= 1000) {
-      Alert.alert('Lỗi', 'Giá khởi điểm phải lớn hơn 1000');
+    if (!auctionData.startingPrice || parseFloat(auctionData.startingPrice) < 1000000) {
+      Alert.alert('Lỗi', 'Giá khởi điểm phải từ 1.000.000 VND trở lên');
       return false;
     }
 
-    if (!auctionData.minBidIncrement || parseFloat(auctionData.minBidIncrement) <= 1000) {
-      Alert.alert('Lỗi', 'Mức tăng giá tối thiểu phải lớn hơn 1000');
+    if (!auctionData.minBidIncrement || parseFloat(auctionData.minBidIncrement) < 1000) {
+      Alert.alert('Lỗi', 'Mức tăng giá tối thiểu phải từ 1.000 VND trở lên');
       return false;
     }
 
@@ -512,12 +552,40 @@ export default function CreateAuctionScreen() {
           },
         },
       ]);
-    } catch (error) {
+    } catch (error: any) {
+      setShowLoadingModal(false);
+      
       const errorMessage = status === 'Draft'
         ? 'Không thể lưu bản nháp. Vui lòng thử lại.'
         : 'Không thể tạo phiên đấu giá. Vui lòng thử lại.';
-      Alert.alert('Lỗi', errorMessage);
-      console.error('Error creating auction:', error);
+      
+      let displayMessage = errorMessage;
+      
+      console.log('Full error:', error);
+      console.log('Error.response:', error?.response);
+      console.log('Error.response.data:', error?.response?.data);
+      
+      // Check if error has response data (from auctionService)
+      if (error?.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        const errorText = error.response.data.errors[0];
+        if (errorText && typeof errorText === 'string') {
+          const translatedError = translateErrorMessage(errorText);
+          if (translatedError.toLowerCase().includes('ví không đủ tiền')) {
+            displayMessage = `❌ Ví không đủ tiền!\n\n${translatedError}\n\nVui lòng nạp tiền vào ví để tạo đấu giá.`;
+          } else {
+            displayMessage = translatedError;
+          }
+        }
+      } 
+      // Check if it's a plain error message
+      else if (error?.message && typeof error.message === 'string') {
+        displayMessage = translateErrorMessage(error.message);
+      }
+      
+      console.log('Final display message:', displayMessage);
+      
+      Alert.alert('Lỗi', displayMessage);
+      // console.error('Error creating auction:', error);
     } finally {
       setShowLoadingModal(false);
     }
@@ -527,7 +595,7 @@ export default function CreateAuctionScreen() {
   const handleCreatePending = () => {
     Alert.alert(
       'Xác nhận tạo đấu giá',
-      `Bạn chắc chắn muốn tạo phiên đấu giá với:\n• Số vườn: ${selectedCrops.length}\n• Tổng số lượng: ${getTotalExpectedQuantity()} kg\n\nHành động này không thể hoàn tác?`,
+      `Bạn chắc chắn muốn tạo phiên đấu giá với:\n• Số vườn: ${selectedCrops.length}\n• Tổng số lượng: ${getTotalExpectedQuantity()} kg\n\n⚠️ Phí tạo đấu giá: 1.000.000 VND\n\nHành động này không thể hoàn tác?`,
       [
         {
           text: 'Hủy',
@@ -564,7 +632,7 @@ export default function CreateAuctionScreen() {
           {/* Chọn Crop */}
           <View style={styles.fieldContainer}>
             <View style={styles.labelWithButton}>
-              <Text style={styles.fieldLabel}>Vui lòng chọn vườn *</Text>
+              <Text style={styles.fieldLabel}>1. Vui lòng chọn vườn *</Text>
               <TouchableOpacity
                 style={styles.addButton}
                 onPress={() => {
@@ -606,7 +674,8 @@ export default function CreateAuctionScreen() {
           </View>
           {/* Publish Date & Time */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>Ngày công bố *</Text>
+            <Text style={styles.fieldLabel}>2. Ngày công bố *</Text>
+            <Text style={styles.fieldNote}>(Phải sau thời điểm hiện tại ít nhất 5 phút)</Text>
             <View style={styles.dateTimeContainer}>
               <TouchableOpacity
                 style={[styles.dateButton, { flex: 1 }]}
@@ -648,7 +717,8 @@ export default function CreateAuctionScreen() {
 
           {/* End Date & Time */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>Ngày kết thúc *</Text>
+            <Text style={styles.fieldLabel}>3. Ngày kết thúc *</Text>
+            <Text style={styles.fieldNote}>(Phải sau ngày công bố ít nhất 5 phút)</Text>
             <View style={styles.dateTimeContainer}>
               <TouchableOpacity
                 style={[styles.dateButton, { flex: 1 }]}
@@ -690,20 +760,22 @@ export default function CreateAuctionScreen() {
 
           {/* Starting Price */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>Giá khởi điểm ({'>'}1000) *</Text>
-            <View style={styles.priceInputContainer}>
+            <Text style={styles.fieldLabel}>4. Giá khởi điểm (≥ 1.000.000) *</Text>
+            <View style={[styles.priceInputContainer, startingPriceError && { borderColor: '#EF4444', borderWidth: 1 }]}>
               <Text style={styles.priceLabel}>VND</Text>
               <TextInput
                 style={styles.priceInput}
                 placeholder="0"
                 value={auctionData.startingPrice}
-                onChangeText={(text) =>
-                  setAuctionData({ ...auctionData, startingPrice: text })
-                }
+                onChangeText={(text) => {
+                  setAuctionData({ ...auctionData, startingPrice: text });
+                  validateStartingPrice(text);
+                }}
                 onFocus={() => setShowStartingPriceSuggestions(true)}
                 keyboardType="numeric"
               />
             </View>
+            {startingPriceError && <Text style={styles.errorText}>{startingPriceError}</Text>}
             {showStartingPriceSuggestions && (
               <View style={styles.suggestionsContainer}>
                 <View style={styles.suggestionsRow}>
@@ -711,6 +783,7 @@ export default function CreateAuctionScreen() {
                     style={styles.suggestionButton}
                     onPress={() => {
                       setAuctionData({ ...auctionData, startingPrice: '1000000' });
+                      setStartingPriceError('');
                       setShowStartingPriceSuggestions(false);
                     }}
                   >
@@ -720,6 +793,7 @@ export default function CreateAuctionScreen() {
                     style={styles.suggestionButton}
                     onPress={() => {
                       setAuctionData({ ...auctionData, startingPrice: '1500000' });
+                      setStartingPriceError('');
                       setShowStartingPriceSuggestions(false);
                     }}
                   >
@@ -729,6 +803,7 @@ export default function CreateAuctionScreen() {
                     style={styles.suggestionButton}
                     onPress={() => {
                       setAuctionData({ ...auctionData, startingPrice: '2000000' });
+                      setStartingPriceError('');
                       setShowStartingPriceSuggestions(false);
                     }}
                   >
@@ -740,6 +815,7 @@ export default function CreateAuctionScreen() {
                     style={styles.suggestionButton}
                     onPress={() => {
                       setAuctionData({ ...auctionData, startingPrice: '3000000' });
+                      setStartingPriceError('');
                       setShowStartingPriceSuggestions(false);
                     }}
                   >
@@ -748,7 +824,8 @@ export default function CreateAuctionScreen() {
                   <TouchableOpacity
                     style={styles.suggestionButton}
                     onPress={() => {
-                      setAuctionData({ ...auctionData, startingPrice: '50000000' });
+                      setAuctionData({ ...auctionData, startingPrice: '5000000' });
+                      setStartingPriceError('');
                       setShowStartingPriceSuggestions(false);
                     }}
                   >
@@ -757,7 +834,8 @@ export default function CreateAuctionScreen() {
                   <TouchableOpacity
                     style={styles.suggestionButton}
                     onPress={() => {
-                      setAuctionData({ ...auctionData, startingPrice: '90000000' });
+                      setAuctionData({ ...auctionData, startingPrice: '9000000' });
+                      setStartingPriceError('');
                       setShowStartingPriceSuggestions(false);
                     }}
                   >
@@ -770,20 +848,22 @@ export default function CreateAuctionScreen() {
 
           {/* Min Bid Increment */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>Mức tăng ({'>'}1000) *</Text>
-            <View style={styles.priceInputContainer}>
+            <Text style={styles.fieldLabel}>5. Mức tăng (≥ 1.000) *</Text>
+            <View style={[styles.priceInputContainer, minBidIncrementError && { borderColor: '#EF4444', borderWidth: 1 }]}>
               <Text style={styles.priceLabel}>VND</Text>
               <TextInput
                 style={styles.priceInput}
                 placeholder="0"
                 value={auctionData.minBidIncrement}
-                onChangeText={(text) =>
-                  setAuctionData({ ...auctionData, minBidIncrement: text })
-                }
+                onChangeText={(text) => {
+                  setAuctionData({ ...auctionData, minBidIncrement: text });
+                  validateMinBidIncrement(text);
+                }}
                 onFocus={() => setShowMinBidSuggestions(true)}
                 keyboardType="numeric"
               />
             </View>
+            {minBidIncrementError && <Text style={styles.errorText}>{minBidIncrementError}</Text>}
             {showMinBidSuggestions && (
               <View style={styles.suggestionsContainer}>
                 <View style={styles.suggestionsRow}>
@@ -791,6 +871,7 @@ export default function CreateAuctionScreen() {
                     style={styles.suggestionButton}
                     onPress={() => {
                       setAuctionData({ ...auctionData, minBidIncrement: '10000' });
+                      setMinBidIncrementError('');
                       setShowMinBidSuggestions(false);
                     }}
                   >
@@ -800,6 +881,7 @@ export default function CreateAuctionScreen() {
                     style={styles.suggestionButton}
                     onPress={() => {
                       setAuctionData({ ...auctionData, minBidIncrement: '50000' });
+                      setMinBidIncrementError('');
                       setShowMinBidSuggestions(false);
                     }}
                   >
@@ -809,6 +891,7 @@ export default function CreateAuctionScreen() {
                     style={styles.suggestionButton}
                     onPress={() => {
                       setAuctionData({ ...auctionData, minBidIncrement: '100000' });
+                      setMinBidIncrementError('');
                       setShowMinBidSuggestions(false);
                     }}
                   >
@@ -820,6 +903,7 @@ export default function CreateAuctionScreen() {
                     style={styles.suggestionButton}
                     onPress={() => {
                       setAuctionData({ ...auctionData, minBidIncrement: '150000' });
+                      setMinBidIncrementError('');
                       setShowMinBidSuggestions(false);
                     }}
                   >
@@ -829,6 +913,7 @@ export default function CreateAuctionScreen() {
                     style={styles.suggestionButton}
                     onPress={() => {
                       setAuctionData({ ...auctionData, minBidIncrement: '200000' });
+                      setMinBidIncrementError('');
                       setShowMinBidSuggestions(false);
                     }}
                   >
@@ -838,6 +923,7 @@ export default function CreateAuctionScreen() {
                     style={styles.suggestionButton}
                     onPress={() => {
                       setAuctionData({ ...auctionData, minBidIncrement: '250000' });
+                      setMinBidIncrementError('');
                       setShowMinBidSuggestions(false);
                     }}
                   >
@@ -866,16 +952,75 @@ export default function CreateAuctionScreen() {
           {enableBuyNow && (
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>Giá mua ngay *</Text>
-              <View style={styles.priceInputContainer}>
+              <View style={[styles.priceInputContainer, buyNowPriceError && { borderColor: '#EF4444', borderWidth: 1 }]}>
                 <Text style={styles.priceLabel}>VND</Text>
                 <TextInput
                   style={styles.priceInput}
                   placeholder="0"
                   value={buyNowPrice}
-                  onChangeText={setBuyNowPrice}
+                  onChangeText={(text) => {
+                    setBuyNowPrice(text);
+                    validateBuyNowPrice(text);
+                  }}
+                  onFocus={() => setShowBuyNowPriceSuggestions(true)}
                   keyboardType="numeric"
                 />
               </View>
+              {buyNowPriceError && <Text style={styles.errorText}>{buyNowPriceError}</Text>}
+              {showBuyNowPriceSuggestions && auctionData.startingPrice && (
+                <View style={styles.suggestionsContainer}>
+                  <Text style={styles.suggestionsTitle}>Gợi ý giá mua ngay</Text>
+                  <View style={styles.suggestionsRow}>
+                    <TouchableOpacity
+                      style={styles.suggestionButton}
+                      onPress={() => {
+                        const suggested = '3000000';
+                        setBuyNowPrice(suggested);
+                        validateBuyNowPrice(suggested);
+                        setShowBuyNowPriceSuggestions(false);
+                      }}
+                    >
+                      <Text style={styles.suggestionButtonText}>3.000.000</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.suggestionButton}
+                      onPress={() => {
+                        const suggested = '5000000';
+                        setBuyNowPrice(suggested);
+                        validateBuyNowPrice(suggested);
+                        setShowBuyNowPriceSuggestions(false);
+                      }}
+                    >
+                      <Text style={styles.suggestionButtonText}>5.000.000</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.suggestionButton}
+                      onPress={() => {
+                        const suggested = '7000000';
+                        setBuyNowPrice(suggested);
+                        validateBuyNowPrice(suggested);
+                        setShowBuyNowPriceSuggestions(false);
+                      }}
+                    >
+                      <Text style={styles.suggestionButtonText}>7.000.000</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.suggestionsRow}>
+                    <TouchableOpacity
+                      style={styles.suggestionButton}
+                      onPress={() => {
+                        const suggested = '9000000';
+                        setBuyNowPrice(suggested);
+                        validateBuyNowPrice(suggested);
+                        setShowBuyNowPriceSuggestions(false);
+                      }}
+                    >
+                      <Text style={styles.suggestionButtonText}>9.000.000</Text>
+                    </TouchableOpacity>
+
+                  </View>
+                </View>
+              )}
             </View>
           )}
 
@@ -954,7 +1099,7 @@ export default function CreateAuctionScreen() {
 
           {/* Expected Harvest Date */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>Ngày thu hoạch dự kiến *</Text>
+            <Text style={styles.fieldLabel}>6. Ngày thu hoạch dự kiến *</Text>
             <Text style={styles.fieldNote}>( Sau 3 ngày kể từ ngày kết thúc đấu giá )</Text>
             <TouchableOpacity
               style={styles.dateButton}
@@ -1016,7 +1161,7 @@ export default function CreateAuctionScreen() {
         </View>
 
         {/* Note */}
-        <View style={styles.noteContainer}>
+        {/* <View style={styles.noteContainer}>
           <Text style={styles.noteText}>
             📝 <Text style={styles.noteTextBold}>Lưu ý:</Text> 
             {'\n'}• Vườn phải có vụ thu hoạch (harvest) trước khi tạo đấu giá
@@ -1027,7 +1172,7 @@ export default function CreateAuctionScreen() {
             {'\n'}• Mỗi vườn chỉ được tạo 1 đấu giá duy nhất
             {'\n'}• Vườn đang ở trạng thái "Đang trên sàn đấu giá" không thể tạo đấu giá mới
           </Text>
-        </View>
+        </View> */}
       </ScrollView>
       )}
 
@@ -2006,5 +2151,17 @@ const styles = StyleSheet.create({
   },
   statusGridCheck: {
     marginTop: 6,
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  suggestionsTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 8,
   },
 });

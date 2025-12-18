@@ -21,6 +21,7 @@ import {
   Clock,
   Eye,
   EyeOff,
+  Plus,
 } from 'lucide-react-native';
 import {
   getMyWallet,
@@ -34,18 +35,34 @@ import {
   formatCurrency,
 } from '../../../../../services/walletService';
 import { handleError } from '../../../../../utils/errorHandler';
+import { getUserProfile } from '../../../../../services/authService';
+import AddFundsModal from '../../../../../components/wholesaler/AddFundsModal';
 
 export default function FarmerWalletScreen() {
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showBalance, setShowBalance] = useState(true);
+  const [showBalance, setShowBalance] = useState(false);
+  const [userId, setUserId] = useState<string>('');
+  const [showAddFundsModal, setShowAddFundsModal] = useState(false);
 
   useEffect(() => {
+    loadUserProfile();
     loadWallet();
     loadLedgers();
   }, []);
+
+  const loadUserProfile = async () => {
+    try {
+      const profile = await getUserProfile();
+      if (profile && profile.data) {
+        setUserId(profile.data.id);
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+    }
+  };
 
   const loadWallet = async () => {
     try {
@@ -73,6 +90,19 @@ export default function FarmerWalletScreen() {
     setRefreshing(true);
     loadWallet();
     loadLedgers();
+  };
+
+  const handleAddFunds = () => {
+    if (!userId) {
+      Alert.alert('Lỗi', 'Không thể xác định người dùng');
+      return;
+    }
+    setShowAddFundsModal(true);
+  };
+
+  const handleAddFundsSuccess = () => {
+    loadWallet(); // Reload wallet to get updated balance
+    loadLedgers(); // Reload ledgers to show new transaction
   };
 
   const formatDate = (dateString: string): string => {
@@ -152,6 +182,14 @@ export default function FarmerWalletScreen() {
           {/* Action Buttons */}
           <View style={styles.buttonContainer}>
             <TouchableOpacity
+              style={[styles.addFundsButton, { flex: 1, marginRight: 8 }]}
+              onPress={handleAddFunds}
+              disabled={wallet?.walletStatus !== 0}
+            >
+              <Plus size={20} color="#FFFFFF" />
+              <Text style={styles.addFundsButtonText}>Nạp tiền</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[styles.withdrawButton, { flex: 1 }]}
               onPress={() => router.push('/(tabs)/farmer/profile/withdraw' as any)}
             >
@@ -221,6 +259,16 @@ export default function FarmerWalletScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Add Funds Modal */}
+      {userId && (
+        <AddFundsModal
+          visible={showAddFundsModal}
+          onClose={() => setShowAddFundsModal(false)}
+          onSuccess={handleAddFundsSuccess}
+          userId={userId}
+        />
+      )}
     </View>
   );
 }

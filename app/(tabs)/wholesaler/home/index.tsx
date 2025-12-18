@@ -66,6 +66,7 @@ export default function WholesalerHomeScreen() {
   const [farmerLoadingState, setFarmerLoadingState] = useState<{ [farmerId: string]: boolean }>({});
   const [buyNowModalVisible, setBuyNowModalVisible] = useState(false);
   const [selectedAuctionForBuyNow, setSelectedAuctionForBuyNow] = useState<Auction | null>(null);
+  const [realtimePrices, setRealtimePrices] = useState<{ [auctionId: string]: number }>({});
 
   // Load data on mount and focus - no initial loading spinner
   useEffect(() => {
@@ -126,6 +127,26 @@ export default function WholesalerHomeScreen() {
     };
   }, []);
 
+  // Setup real-time bid update listener (runs once on mount)
+  useEffect(() => {
+    console.log('🔔 Setting up BidPlaced listener for home page');
+    
+    const unsubscribeBidPlaced = signalRService.onBidPlaced((event: any) => {
+      console.log('💰 BidPlaced event received in home page:', event.auctionId, 'new price:', event.newPrice);
+      // Update realtime price for this auction
+      setRealtimePrices(prev => ({
+        ...prev,
+        [event.auctionId]: event.newPrice
+      }));
+    });
+    
+    // Cleanup on unmount
+    return () => {
+      console.log('🔔 Cleaning up BidPlaced listener from home page');
+      unsubscribeBidPlaced();
+    };
+  }, []); // Empty dependency array - only run once on mount
+
   // Preload farmer images when auctions change
   useEffect(() => {
     if (auctions.length > 0) {
@@ -135,6 +156,17 @@ export default function WholesalerHomeScreen() {
         if (!farmerFarmImages.hasOwnProperty(farmerId) && !farmerLoadingState[farmerId]) {
           loadFarmerFarmImage(farmerId);
         }
+      });
+    }
+  }, [auctions]);
+
+  // Join auction groups for realtime updates
+  useEffect(() => {
+    if (auctions.length > 0) {
+      auctions.forEach((auction) => {
+        signalRService.joinAuctionGroup(auction.id).catch((error) => {
+          console.error('Failed to join auction group:', auction.id, error);
+        });
       });
     }
   }, [auctions]);
@@ -370,7 +402,8 @@ export default function WholesalerHomeScreen() {
   // Memoized render function to prevent unnecessary re-renders
   const renderAuctionCard = useCallback(({ item }: { item: Auction }) => {
     const statusInfo = getStatusInfo(item.status);
-    const currentPrice = item.currentPrice || item.startingPrice;
+    // Use realtime price if available, otherwise use item price
+    const currentPrice = realtimePrices[item.id] ?? (item.currentPrice || item.startingPrice);
     const farmerImage = farmerFarmImages[item.farmerId];
     const farmName = farmerFarmNames[item.farmerId];
 
@@ -575,6 +608,7 @@ export default function WholesalerHomeScreen() {
             updateCellsBatchingPeriod={50}
             initialNumToRender={3}
             scrollEventThrottle={16}
+            extraData={realtimePrices}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}

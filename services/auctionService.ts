@@ -4,6 +4,31 @@ import { fetchWithTokenRefresh } from './authService';
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl;
 
+// Translate API error messages to Vietnamese
+export const translateErrorMessage = (englishMessage: string): string => {
+  const translations: { [key: string]: string } = {
+    'Cannot create auction: Insufficient balance': 'Không thể tạo đấu giá: Ví không đủ tiền',
+    'Insufficient balance': 'Ví không đủ tiền',
+    'Required': 'Cần thiết',
+    'Invalid input': 'Đầu vào không hợp lệ',
+    'Unauthorized': 'Không được phép',
+    'Not found': 'Không tìm thấy',
+    'Bad request': 'Yêu cầu không hợp lệ',
+  };
+
+  let translatedMessage = englishMessage;
+  
+  // Replace known English phrases with Vietnamese translations
+  for (const [english, vietnamese] of Object.entries(translations)) {
+    translatedMessage = translatedMessage.replace(
+      new RegExp(english, 'gi'),
+      vietnamese
+    );
+  }
+  
+  return translatedMessage;
+};
+
 export interface CurrentHarvest {
   id: string;
   harvestDate: string | null;
@@ -152,7 +177,7 @@ export const createAuctionSession = async (auctionData: CreateAuctionData): Prom
     console.log('Response status:', response.status);
     
     const text = await response.text();
-    console.log('Response text:', text);
+    // console.log('Response text:', text);
     
     let data;
     
@@ -164,14 +189,19 @@ export const createAuctionSession = async (auctionData: CreateAuctionData): Prom
     }
 
     if (!response.ok) {
-      console.error('API Error response:', data);
-      throw new Error(data.message || `Failed to create auction session: ${response.status}`);
+      // console.error('API Error response:', data);
+      const error = new Error(data.message || `Failed to create auction session: ${response.status}`) as any;
+      error.response = {
+        data: data,
+        status: response.status
+      };
+      throw error;
     }
 
     console.log('Auction session created successfully:', data.data?.id);
     return data.data;
   } catch (error) {
-    console.error('Error creating auction session:', error);
+    // console.error('Error creating auction session:', error);
     throw error;
   }
 };
@@ -211,7 +241,7 @@ export const createAuctionHarvest = async (auctionHarvestData: CreateAuctionHarv
     console.log('Auction harvest created successfully');
     return data.data;
   } catch (error) {
-    console.error('Error creating auction harvest:', error);
+    // console.error('Error creating auction harvest:', error);
     throw error;
   }
 };
@@ -446,7 +476,7 @@ export const getHarvestById = async (harvestId: string): Promise<HarvestDetail |
 
     console.log(`Harvest API response status: ${response.status}`);
     const text = await response.text();
-    console.log(`Harvest API response text length: ${text?.length || 0}`);
+    // console.log(`Harvest API response text length: ${text?.length || 0}`);
     
     if (!text || text.trim() === '') {
       console.log('Empty response for harvest:', harvestId);
@@ -463,8 +493,8 @@ export const getHarvestById = async (harvestId: string): Promise<HarvestDetail |
         dataKeys: result.data ? Object.keys(result.data) : []
       });
     } catch (parseError) {
-      console.error('JSON parse error for harvest:', parseError);
-      console.error('Raw response text:', text);
+      // console.error('JSON parse error for harvest:', parseError);
+      // console.error('Raw response text:', text);
       return null;
     }
 
@@ -618,7 +648,7 @@ export const getAuctionsByStatus = async (
     }
 
     const data = await response.json();
-    console.log('Auctions fetched successfully:', data);
+    // console.log('Auctions fetched successfully:', data);
     return data;
   } catch (error) {
     console.error('Error fetching auctions by status:', error);

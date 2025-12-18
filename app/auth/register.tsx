@@ -139,7 +139,17 @@ const RegisterScreen: React.FC = () => {
       // Validate email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
-        Alert.alert('Thông báo', 'Vui lòng nhập đúng định dạng email');
+        Alert.alert('Lỗi xác thực email', 'Vui lòng nhập đúng định dạng email');
+        return;
+      }
+      
+      // Validate email domain (must have .com, .edu, .vn, .net, .org, etc.)
+      const validDomains = /\.(com|edu|vn|net|org|gov|info|biz|co)$/i;
+      if (!validDomains.test(email)) {
+        Alert.alert(
+          'Lỗi xác thực email', 
+          'Email phải có đuôi hợp lệ như .com, .edu, .vn, .net, .org, .gov, .info, .biz, hoặc .co'
+        );
         return;
       }
       

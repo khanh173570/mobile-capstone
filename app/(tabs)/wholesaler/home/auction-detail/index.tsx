@@ -39,7 +39,6 @@ import BidListDisplay from '../../../../../components/wholesaler/BidListDisplay'
 import AllBidsDisplay from '../../../../../components/wholesaler/AllBidsDisplay';
 import HarvestImagesGallery from '../../../../../components/wholesaler/HarvestImagesGallery';
 import FlipClockDigit from '../../../../../components/shared/FlipClockDigit';
-import EscrowPaymentButton from '../../../../../components/wholesaler/EscrowPaymentButton';
 import BuyNowModal from '../../../../../components/wholesaler/BuyNowModal';
 
 import { useAuctionContext } from '../../../../../hooks/useAuctionContext';
@@ -194,6 +193,7 @@ export default function WholesalerAuctionDetailScreen() {
         console.log('════════════════════════════════════════════════');
         console.log('🔔🔔🔔 BidPlaced event received 🔔🔔🔔');
         console.log('════════════════════════════════════════════════');
+        console.log('   ✅ LISTENER TRIGGERED - BidPlaced event received!');
         console.log('   Event Details:');
         console.log('     - Auction ID (event):', event.auctionId);
         console.log('     - Bidder:', event.userName, `(ID: ${event.userId.substring(0, 8)}...)`);
@@ -894,6 +894,16 @@ export default function WholesalerAuctionDetailScreen() {
                 </View>
               )}
 
+              {auction.enableBuyNow && auction.buyNowPrice && (
+                <View style={styles.infoRow}>
+                  {/* <ShoppingCart size={20} color="#8B5CF6" /> */}
+                  <Text style={styles.infoLabel}>Giá mua ngay</Text>
+                  <Text style={[styles.infoValue, { color: '#8B5CF6', fontWeight: 'bold' }]}>
+                    {formatCurrency(auction.buyNowPrice)}
+                  </Text>
+                </View>
+              )}
+
               <View style={styles.infoRow}>
                 <Text style={styles.bidIncrementText}>
                   Bước giá tối thiểu: {formatCurrency(auction.minBidIncrement)}
@@ -968,9 +978,22 @@ export default function WholesalerAuctionDetailScreen() {
                     <Text style={styles.infoLabel}>Email</Text>
                     <Text style={styles.infoValue}>{farmerData.email || 'Chưa cập nhật'}</Text>
                   </View> */}
-                  {farmerData.address && (
+                 
+                  {farmerData.communes && (
                     <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Địa chỉ</Text>
+                      <Text style={styles.infoLabel}>Phường/Xã</Text>
+                      <Text style={styles.infoValue}>{farmerData.communes}</Text>
+                    </View>
+                  )}
+                  {farmerData.province && (
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Tỉnh/Thành phố</Text>
+                      <Text style={styles.infoValue}>{farmerData.province}</Text>
+                    </View>
+                  )}
+                   {farmerData.address && (
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Địa chỉ chi tiết</Text>
                       <Text style={styles.infoValue}>{farmerData.address}</Text>
                     </View>
                   )}
@@ -980,21 +1003,6 @@ export default function WholesalerAuctionDetailScreen() {
           )}
 
         </View>
-
-        {/* Escrow Payment Section - Only show if user is winner */}
-        {userProfile && (
-          <View style={styles.section}>
-            <EscrowPaymentButton
-              auctionId={auction.id}
-              isWinner={true}
-              currentPrice={currentPrice}
-              onPaymentComplete={() => {
-                // Reload auction detail after payment
-                loadAuctionDetail();
-              }}
-            />
-          </View>
-        )}
 
         {/* Harvest Information */}
         {auction.harvests && auction.harvests.length > 0 && (
@@ -1232,9 +1240,9 @@ export default function WholesalerAuctionDetailScreen() {
             <TouchableOpacity 
               style={[styles.buyNowButton, { flex: 1 }]}
               onPress={() => setBuyNowModalVisible(true)}
-              disabled={!auction || auction.status !== 'OnGoing'}
+              disabled={!auction || auction.status !== 'OnGoing' || countdown?.isEnded}
             >
-              <Text style={[styles.buyNowButtonText, (!auction || auction.status !== 'OnGoing') && { color: '#9CA3AF' }]}>
+              <Text style={[styles.buyNowButtonText, (!auction || auction.status !== 'OnGoing' || countdown?.isEnded) && { color: '#9CA3AF' }]}>
                 Mua ngay
               </Text>
             </TouchableOpacity>
@@ -1244,11 +1252,11 @@ export default function WholesalerAuctionDetailScreen() {
             <TouchableOpacity 
               style={[
                 styles.bidButton,
-                (!auction || auction.status !== 'OnGoing') && styles.bidButtonDisabled,
+                (!auction || auction.status !== 'OnGoing' || countdown?.isEnded) && styles.bidButtonDisabled,
                 auction?.enableBuyNow && auction?.buyNowPrice ? { flex: 1, marginLeft: 8 } : {}
               ]}
               onPress={() => {
-                if (auction?.status !== 'OnGoing') {
+                if (auction?.status !== 'OnGoing' || countdown?.isEnded) {
                   Alert.alert(
                     'Không thể đấu giá',
                     'Phiên đấu giá này không còn hoạt động. Chỉ có thể xem thông tin.',
@@ -1260,7 +1268,7 @@ export default function WholesalerAuctionDetailScreen() {
                 setSelectedBidForEdit(undefined);
                 setShowBidModal(true);
               }}
-              disabled={!auction || auction.status !== 'OnGoing'}
+              disabled={!auction || auction.status !== 'OnGoing' || countdown?.isEnded}
             >
               <Text style={[styles.bidButtonText, auction?.status !== 'OnGoing' && { color: '#9CA3AF' }]}>
                 {auction?.status === 'OnGoing' ? 'Đặt giá' : 'Chỉ xem'}

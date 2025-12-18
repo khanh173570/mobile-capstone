@@ -15,7 +15,8 @@ export interface Dispute {
   actualGrade2Amount: number;
   actualGrade3Amount: number;
   disputeMessage: string;
-  disputeStatus: number; // 0: Pending, 1: Approved, 2: Rejected
+  disputeStatus: number; // 0: Pending, 1: Approved, 2: Rejected, 3: InAdminReview, 4: Resolved
+  isWholeSalerCreated: boolean; // true if wholesaler created, false if farmer created
   reviewNote?: string | null;
   resolvedAt?: string | null;
   attachments: DisputeAttachment[];
@@ -31,11 +32,11 @@ export interface CreateDisputeRequest {
   actualGrade2Amount: number;
   actualGrade3Amount: number;
   attachments: File[] | string[]; // Can be File objects or URLs
+  isWholeSalerCreated?: boolean; // true if wholesaler created, false if farmer created
 }
 
 export interface ReviewDisputeRequest {
   isApproved: boolean;
-  reviewNote: string;
 }
 
 export interface DisputeResponse {
@@ -58,6 +59,11 @@ export const createDispute = async (request: CreateDisputeRequest): Promise<Disp
     formData.append('ActualGrade1Amount', request.actualGrade1Amount.toString());
     formData.append('ActualGrade2Amount', request.actualGrade2Amount.toString());
     formData.append('ActualGrade3Amount', request.actualGrade3Amount.toString());
+    
+    // Add IsWholeSalerCreated flag
+    if (request.isWholeSalerCreated !== undefined) {
+      formData.append('IsWholeSalerCreated', request.isWholeSalerCreated.toString());
+    }
 
     // Add attachments
     if (request.attachments && request.attachments.length > 0) {
@@ -104,6 +110,12 @@ export const getDisputeByEscrowId = async (escrowId: string): Promise<Dispute | 
         return null;
       }
       throw new Error(result.message || 'Failed to get dispute');
+    }
+
+    // Fix backend typo: distupeStatus -> disputeStatus
+    if (result.data && (result.data as any).distupeStatus !== undefined) {
+      result.data.disputeStatus = (result.data as any).distupeStatus;
+      console.log('Fixed typo: distupeStatus -> disputeStatus:', result.data.disputeStatus);
     }
 
     return result.data;
@@ -164,14 +176,24 @@ export const reviewDispute = async (
  * Get dispute status label
  */
 export const getDisputeStatusLabel = (status: number): string => {
-  switch (status) {
+  // Convert to number if it's a string
+  const statusNum = typeof status === 'string' ? parseInt(status, 10) : status;
+  
+  console.log('getDisputeStatusLabel - Original status:', status, 'Type:', typeof status, 'Converted:', statusNum);
+  
+  switch (statusNum) {
     case 0:
-      return 'Chờ xét duyệt';
+      return 'Chờ xét duyệt'; // Pending - Waiting for other party to review
     case 1:
-      return 'Đã chấp nhận';
+      return 'Đã chấp nhận'; // Approved - Other party approved
     case 2:
-      return 'Đã từ chối';
+      return 'Đã từ chối'; // Rejected - Other party rejected, needs admin review
+    case 3:
+      return 'Đang xem xét bởi Admin'; // InAdminReview - Admin is reviewing
+    case 4:
+      return 'Đã giải quyết'; // Resolved - Admin resolved
     default:
+      console.warn('Unknown dispute status:', statusNum);
       return 'Không xác định';
   }
 };
@@ -180,13 +202,20 @@ export const getDisputeStatusLabel = (status: number): string => {
  * Get dispute status color
  */
 export const getDisputeStatusColor = (status: number): string => {
-  switch (status) {
+  // Convert to number if it's a string
+  const statusNum = typeof status === 'string' ? parseInt(status, 10) : status;
+  
+  switch (statusNum) {
     case 0:
       return '#F59E0B'; // Orange - Pending
     case 1:
       return '#10B981'; // Green - Approved
     case 2:
       return '#EF4444'; // Red - Rejected
+    case 3:
+      return '#3B82F6'; // Blue - InAdminReview
+    case 4:
+      return '#059669'; // Dark Green - Resolved
     default:
       return '#6B7280';
   }

@@ -10,11 +10,13 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
-import { FileText, Filter } from 'lucide-react-native';
+import { FileText, Filter, DollarSign } from 'lucide-react-native';
 import { EscrowContractCard } from '../../../../components/shared/EscrowContractCard';
 import { EscrowDetailModal } from '../../../../components/shared/EscrowDetailModal';
+import { BuyRequestPayRemainingModal } from '../../../../components/shared/BuyRequestPayRemainingModal';
 import { getWholesalerEscrows, EscrowContract } from '../../../../services/escrowContractService';
 import { getAuctionDetail } from '../../../../services/auctionService';
+import { getBuyRequestDetail } from '../../../../services/buyRequestService';
 import { getEscrowStatusName, EscrowStatus } from '../../../../services/escrowService';
 
 export default function WholesalerTransactionsScreen() {
@@ -24,6 +26,8 @@ export default function WholesalerTransactionsScreen() {
   const [selectedEscrow, setSelectedEscrow] = useState<EscrowContract | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<number | null>(null);
+  const [showPayRemainingModal, setShowPayRemainingModal] = useState(false);
+  const [selectedEscrowForPayment, setSelectedEscrowForPayment] = useState<EscrowContract | null>(null);
 
   const fetchEscrows = async () => {
     setLoading(true);
@@ -35,17 +39,19 @@ export default function WholesalerTransactionsScreen() {
         data.map(async (escrow) => {
           try {
             // Check if it's auction or buy request
-            if (escrow.auctionId) {
+            // If buyRequestId is null, it's an auction transaction
+            if (escrow.auctionId && escrow.buyRequestId === null) {
               const auctionDetail = await getAuctionDetail(escrow.auctionId);
               return {
                 ...escrow,
                 sessionCode: auctionDetail?.sessionCode || escrow.auctionId,
               };
-            } else if (escrow.buyRequestId) {
-              // For buy requests, use buyRequestId as display
+            } else if (escrow.buyRequestId && escrow.buyRequestId !== null) {
+              // For buy requests, fetch the requestCode from API
+              const buyRequestDetail = await getBuyRequestDetail(escrow.buyRequestId);
               return {
                 ...escrow,
-                sessionCode: `BUY-${escrow.buyRequestId.slice(0, 8)}`,
+                sessionCode: buyRequestDetail?.requestCode || `BUY-${escrow.buyRequestId.slice(0, 8)}`,
               };
             } else {
               return {
@@ -85,6 +91,18 @@ export default function WholesalerTransactionsScreen() {
   const handleContractPress = (contract: EscrowContract) => {
     setSelectedEscrow(contract);
     setModalVisible(true);
+  };
+
+  const handlePayRemainingPress = (escrow: EscrowContract, e: any) => {
+    e.stopPropagation();
+    setSelectedEscrowForPayment(escrow);
+    setShowPayRemainingModal(true);
+  };
+
+  const handlePaymentSuccess = async () => {
+    setShowPayRemainingModal(false);
+    setSelectedEscrowForPayment(null);
+    await fetchEscrows();
   };
 
   // Filter escrows by status
@@ -158,15 +176,34 @@ export default function WholesalerTransactionsScreen() {
 
       <FlatList
         data={filteredEscrows}
-        renderItem={({ item }) => (
-          <View style={styles.cardContainer}>
-            <EscrowContractCard
-              contract={item}
-              role="wholesaler"
-              onPress={() => handleContractPress(item)}
-            />
-          </View>
-        )}
+        renderItem={({ item }) => {
+          const canPayRemaining = item.escrowStatus === 2; // ReadyToHarvest
+          const remainingAmount = item.totalAmount - item.escrowAmount;
+
+          return (
+            <View style={styles.cardContainer}>
+              <EscrowContractCard
+                contract={item}
+                role="wholesaler"
+                onPress={() => handleContractPress(item)}
+              />
+              
+              {/* Payment buttons */}
+              {canPayRemaining && (
+                <TouchableOpacity
+                  style={styles.payRemainingButton}
+                  onPress={(e) => handlePayRemainingPress(item, e)}
+                  activeOpacity={0.7}
+                >
+                  <DollarSign size={18} color="#FFFFFF" />
+                  <Text style={styles.payRemainingButtonText}>
+                    Thanh toán phần còn lại {remainingAmount.toLocaleString('vi-VN')} VND
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          );
+        }}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={loading ? renderLoading : renderEmpty}
@@ -188,6 +225,22 @@ export default function WholesalerTransactionsScreen() {
           fetchEscrows();
         }}
       />
+
+      {/* Payment modals */}
+      {selectedEscrowForPayment && (
+        <>
+          <BuyRequestPayRemainingModal
+            visible={showPayRemainingModal}
+            escrowId={selectedEscrowForPayment.id}
+            remainingAmount={selectedEscrowForPayment.totalAmount - selectedEscrowForPayment.escrowAmount}
+            onClose={() => {
+              setShowPayRemainingModal(false);
+              setSelectedEscrowForPayment(null);
+            }}
+            onSuccess={handlePaymentSuccess}
+          />
+        </>
+      )}
     </View>
   );
 }
@@ -264,5 +317,37 @@ const styles = StyleSheet.create({
   },
   filterChipTextActive: {
     color: '#FFFFFF',
+  },
+  depositButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#3B82F6',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 8,
+    gap: 8,
+  },
+  depositButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  payRemainingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#10B981',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 8,
+    gap: 8,
+  },
+  payRemainingButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

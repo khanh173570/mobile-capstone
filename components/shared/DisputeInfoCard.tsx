@@ -127,7 +127,7 @@ export const DisputeInfoCard: React.FC<DisputeInfoCardProps> = ({
         </View>
       )}
 
-      {/* Review Note (if approved or rejected) */}
+      {/* Review Note (if approved, rejected, or resolved) */}
       {dispute.reviewNote && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Phản hồi từ nông dân</Text>
@@ -137,10 +137,14 @@ export const DisputeInfoCard: React.FC<DisputeInfoCardProps> = ({
               {
                 backgroundColor:
                   dispute.disputeStatus === 1
-                    ? '#ECFDF5'
+                    ? '#ECFDF5' // Approved - Green
                     : dispute.disputeStatus === 2
-                    ? '#FEF2F2'
-                    : '#F3F4F6',
+                    ? '#FEF2F2' // Rejected - Red
+                    : dispute.disputeStatus === 3
+                    ? '#EFF6FF' // InAdminReview - Blue
+                    : dispute.disputeStatus === 4
+                    ? '#ECFDF5' // Resolved - Green
+                    : '#F3F4F6', // Pending - Gray
               },
             ]}
           >

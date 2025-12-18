@@ -25,21 +25,14 @@ export const ReviewDisputeModal: React.FC<ReviewDisputeModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const [reviewNote, setReviewNote] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleReview = async (isApproved: boolean) => {
-    if (!reviewNote.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập ghi chú xét duyệt');
-      return;
-    }
-
     try {
       setLoading(true);
 
       await reviewDispute(disputeId, {
         isApproved,
-        reviewNote: reviewNote.trim(),
       });
 
       Alert.alert(
@@ -53,7 +46,6 @@ export const ReviewDisputeModal: React.FC<ReviewDisputeModalProps> = ({
             onPress: () => {
               onSuccess();
               onClose();
-              setReviewNote('');
             },
           },
         ]
@@ -82,23 +74,8 @@ export const ReviewDisputeModal: React.FC<ReviewDisputeModalProps> = ({
             {/* Info Text */}
             <View style={styles.infoCard}>
               <Text style={styles.infoText}>
-                Vui lòng xem xét yêu cầu tranh chấp từ thương lái và đưa ra quyết định.
+                Vui lòng xem xét yêu cầu tranh chấp và đưa ra quyết định.
               </Text>
-            </View>
-
-            {/* Review Note Input */}
-            <View style={styles.inputSection}>
-              <Text style={styles.label}>Ghi chú xét duyệt *</Text>
-              <TextInput
-                style={styles.textArea}
-                placeholder="Nhập ghi chú của bạn..."
-                placeholderTextColor="#9CA3AF"
-                multiline
-                numberOfLines={4}
-                value={reviewNote}
-                onChangeText={setReviewNote}
-                editable={!loading}
-              />
             </View>
           </View>
 

@@ -205,10 +205,9 @@ export const getWalletStatusColor = (status: number): string => {
  */
 export const formatCurrency = (amount: number | null | undefined): string => {
   if (amount === null || amount === undefined) {
-    return '0 ₫';
+    return '0 VND';
   }
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-  }).format(amount);
+  // Format with thousand separators
+  const formatted = amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${formatted} VND`;
 };

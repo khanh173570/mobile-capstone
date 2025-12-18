@@ -169,9 +169,9 @@ export default function FarmUpdateForm({ onComplete }: FarmUpdateFormProps) {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.iconContainer}>
+          {/* <View style={styles.iconContainer}>
             <Tractor size={32} color="#22C55E" />
-          </View>
+          </View> */}
           <Text style={styles.title}>Cập nhật thông tin trang trại</Text>
           <Text style={styles.subtitle}>
             Vui lòng cung cấp thông tin về trang trại của bạn để tiếp tục
@@ -214,7 +214,7 @@ export default function FarmUpdateForm({ onComplete }: FarmUpdateFormProps) {
           </View>
 
           {/* Description */}
-          <View style={styles.inputGroup}>
+          {/* <View style={styles.inputGroup}>
             <Text style={styles.label}>Mô tả trang trại</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
@@ -226,7 +226,7 @@ export default function FarmUpdateForm({ onComplete }: FarmUpdateFormProps) {
               textAlignVertical="top"
               editable={!isLoading}
             />
-          </View>
+          </View> */}
         </View>
 
         {/* Submit Button */}

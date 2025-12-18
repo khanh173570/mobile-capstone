@@ -150,7 +150,7 @@ export default function TabLayout() {
           name="wholesaler/profile"
           options={{
             href: !isFarmer ? undefined : null,
-            title: 'Profile',
+            title: 'Hồ sơ',
             tabBarIcon: ({ size, color }) => (
               <User size={size} color={color} strokeWidth={2} />
             ),

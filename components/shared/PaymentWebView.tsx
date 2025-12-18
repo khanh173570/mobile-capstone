@@ -34,8 +34,8 @@ export default function PaymentWebView({
   const [loading, setLoading] = useState(true);
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
-  const [showPaymentOptions, setShowPaymentOptions] = useState(!skipOptions);
-  const [selectedOption, setSelectedOption] = useState<'qr' | 'app' | null>(skipOptions ? 'qr' : null);
+  const [showPaymentOptions, setShowPaymentOptions] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<'qr' | 'app' | null>('qr');
   const [showBankingApps, setShowBankingApps] = useState(false);
   const [qrData, setQrData] = useState<string>('');
   const webViewRef = useRef<WebView>(null);
@@ -75,31 +75,11 @@ export default function PaymentWebView({
   };
 
   // List of popular banking apps in Vietnam with proper deep link formats
-  const bankingApps = [
-    { 
-      name: 'MoMo', 
-      scheme: 'momo://',
-      deepLinkFormat: (url: string) => {
-        // MoMo accepts VietQR URLs or QR data
-        // Format: momo://qr?url={encoded_qr_url}
-        const encodedUrl = encodeURIComponent(url);
-        return `momo://app?action=qr&url=${encodedUrl}`;
-      }
-    },
-  ];
+  const bankingApps = [];
 
   const handleSelectQROption = () => {
     setSelectedOption('qr');
     setShowPaymentOptions(false);
-  };
-
-  const handleSelectAppOption = async () => {
-    setSelectedOption('app');
-    setShowPaymentOptions(false);
-    
-    // Auto open MoMo with payment data
-    const momoApp = bankingApps[0]; // MoMo is the only app now
-    await handleOpenBankingApp(momoApp);
   };
 
   const handleOpenBankingApp = async (app: typeof bankingApps[0]) => {
@@ -361,28 +341,11 @@ export default function PaymentWebView({
                 </Text>
               </View>
             </TouchableOpacity>
-
-            {/* MoMo Option */}
-            <TouchableOpacity
-              style={styles.optionCard}
-              onPress={handleSelectAppOption}
-            >
-              <View style={styles.optionIcon}>
-                <Text style={styles.optionIconText}>💳</Text>
-              </View>
-              <View style={styles.optionContent}>
-                <Text style={styles.optionTitle}>Thanh toán MoMo</Text>
-                <Text style={styles.optionDescription}>
-                  Mở ứng dụng MoMo để thanh toán nhanh
-                </Text>
-              </View>
-            </TouchableOpacity>
           </View>
         )}
 
-        {/* WebView - Only show when QR option selected */}
-        {!showPaymentOptions && selectedOption === 'qr' && (
-          <WebView
+        {/* WebView - PayOS QR */}
+        <WebView
             ref={webViewRef}
             source={{ uri: paymentUrl }}
             style={styles.webview}
@@ -419,27 +382,6 @@ export default function PaymentWebView({
               console.error('HTTP error:', nativeEvent.statusCode);
             }}
           />
-        )}
-
-        {/* Info for App Option */}
-        {!showPaymentOptions && selectedOption === 'app' && (
-          <View style={styles.infoContainer}>
-            <Text style={styles.infoIcon}>💳</Text>
-            <Text style={styles.infoTitle}>Đã mở MoMo</Text>
-            <Text style={styles.infoDescription}>
-              Vui lòng hoàn tất thanh toán trong ứng dụng MoMo. Thông tin thanh toán đã được tự động điền sẵn.
-            </Text>
-            <TouchableOpacity
-              style={styles.changeMethodButton}
-              onPress={() => {
-                setShowPaymentOptions(true);
-                setSelectedOption(null);
-              }}
-            >
-              <Text style={styles.changeMethodButtonText}>Chọn phương thức khác</Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </View>
 
 

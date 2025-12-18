@@ -15,6 +15,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import {
   getUserNotifications,
   markNotificationAsRead,
+  markAllNotificationsAsRead,
   getNotificationTypeName,
   getNotificationIcon,
   getNotificationColor,
@@ -102,6 +103,30 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
     onRefresh?.();
   };
 
+  const handleMarkAllAsRead = async () => {
+    try {
+      console.log('🔄 Marking all notifications as read...');
+      const success = await markAllNotificationsAsRead();
+      if (success) {
+        // Update local state immediately
+        setNotifications(prev =>
+          prev.map(n => ({
+            ...n,
+            isRead: true,
+            readAt: new Date().toISOString()
+          }))
+        );
+        onRefresh?.(); // Refresh unread count in parent
+        Alert.alert('Thành công', 'Đã đánh dấu tất cả thông báo là đã đọc');
+      } else {
+        Alert.alert('Lỗi', 'Không thể đánh dấu tất cả thông báo');
+      }
+    } catch (error) {
+      console.error('❌ Error marking all as read:', error);
+      Alert.alert('Lỗi', 'Đã xảy ra lỗi khi đánh dấu thông báo');
+    }
+  };
+
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const renderNotificationItem = ({ item }: { item: UserNotification }) => {
@@ -178,6 +203,14 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
               )}
             </View>
             <View style={styles.headerActions}>
+              {unreadCount > 0 && (
+                <TouchableOpacity 
+                  onPress={handleMarkAllAsRead} 
+                  style={styles.markAllButton}
+                >
+                  <Text style={styles.markAllButtonText}>Đọc tất cả</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                 <MaterialIcons name="close" size={24} color="#111827" />
               </TouchableOpacity>

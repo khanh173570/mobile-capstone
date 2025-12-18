@@ -179,7 +179,7 @@ export const markNotificationAsRead = async (notificationId: string): Promise<bo
     const url = `${API_BASE_URL}/Notifications/${notificationId}/read`;
     
     const response = await fetchWithTokenRefresh(url, {
-      method: 'PUT',
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -194,6 +194,41 @@ export const markNotificationAsRead = async (notificationId: string): Promise<bo
     return true;
   } catch (error) {
     console.error('❌ Error marking notification as read:', error);
+    return false;
+  }
+};
+
+/**
+ * Mark all notifications as read for current user
+ * @returns Success boolean
+ */
+export const markAllNotificationsAsRead = async (): Promise<boolean> => {
+  try {
+    const userId = await getUserIdFromToken();
+    if (!userId) {
+      return false;
+    }
+
+    console.log(`🔄 Marking all notifications as read for user: ${userId.substring(0, 8)}...`);
+
+    const url = `${API_BASE_URL}/Notifications/user/${userId}/read-all`;
+    
+    const response = await fetchWithTokenRefresh(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error('❌ Failed to mark all notifications as read:', response.status, response.statusText);
+      return false;
+    }
+
+    console.log(`✅ All notifications marked as read`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error marking all notifications as read:', error);
     return false;
   }
 };

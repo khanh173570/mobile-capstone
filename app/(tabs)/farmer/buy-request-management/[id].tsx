@@ -10,7 +10,7 @@ import {
   Modal,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Check, X, AlertCircle, User } from 'lucide-react-native';
+import { ArrowLeft, Check, X, AlertCircle, User, AlertTriangle } from 'lucide-react-native';
 import Header from '../../../../components/shared/Header';
 import {
   getBuyRequestById,
@@ -24,12 +24,15 @@ import {
 } from '../../../../services/farmerBuyRequestManagementService';
 import { DisputeInfoCard } from '../../../../components/shared/DisputeInfoCard';
 import { ReviewDisputeModal } from '../../../../components/shared/ReviewDisputeModal';
+import { CreateDisputeModal } from '../../../../components/shared/CreateDisputeModal';
 import { Dispute, getDisputeByEscrowId } from '../../../../services/disputeService';
+import { getCurrentUser, User as UserType } from '../../../../services/authService';
 
 export default function BuyRequestDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const [buyRequest, setBuyRequest] = useState<FarmerBuyRequest | null>(null);
+  const [farmerInfo, setFarmerInfo] = useState<UserType | null>(null);
   const [wholesaler, setWholesaler] = useState<WholesalerInfo | null>(null);
   const [escrow, setEscrow] = useState<BuyRequestEscrow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,10 +46,23 @@ export default function BuyRequestDetailScreen() {
   const [dispute, setDispute] = useState<Dispute | null>(null);
   const [loadingDispute, setLoadingDispute] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [showCreateDisputeModal, setShowCreateDisputeModal] = useState(false);
 
   useEffect(() => {
     loadBuyRequest();
+    loadFarmerInfo();
   }, [id]);
+
+  const loadFarmerInfo = async () => {
+    try {
+      const user = await getCurrentUser();
+      if (user) {
+        setFarmerInfo(user);
+      }
+    } catch (error) {
+      console.error('Error loading farmer info:', error);
+    }
+  };
 
   const loadBuyRequest = async () => {
     try {
@@ -182,6 +198,12 @@ export default function BuyRequestDetailScreen() {
     }
   };
 
+  const handleDisputeCreateSuccess = () => {
+    if (escrow) {
+      loadDisputeInfo(escrow.id);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Pending':
@@ -216,20 +238,58 @@ export default function BuyRequestDetailScreen() {
     }
   };
 
-  const getEscrowStatusLabel = (status: string) => {
-    switch (status) {
-      case 'PendingPayment':
+  const getEscrowStatusLabel = (status: number | string) => {
+    // Convert to number if string
+    const numStatus = typeof status === 'string' ? parseInt(status) : status;
+    
+    switch (numStatus) {
+      case 0:
         return 'Chờ thanh toán cọc';
-      case 'Deposited':
+      case 1:
         return 'Đã đặt cọc';
-      case 'ReadyToHarvest':
+      case 2:
         return 'Sẵn sàng thu hoạch';
-      case 'Completed':
+      case 3:
+        return 'Đã thanh toán đủ';
+      case 4:
         return 'Hoàn thành';
-      case 'Refunded':
+      case 5:
+        return 'Đang tranh chấp';
+      case 6:
         return 'Đã hoàn tiền';
+      case 7:
+        return 'Hoàn tiền một phần';
+      case 8:
+        return 'Đã hủy';
       default:
-        return status;
+        return 'Không xác định';
+    }
+  };
+
+  const getEscrowStatusColor = (status: number | string) => {
+    const numStatus = typeof status === 'string' ? parseInt(status) : status;
+    
+    switch (numStatus) {
+      case 0:
+        return '#F59E0B';
+      case 1:
+        return '#3B82F6';
+      case 2:
+        return '#06B6D4';
+      case 3:
+        return '#10B981';
+      case 4:
+        return '#10B981';
+      case 5:
+        return '#EF4444';
+      case 6:
+        return '#6B7280';
+      case 7:
+        return '#F97316';
+      case 8:
+        return '#6B7280';
+      default:
+        return '#6B7280';
     }
   };
 
@@ -275,49 +335,70 @@ export default function BuyRequestDetailScreen() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Wholesaler Information */}
-        {wholesaler && (
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={styles.wholesalerTitleRow}>
-                <User size={16} color="#10B981" />
-                <Text style={styles.cardTitle}>Thông Tin Người Mua</Text>
-              </View>
-            </View>
+        {/* Farmer & Wholesaler Info Section - 2 Column Layout */}
+        {(farmerInfo || wholesaler) && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Thông tin các bên liên quan</Text>
 
-            <View style={styles.infoRow}>
-              <Text style={styles.label}>Họ tên:</Text>
-              <Text style={styles.value}>
-                {wholesaler.lastName} {wholesaler.firstName}
-              </Text>
-            </View>
+            <View style={styles.roleCardsContainer}>
+              {/* Farmer Card - Left Column (Current User) */}
+              {farmerInfo && (
+                <View style={styles.roleCardColumn}>
+                  <View style={styles.farmerCard}>
+                    <View style={styles.simpleRoleHeader}>
+                      <Text style={styles.simpleRoleText}>Nông Dân (Bạn)</Text>
+                    </View>
 
-            <View style={styles.divider} />
+                    <View style={[styles.infoCard, { borderWidth: 0 }]}>
+                      <View style={styles.simpleInfoRow}>
+                        <Text style={styles.simpleLabel}>Tên</Text>
+                        <Text style={styles.simpleValue}>
+                          {farmerInfo.firstName} {farmerInfo.lastName}
+                        </Text>
+                      </View>
 
-            {/* <View style={styles.infoRow}>
-              <Text style={styles.label}>Số điện thoại:</Text>
-              <Text style={styles.value}>{wholesaler.phoneNumber}</Text>
-            </View> */}
+                      {farmerInfo.address && (
+                        <View style={styles.simpleInfoRow}>
+                          <Text style={styles.simpleLabel}>Địa chỉ</Text>
+                          <Text style={styles.simpleValue}>{farmerInfo.address}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              )}
 
-            {/* <View style={styles.infoRow}>
-              <Text style={styles.label}>Email:</Text>
-              <Text style={styles.value}>{wholesaler.email}</Text>
-            </View> */}
+              {/* Wholesaler Card - Right Column */}
+              {wholesaler && (
+                <View style={styles.roleCardColumn}>
+                  <View style={styles.wholesalerCard}>
+                    <View style={styles.simpleRoleHeader}>
+                      <Text style={styles.simpleRoleText}>Thương lái </Text>
+                    </View>
 
-          
+                    <View style={[styles.infoCard, { borderWidth: 0 }]}>
+                      <View style={styles.simpleInfoRow}>
+                        <Text style={styles.simpleLabel}>Tên</Text>
+                        <Text style={styles.simpleValue}>
+                          {wholesaler.lastName} {wholesaler.firstName}
+                        </Text>
+                      </View>
 
-            <View style={styles.infoRow}>
-              <Text style={styles.label}>Địa chỉ:</Text>
-              <Text style={styles.value}>{wholesaler.address}</Text>
-            </View>
+                     
 
-            <View style={styles.divider} />
 
-            <View style={styles.infoRow}>
-              <Text style={styles.label}>Khu vực:</Text>
-              <Text style={styles.value}>
-                {wholesaler.communes}, {wholesaler.province}
-              </Text>
+
+                      {wholesaler.address && (
+                        <View style={styles.simpleInfoRow}>
+                          <Text style={styles.simpleLabel}>Địa chỉ</Text>
+                          <Text style={styles.simpleValue}>{wholesaler.address}</Text>
+                        </View>
+                      )}
+
+                    </View>
+                  </View>
+                </View>
+              )}
             </View>
           </View>
         )}
@@ -345,14 +426,8 @@ export default function BuyRequestDetailScreen() {
 
           <View style={styles.divider} />
 
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Số lượng dự kiến:</Text>
-            <Text style={styles.value}>
-              {buyRequest.totalQuantity} {buyRequest.totalQuantity > 0 ? 'kg' : '-'}
-            </Text>
-          </View>
 
-          <View style={styles.divider} />
+         
 
           <View style={styles.infoRow}>
             <Text style={styles.label}>Ngày cần hàng:</Text>
@@ -423,8 +498,11 @@ export default function BuyRequestDetailScreen() {
         {escrow && dispute && (
           <View style={styles.card}>
             <DisputeInfoCard 
-              dispute={dispute} 
-              showReviewButton={dispute.disputeStatus === 0}
+              dispute={dispute}
+              showReviewButton={
+                dispute.disputeStatus === 0 && 
+                dispute.isWholeSalerCreated === true
+              }
               onReview={() => setShowReviewModal(true)}
             />
           </View>
@@ -447,7 +525,7 @@ export default function BuyRequestDetailScreen() {
                   <View
                     style={[
                       styles.escrowStatusBadge,
-                      { backgroundColor: getStatusColor('Accepted') },
+                      { backgroundColor: getEscrowStatusColor(escrow.escrowStatus) },
                     ]}
                   >
                     <Text style={styles.escrowStatusText}>
@@ -549,8 +627,8 @@ export default function BuyRequestDetailScreen() {
           </View>
         )}
 
-        {/* Ready to Harvest Button - Show when deposited */}
-        {escrow && escrow.escrowStatus === 'PartiallyFunded' && (
+        {/* Ready to Harvest Button - Show when escrow is PartiallyFunded (status = 1) */}
+        {escrow && parseInt(escrow.escrowStatus) === 1 && (
           <View style={styles.actionSection}>
             <TouchableOpacity
               style={styles.readyButton}
@@ -565,6 +643,19 @@ export default function BuyRequestDetailScreen() {
                   <Text style={styles.readyButtonText}>Sẵn Sàng Thu Hoạch</Text>
                 </>
               )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Create Dispute Button - Show when escrow is FullyFunded (status = 3) and no dispute exists */}
+        {escrow && parseInt(escrow.escrowStatus) === 3 && !dispute && (
+          <View style={styles.actionSection}>
+            <TouchableOpacity
+              style={styles.disputeButton}
+              onPress={() => setShowCreateDisputeModal(true)}
+            >
+              <AlertTriangle size={20} color="#FFFFFF" />
+              <Text style={styles.disputeButtonText}>Tạo Yêu Cầu Tranh Chấp</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -657,6 +748,18 @@ export default function BuyRequestDetailScreen() {
           disputeId={dispute.id}
           onClose={() => setShowReviewModal(false)}
           onSuccess={handleDisputeReviewSuccess}
+        />
+      )}
+
+      {/* Create Dispute Modal */}
+      {escrow && (
+        <CreateDisputeModal
+          visible={showCreateDisputeModal}
+          escrowId={escrow.id}
+          totalAmount={escrow.totalAmount}
+          isWholeSalerCreating={false}
+          onClose={() => setShowCreateDisputeModal(false)}
+          onSuccess={handleDisputeCreateSuccess}
         />
       )}
     </View>
@@ -941,6 +1044,81 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
+  
+  // 2-Column Layout Styles
+  section: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  roleCardsContainer: {
+    flexDirection: 'row' as const,
+    gap: 12,
+  },
+  roleCardColumn: {
+    flex: 1,
+  },
+  farmerCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#D1FAE5',
+    overflow: 'hidden' as const,
+  },
+  wholesalerCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#DBEAFE',
+    overflow: 'hidden' as const,
+  },
+  simpleRoleHeader: {
+    backgroundColor: '#F9FAFB',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  simpleRoleText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  infoCard: {
+    borderWidth: 0,
+  },
+  simpleInfoRow: {
+    flexDirection: 'row',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignItems: 'flex-start',
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    minHeight: 56,
+  },
+  simpleLabel: {
+    fontSize: 10,
+    color: '#6B7280',
+    fontWeight: '500',
+    minWidth: 32,
+  },
+  simpleValue: {
+    fontSize: 10,
+    color: '#1F2937',
+    fontWeight: '500',
+    flex: 1,
+  },
   valueHighlight: {
     fontSize: 13,
     fontWeight: '700',
@@ -965,6 +1143,21 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   readyButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  disputeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EF4444',
+    borderRadius: 12,
+    paddingVertical: 14,
+    gap: 8,
+  },
+  disputeButtonText: {
     fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',

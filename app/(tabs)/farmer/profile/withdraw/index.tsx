@@ -321,7 +321,7 @@ export default function FarmerWithdrawScreen() {
         <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>Số dư ví</Text>
           <Text style={styles.balanceAmount}>
-            {(wallet?.balance || 0).toLocaleString('vi-VN')} ₫
+            {(wallet?.balance || 0).toLocaleString('vi-VN')} VND
           </Text>
         </View>
 

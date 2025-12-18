@@ -102,7 +102,7 @@ export const BuyRequestDepositModal: React.FC<BuyRequestDepositModalProps> = ({
           <View style={styles.amountSection}>
             <Text style={styles.amountLabel}>Số tiền cần thanh toán</Text>
             <Text style={styles.amountValue}>
-              {depositAmount.toLocaleString('vi-VN')} VND
+              {depositAmount ? depositAmount.toLocaleString('vi-VN') : '0'} VND
             </Text>
             <Text style={styles.amountNote}>
               Đây là tiền cọc 30% của tổng giá trị đơn hàng

@@ -9,20 +9,21 @@ import {
   Clock,
   DollarSign,
 } from 'lucide-react-native';
-import EscrowPaymentButton from './EscrowPaymentButton';
 
 interface WholesalerAuctionCardProps {
   auction: WholesalerAuction;
   onPress?: () => void;
   isWinner?: boolean;
   showPaymentButton?: boolean;
+  realtimePrice?: number;
 }
 
 export default function WholesalerAuctionCard({ 
   auction, 
   onPress, 
   isWinner = false,
-  showPaymentButton = false 
+  showPaymentButton = false,
+  realtimePrice
 }: WholesalerAuctionCardProps) {
   const statusInfo = getAuctionStatusInfo(auction.status);
 
@@ -81,7 +82,9 @@ export default function WholesalerAuctionCard({
           <TrendingUp size={16} color="#3B82F6" />
           <View style={styles.priceInfo}>
             <Text style={styles.priceLabel}>Giá hiện tại</Text>
-            <Text style={[styles.priceValue, styles.currentPrice]}>{formatPrice(auction.currentPrice)}</Text>
+            <Text style={[styles.priceValue, styles.currentPrice]}>
+              {formatPrice(realtimePrice ?? auction.currentPrice)}
+            </Text>
           </View>
         </View>
       </View>
@@ -114,15 +117,6 @@ export default function WholesalerAuctionCard({
           <Text style={styles.noteLabel}>Ghi chú:</Text>
           <Text style={styles.noteText} numberOfLines={2}>{auction.note}</Text>
         </View>
-      )}
-
-      {/* Escrow Payment Button - Only show for completed auctions where user is winner */}
-      {showPaymentButton && isWinner && auction.status === 'Completed' && (
-        <EscrowPaymentButton
-          auctionId={auction.id}
-          isWinner={isWinner}
-          currentPrice={auction.currentPrice}
-        />
       )}
     </TouchableOpacity>
   );

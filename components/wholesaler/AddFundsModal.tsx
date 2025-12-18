@@ -46,12 +46,7 @@ export default function AddFundsModal({
   };
 
   const formatCurrency = (value: number): string => {
-    if (value >= 1000000) {
-      return `${value / 1000000}M`;
-    } else if (value >= 1000) {
-      return `${value / 1000}K`;
-    }
-    return value.toString();
+    return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   };
 
   const handleAddFunds = async () => {
@@ -149,7 +144,7 @@ export default function AddFundsModal({
             <View style={styles.inputSection}>
               <Text style={styles.inputLabel}>Số tiền nạp</Text>
               <View style={styles.inputContainer}>
-                <DollarSign size={20} color="#6B7280" />
+                {/* <DollarSign size={20} color="#6B7280" /> */}
                 <TextInput
                   style={styles.input}
                   value={amount}
@@ -158,7 +153,7 @@ export default function AddFundsModal({
                   keyboardType="numeric"
                   placeholderTextColor="#9CA3AF"
                 />
-                <Text style={styles.currency}>₫</Text>
+                <Text style={styles.currency}>VND</Text>
               </View>
               <Text style={styles.inputHint}>
                 Tối thiểu: 10,000 ₫ | Tối đa: 100,000,000 ₫
@@ -314,23 +309,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    justifyContent: 'space-between',
   },
   suggestionButton: {
-    paddingHorizontal: 20,
+    width: '31.5%',
+    paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     backgroundColor: '#FFFFFF',
+    alignItems: 'center',
   },
   suggestionButtonActive: {
     borderColor: '#3B82F6',
     backgroundColor: '#EFF6FF',
   },
   suggestionText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#6B7280',
+    textAlign: 'center',
   },
   suggestionTextActive: {
     color: '#3B82F6',

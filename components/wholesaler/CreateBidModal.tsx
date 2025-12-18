@@ -124,8 +124,24 @@ export default function CreateBidModal({
         Alert.alert('Lỗi', response.message || 'Không thể đặt giá');
       }
     } catch (error) {
-      console.error('Error creating bid:', error);
-      Alert.alert('Lỗi', error instanceof Error ? error.message : 'Có lỗi xảy ra');
+      // console.error('Error creating bid:', error);
+      
+      let errorMessage = 'Có lỗi xảy ra';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      // Check if error is due to insufficient funds
+      if (errorMessage.toLowerCase().includes('insufficient funds') ||
+          errorMessage.toLowerCase().includes('insufficient') ||
+          errorMessage.toLowerCase().includes('wallet')) {
+        Alert.alert(
+          '❌ Không đủ tiền trong ví',
+          'Bạn không có đủ tiền trong ví để đặt giá này. Vui lòng nạp tiền vào ví.'
+        );
+      } else {
+        Alert.alert('Lỗi', errorMessage);
+      }
     } finally {
       setLoading(false);
     }

@@ -263,7 +263,7 @@ export const createBid = async (request: CreateBidRequest): Promise<BidApiRespon
     console.log('✅ createBid succeeded!');
     return data;
   } catch (error) {
-    console.error('❌ Error creating bid:', error);
+    // console.error('❌ Error creating bid:', error);
     throw error;
   }
 };

@@ -55,8 +55,8 @@ export const getHarvestsByCropId = async (cropId: string): Promise<Harvest[]> =>
     try {
       data = text ? JSON.parse(text) : {};
     } catch (e) {
-      console.error('JSON parse error:', e);
-      console.error('Response text:', text);
+      // console.error('JSON parse error:', e);
+      // console.error('Response text:', text);
       throw new Error('Invalid response format from server');
     }
 

@@ -595,7 +595,7 @@ export default function HomeScreen() {
           </View>
 
           {/* Current Farm Info */}
-          <View style={styles.currentInfo}>
+          {/* <View style={styles.currentInfo}>
             <Text style={styles.currentInfoTitle}>Thông tin hiện tại:</Text>
             <Text style={styles.currentInfoText}>
               Trạng thái: {farmData?.isActive ? 'Hoạt động' : 'Tạm dừng'}
@@ -603,7 +603,7 @@ export default function HomeScreen() {
             <Text style={styles.currentInfoText}>
               Ngày tạo: {farmData?.createdAt ? new Date(farmData.createdAt).toLocaleDateString('vi-VN') : 'Chưa xác định'}
             </Text>
-          </View>
+          </View> */}
         </ScrollView>
 
         <View style={styles.modalFooter}>

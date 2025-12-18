@@ -17,6 +17,7 @@ import { getWholesalerAuctions, WholesalerAuction } from '../../../../services/w
 import { handleError } from '../../../../utils/errorHandler';
 import { getUserProfile } from '../../../../services/authService';
 import { registerNotificationListener, unregisterNotificationListener } from '../../../../services/notificationService';
+import { signalRService } from '../../../../services/signalRService';
 
 export default function BiddingHistoryScreen() {
   const [auctions, setAuctions] = useState<WholesalerAuction[]>([]);
@@ -25,6 +26,7 @@ export default function BiddingHistoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
   const [userId, setUserId] = useState<string>('');
+  const [realtimePrices, setRealtimePrices] = useState<{ [auctionId: string]: number }>({});
 
   const filters = [
     { id: 'all', label: 'Tất cả', icon: TrendingUp },
@@ -61,7 +63,38 @@ export default function BiddingHistoryScreen() {
 
   useEffect(() => {
     filterAuctions();
-  }, [selectedFilter, auctions, userId]);
+  }, [selectedFilter, auctions, userId, realtimePrices]);
+
+  // Setup real-time bid update listener (runs once on mount)
+  useEffect(() => {
+    console.log('🔔 Setting up BidPlaced listener for bidding history page');
+    
+    const unsubscribeBidPlaced = signalRService.onBidPlaced((event: any) => {
+      console.log('💰 BidPlaced event received in bidding history:', event.auctionId, 'new price:', event.newPrice);
+      // Update realtime price for this auction
+      setRealtimePrices(prev => ({
+        ...prev,
+        [event.auctionId]: event.newPrice
+      }));
+    });
+    
+    // Cleanup on unmount
+    return () => {
+      console.log('🔔 Cleaning up BidPlaced listener from bidding history page');
+      unsubscribeBidPlaced();
+    };
+  }, []); // Empty dependency array - only run once on mount
+
+  // Join auction groups for realtime updates
+  useEffect(() => {
+    if (auctions.length > 0) {
+      auctions.forEach((auction) => {
+        signalRService.joinAuctionGroup(auction.id).catch((error) => {
+          console.error('Failed to join auction group:', auction.id, error);
+        });
+      });
+    }
+  }, [auctions]);
 
   const loadUserProfile = async () => {
     try {
@@ -190,6 +223,7 @@ export default function BiddingHistoryScreen() {
       <FlatList
         data={filteredAuctions}
         keyExtractor={(item) => item.id}
+        extraData={realtimePrices}
         renderItem={({ item }) => {
           const isWinner = item.winnerId === userId && item.status === 'Completed';
           return (
@@ -198,6 +232,7 @@ export default function BiddingHistoryScreen() {
               onPress={() => handleAuctionPress(item)}
               isWinner={isWinner}
               showPaymentButton={true}
+              realtimePrice={realtimePrices[item.id]}
             />
           );
         }}

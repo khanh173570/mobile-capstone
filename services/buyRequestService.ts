@@ -369,7 +369,7 @@ export interface BuyRequestEscrow {
   feeAmount: number;
   sellerReceiveAmount: number;
   escrowAmount: number;
-  escrowStatus: string;
+  escrowStatus: number; // 0: PendingPayment, 1: PartiallyFunded, 2: ReadyToHarvest, 3: FullyFunded, 4: Completed, 5: Disputed, 6: Refunded, 7: PartialRefund, 8: Canceled
   paymentTransactionId: string | null;
   paymentAt: string | null;
   releasedTransactioId: string | null;

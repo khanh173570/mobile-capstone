@@ -26,6 +26,8 @@ import { DisputeInfoCard } from './DisputeInfoCard';
 import { CreateDisputeModal } from './CreateDisputeModal';
 import { ReviewDisputeModal } from './ReviewDisputeModal';
 import { Dispute, getDisputeByEscrowId } from '../../services/disputeService';
+import { BuyRequestDepositModal } from './BuyRequestDepositModal';
+import { DollarSign } from 'lucide-react-native';
 
 interface EscrowDetailModalProps {
   visible: boolean;
@@ -50,6 +52,7 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
   const [winnerInfo, setWinnerInfo] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showDepositModal, setShowDepositModal] = useState(false);
   const [dispute, setDispute] = useState<Dispute | null>(null);
   const [loadingDispute, setLoadingDispute] = useState(false);
   const [showCreateDisputeModal, setShowCreateDisputeModal] = useState(false);
@@ -86,8 +89,11 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
       let farmerIdToFetch = null;
       let wholesalerIdToFetch = null;
 
-      // Fetch auction details if auctionId exists
-      if (contract.auctionId) {
+      // Check if auctionId is valid (not empty UUID)
+      const isValidAuctionId = contract.auctionId && contract.auctionId !== '00000000-0000-0000-0000-000000000000' && contract.buyRequestId === null;
+      
+      // Fetch auction details if auctionId exists and is valid (and buyRequestId is null)
+      if (isValidAuctionId) {
         try {
           const auctionData = await getAuctionDetail(contract.auctionId);
           setAuctionInfo(auctionData);
@@ -103,18 +109,29 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
         }
       }
 
-      // Fetch buy request details if buyRequestId exists
-      if (contract.buyRequestId) {
+      // Check if buyRequestId is valid (not empty UUID and not null)
+      const isValidBuyRequestId = contract.buyRequestId !== null && contract.buyRequestId !== '00000000-0000-0000-0000-000000000000';
+      console.log('Contract data:', {
+        auctionId: contract.auctionId,
+        buyRequestId: contract.buyRequestId,
+        isValidAuctionId,
+        isValidBuyRequestId
+      });
+
+      // Fetch buy request details if buyRequestId exists and is valid
+      if (isValidBuyRequestId) {
         try {
-          const buyRequestData = await getBuyRequestDetail(contract.buyRequestId);
-          console.log('Buy request data:', buyRequestData);
+          const buyRequestData = await getBuyRequestDetail(contract.buyRequestId!);
+          console.log('Buy request data fetched:', buyRequestData);
           setBuyRequestInfo(buyRequestData);
           farmerIdToFetch = buyRequestData.farmerId;
           wholesalerIdToFetch = buyRequestData.wholesalerId;
-        } catch (buyRequestError) {
+        } catch (buyRequestError: any) {
           console.error('Error fetching buy request details:', buyRequestError);
           setBuyRequestInfo(null);
         }
+      } else {
+        console.log('buyRequestId is not valid, skipping buy request fetch');
       }
 
       // Fetch farmer info
@@ -242,6 +259,7 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
   const createdDate = new Date(contract.createdAt).toLocaleDateString('vi-VN');
   const canReadyToHarvest = role === 'farmer' && contract.escrowStatus <= 1;
   const canPayRemaining = role === 'wholesaler' && contract.escrowStatus === 2;
+  const shouldShowDepositButton = role === 'wholesaler' && contract.escrowStatus === 0; // Status 0: PendingPayment
   const canCreateDispute = contract.escrowStatus === 3 && !dispute;
   const canReviewDispute = role === 'farmer' && dispute !== null && dispute?.disputeStatus === 0;
   // Show "View Dispute" button when dispute exists, but hide if farmer can review (to avoid duplicate buttons)
@@ -697,9 +715,42 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
             >
               <Text style={styles.secondaryButtonText}>Đóng</Text>
             </TouchableOpacity>
+
+            {shouldShowDepositButton && (
+              <TouchableOpacity
+                style={[styles.button, styles.depositButton]}
+                onPress={() => setShowDepositModal(true)}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <DollarSign size={20} color="#FFFFFF" />
+                    <Text style={styles.depositButtonText}>
+                      Thanh toán cọc {contract?.escrowAmount.toLocaleString('vi-VN')} VND
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </View>
+
+      {/* Deposit Payment Modal */}
+      {contract && (
+        <BuyRequestDepositModal
+          visible={showDepositModal}
+          escrowId={contract.id}
+          depositAmount={contract.escrowAmount}
+          onClose={() => setShowDepositModal(false)}
+          onPaymentSuccess={() => {
+            setShowDepositModal(false);
+            onStatusUpdated?.();
+          }}
+        />
+      )}
 
       {/* Payment Modal for remaining amount */}
       {contract && (
@@ -902,6 +953,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 16,
   },
+
   errorText: {
     fontSize: 12,
     color: '#DC2626',
@@ -965,6 +1017,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#3B82F6',
   },
   viewDisputeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginLeft: 8,
+  },
+  depositButton: {
+    backgroundColor: '#3B82F6',
+  },
+  depositButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',

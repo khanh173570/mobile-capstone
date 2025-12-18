@@ -46,7 +46,7 @@ export default function WalletScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showAddFundsModal, setShowAddFundsModal] = useState(false);
   const [userId, setUserId] = useState<string>('');
-  const [showBalance, setShowBalance] = useState(true);
+  const [showBalance, setShowBalance] = useState(false);
 
   useEffect(() => {
     loadUserProfile();

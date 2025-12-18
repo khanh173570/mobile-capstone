@@ -146,7 +146,7 @@ export const getCropById = async (cropId: string): Promise<Crop | null> => {
     console.log('Response ok:', response.ok);
 
     const text = await response.text();
-    console.log('Response text:', text);
+    // console.log('Response text:', text);
     
     if (!text || text.trim() === '') {
       console.log('Empty response, returning null');
@@ -205,8 +205,8 @@ export const getCropsByFarmId = async (farmId: string): Promise<Crop[]> => {
 
     // Check if response is empty or not valid JSON
     const text = await response.text();
-    console.log('Response text:', text);
-    console.log('Response text length:', text ? text.length : 0);
+    // console.log('Response text:', text);
+    // console.log('Response text length:', text ? text.length : 0);
     
     if (!text || text.trim() === '') {
       console.log('Empty response, returning empty array');

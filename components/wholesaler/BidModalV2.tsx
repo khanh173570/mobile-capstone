@@ -382,31 +382,25 @@ export default function CreateBidModal({
         });
 
         if (response.isSuccess) {
-          const displayValue = isAutoBid 
-            ? parseFloat(autoBidMaxLimit)
-            : parseFloat(manualBidAmount); // Use actual manual bid amount
+          // For auto bid: actual bid price = currentPrice + minBidIncrement (first bid)
+          // autoBidMaxLimit is the max limit, not the actual bid price
+          // For manual bid: actual bid price = manualBidAmount
+          const actualBidPrice = isAutoBid 
+            ? currentPrice + minBidIncrement
+            : parseFloat(manualBidAmount);
 
-          console.log('✅ Bid created successfully! Display value:', displayValue);
+          console.log('✅ Bid created successfully!');
           console.log('   isAutoBid:', isAutoBid);
           console.log('   autoBidMaxLimit:', autoBidMaxLimit);
           console.log('   manualBidAmount:', manualBidAmount);
-          console.log('   Calculated displayValue:', displayValue);
+          console.log('   actualBidPrice:', actualBidPrice);
+          console.log('   currentPrice:', currentPrice);
+          console.log('   minBidIncrement:', minBidIncrement);
+          console.log('   NOTE: NOT triggering BidPlaced event on CREATE - will wait for backend SignalR');
 
           // Close modal and trigger callback without alert
-          console.log('🧪 DEBUG: Auto-triggering BidPlaced event IMMEDIATELY');
-          // Trigger event IMMEDIATELY
-          signalRService.debugTriggerBidPlaced({
-            auctionId: auctionSessionId,
-            bidId: 'generated-' + Date.now(),
-            userId: userProfile?.userId || 'unknown',
-            userName: userProfile?.fullName || 'Thương Lái',
-            bidAmount: displayValue,
-            previousPrice: currentPrice,
-            newPrice: displayValue,
-            placedAt: new Date().toISOString(),
-          });
-
-          // Then call onBidCreated and close modal
+          // DO NOT trigger BidPlaced event on CREATE - let backend handle it
+          // Only UPDATE bid should trigger BidPlaced to update current price
           onBidCreated?.();
           onClose();
           setManualBidAmount('');
@@ -423,7 +417,7 @@ export default function CreateBidModal({
         }
       }
     } catch (error: any) {
-      console.error('❌ Error creating/updating bid:', error);
+      // console.error('❌ Error creating/updating bid:', error);
       
       // Try to extract detailed errors from response
       let errorMessage = 'Có lỗi xảy ra';
@@ -445,8 +439,20 @@ export default function CreateBidModal({
         error: error,
       });
       
+      // Check if error is due to insufficient funds
+      if (errorMessage.toLowerCase().includes('insufficient funds') ||
+          errorMessage.toLowerCase().includes('insufficient') ||
+          errorMessage.toLowerCase().includes('wallet')) {
+        Alert.alert(
+          '❌ Không đủ tiền trong ví',
+          'Bạn không có đủ tiền trong ví để đặt giá này. Vui lòng nạp tiền hoặc đặt giá thấp hơn.',
+          [
+            { text: 'Đóng', style: 'cancel' }
+          ]
+        );
+      }
       // Check if error is due to someone else bidding (only check outbid/higher bid messages)
-      if (errorMessage.toLowerCase().includes('outbid') ||
+      else if (errorMessage.toLowerCase().includes('outbid') ||
           errorMessage.toLowerCase().includes('higher bid') ||
           errorMessage.toLowerCase().includes('đã đặt giá cao hơn')) {
         Alert.alert(

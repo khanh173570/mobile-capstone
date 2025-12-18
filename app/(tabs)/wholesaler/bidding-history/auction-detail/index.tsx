@@ -39,7 +39,7 @@ import BidListDisplay from '../../../../../components/wholesaler/BidListDisplay'
 import AllBidsDisplay from '../../../../../components/wholesaler/AllBidsDisplay';
 import HarvestImagesGallery from '../../../../../components/wholesaler/HarvestImagesGallery';
 import FlipClockDigit from '../../../../../components/shared/FlipClockDigit';
-import EscrowPaymentButton from '../../../../../components/wholesaler/EscrowPaymentButton';
+import BuyNowModal from '../../../../../components/wholesaler/BuyNowModal';
 import { useAuctionContext } from '../../../../../hooks/useAuctionContext';
 import { getBidsForAuction, getAllBidsForAuction, BidResponse, BidLog } from '../../../../../services/bidService';
 import { sendLocalNotification } from '../../../../../services/notificationService';
@@ -56,6 +56,7 @@ interface Auction {
   currentPrice: number | null;
   minBidIncrement: number;
   buyNowPrice?: number;
+  enableBuyNow?: boolean;
   status: string;
   expectedHarvestDate: string;
   expectedTotalQuantity: number;
@@ -101,6 +102,7 @@ export default function WholesalerAuctionDetailScreen() {
   const [displayPrice, setDisplayPrice] = useState<number>(0); // Track current price separately for instant UI update
   const [farmerData, setFarmerData] = useState<User | null>(null);
   const [loadingFarmer, setLoadingFarmer] = useState(false);
+  const [buyNowModalVisible, setBuyNowModalVisible] = useState(false);
 
   // Debug: Log state changes
   useEffect(() => {
@@ -183,6 +185,7 @@ export default function WholesalerAuctionDetailScreen() {
         console.log('════════════════════════════════════════════════');
         console.log('🔔🔔🔔 BidPlaced event received 🔔🔔🔔');
         console.log('════════════════════════════════════════════════');
+        console.log('   ✅ LISTENER TRIGGERED - BidPlaced event received!');
         console.log('   Event Details:');
         console.log('     - Auction ID (event):', event.auctionId);
         console.log('     - Bidder:', event.userName, `(ID: ${event.userId.substring(0, 8)}...)`);
@@ -456,6 +459,17 @@ export default function WholesalerAuctionDetailScreen() {
       // Silently fail - bids not loading shouldn't block UI
     } finally {
       setLoadingBids(false);
+    }
+  }, []);
+
+  // Quiet reload for user bids only (no loading indicator)
+  const loadUserBidsQuietly = useCallback(async (auctionSessionId: string) => {
+    try {
+      const bidsList = await getBidsForAuction(auctionSessionId);
+      console.log('✅ Quiet: Fetched user bids:', bidsList.length);
+      setBids(bidsList);
+    } catch (error) {
+      console.error('❌ Quiet reload user bids error:', error);
     }
   }, []);
 
@@ -876,11 +890,21 @@ export default function WholesalerAuctionDetailScreen() {
                 </View>
               )}
 
+              {auction?.enableBuyNow && auction?.buyNowPrice && (
+                <View style={styles.infoRow}>
+                  {/* <ShoppingCart size={20} color="#8B5CF6" /> */}
+                  <Text style={styles.infoLabel}>Giá mua ngay</Text>
+                  <Text style={[styles.infoValue, { color: '#8B5CF6', fontWeight: 'bold' }]}>
+                    {formatCurrency(auction.buyNowPrice)}
+                  </Text>
+                </View>
+              )}
               <View style={styles.infoRow}>
                 <Text style={styles.bidIncrementText}>
                   Bước giá tối thiểu: {formatCurrency(auction.minBidIncrement)}
                 </Text>
               </View>
+              
             </View>
           </View>
 
@@ -950,9 +974,22 @@ export default function WholesalerAuctionDetailScreen() {
                     <Text style={styles.infoLabel}>Email</Text>
                     <Text style={styles.infoValue}>{farmerData.email || 'Chưa cập nhật'}</Text>
                   </View> */}
+                  
+                  {farmerData.communes && (
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Phường/Xã</Text>
+                      <Text style={styles.infoValue}>{farmerData.communes}</Text>
+                    </View>
+                  )}
+                  {farmerData.province && (
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Tỉnh/Thành phố</Text>
+                      <Text style={styles.infoValue}>{farmerData.province}</Text>
+                    </View>
+                  )}
                   {farmerData.address && (
                     <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Địa chỉ</Text>
+                      <Text style={styles.infoLabel}>Địa chỉ chi tiết</Text>
                       <Text style={styles.infoValue}>{farmerData.address}</Text>
                     </View>
                   )}
@@ -962,21 +999,6 @@ export default function WholesalerAuctionDetailScreen() {
           )}
 
         </View>
-
-        {/* Escrow Payment Section - Only show if user is winner */}
-        {userProfile && (
-          <View style={styles.section}>
-            <EscrowPaymentButton
-              auctionId={auction.id}
-              isWinner={true}
-              currentPrice={currentPrice}
-              onPaymentComplete={() => {
-                // Reload auction detail after payment
-                loadAuctionDetail();
-              }}
-            />
-          </View>
-        )}
 
         {/* Harvest Information */}
         {auction.harvests && auction.harvests.length > 0 && (
@@ -1009,10 +1031,10 @@ export default function WholesalerAuctionDetailScreen() {
 
                   <View style={styles.harvestDetailRow}>
                     {/* <Package size={16} color="#059669" /> */}
-                    <Text style={styles.harvestDetailLabel}>Tổng số lượng:</Text>
+                    {/* <Text style={styles.harvestDetailLabel}>Tổng số lượng:</Text>
                     <Text style={styles.harvestDetailValue}>
                       {harvest.totalQuantity} {harvest.unit}
-                    </Text>
+                    </Text> */}
                   </View>
 
                   {harvest.salePrice > 0 && (
@@ -1226,33 +1248,49 @@ export default function WholesalerAuctionDetailScreen() {
           }}
         />
 
-        {/* Bidding Button - Show after bid list if no bids, or after all bids if has bids */}
-        {bids.length === 0 && (
-          <TouchableOpacity 
-            style={[
-              styles.bidButton,
-              (!auction || auction.status !== 'OnGoing') && styles.bidButtonDisabled
-            ]}
-            onPress={() => {
-              if (auction?.status !== 'OnGoing') {
-                Alert.alert(
-                  'Không thể đấu giá',
-                  'Phiên đấu giá này không còn hoạt động. Chỉ có thể xem thông tin.',
-                  [{ text: 'OK' }]
-                );
-                return;
-              }
-              console.log('Bid button pressed, current auction status:', auction?.status);
-              setSelectedBidForEdit(undefined);
-              setShowBidModal(true);
-            }}
-            disabled={!auction || auction.status !== 'OnGoing'}
-          >
-            <Text style={[styles.bidButtonText, auction?.status !== 'OnGoing' && { color: '#9CA3AF' }]}>
-              {auction?.status === 'OnGoing' ? 'Tham gia đấu giá' : 'Chỉ xem'}
-            </Text>
-          </TouchableOpacity>
-        )}
+        {/* Action Buttons */}
+        <View style={styles.actionButtonsContainer}>
+          {/* Buy Now button - Only show when user has already placed a bid */}
+          {auction?.enableBuyNow && auction?.buyNowPrice && bids.length > 0 && (
+            <TouchableOpacity 
+              style={[styles.buyNowButton, { flex: 1 }]}
+              onPress={() => setBuyNowModalVisible(true)}
+              disabled={!auction || auction.status !== 'OnGoing' || countdown?.isEnded}
+            >
+              <Text style={[styles.buyNowButtonText, (!auction || auction.status !== 'OnGoing' || countdown?.isEnded) && { color: '#9CA3AF' }]}>
+                Mua ngay
+              </Text>
+            </TouchableOpacity>
+          )}
+          {/* Bid button - Only show when user hasn't placed a bid yet */}
+          {bids.length === 0 && (
+            <TouchableOpacity 
+              style={[
+                styles.bidButtonInContainer,
+                (!auction || auction.status !== 'OnGoing' || countdown?.isEnded) && styles.bidButtonDisabled,
+                { flex: 1 }
+              ]}
+              onPress={() => {
+                if (auction?.status !== 'OnGoing' || countdown?.isEnded) {
+                  Alert.alert(
+                    'Không thể đấu giá',
+                    'Phiên đấu giá này không còn hoạt động. Chỉ có thể xem thông tin.',
+                    [{ text: 'OK' }]
+                  );
+                  return;
+                }
+                console.log('Bid button pressed, current auction status:', auction?.status);
+                setSelectedBidForEdit(undefined);
+                setShowBidModal(true);
+              }}
+              disabled={!auction || auction.status !== 'OnGoing' || countdown?.isEnded}
+            >
+              <Text style={[styles.bidButtonText, auction?.status !== 'OnGoing' && { color: '#9CA3AF' }]}>
+                {auction?.status === 'OnGoing' ? 'Tham gia đấu giá' : 'Chỉ xem'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
         </ScrollView>
       )}
 
@@ -1266,20 +1304,14 @@ export default function WholesalerAuctionDetailScreen() {
                 setSelectedBidForEdit(undefined);
               }}
               onBidCreated={() => {
-                // When user creates/updates bid, trigger data refresh
-                console.log('✅ Bid created! Updating UI...');
+                // When user creates/updates bid, immediately load their bids to show fresh data
+                console.log('✅ Bid created! Loading user bids...');
                 
-                // Try SignalR event first (instant update)
-                console.log('   1️⃣ Waiting for SignalR BidPlaced event from backend...');
-                
-                // But also trigger API fetch as fallback (in case SignalR doesn't send event)
                 const currentAuctionIdStr = Array.isArray(auctionId) ? auctionId[0] : auctionId;
-                console.log('   2️⃣ Simultaneously fetching fresh data from API...');
+                console.log('   📌 Loading fresh user bid data...');
                 
-                // Fetch immediately without delay
-                setTimeout(() => {
-                  console.log('💬 Waiting for SignalR event to update UI...');
-                }, 100); // Small delay before SignalR event should fire
+                // Load immediately
+                loadUserBidsQuietly(currentAuctionIdStr as string);
               }}
               currentPrice={auction.currentPrice || auction.startingPrice}
               minBidIncrement={auction.minBidIncrement}
@@ -1319,6 +1351,21 @@ export default function WholesalerAuctionDetailScreen() {
               </ScrollView>
             </View>
           </Modal>
+
+          {/* Buy Now Modal */}
+          {auction && (
+            <BuyNowModal
+              visible={buyNowModalVisible}
+              auction={auction}
+              onClose={() => setBuyNowModalVisible(false)}
+              onSuccess={() => {
+                setBuyNowModalVisible(false);
+                if (auctionId) {
+                  loadAuctionDetail();
+                }
+              }}
+            />
+          )}
     </View>
   );
 }
@@ -1712,6 +1759,36 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '700',
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 12,
+    marginTop: 16,
+    marginBottom: 12,
+    gap: 12,
+  },
+  buyNowButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    backgroundColor: '#8B5CF6',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buyNowButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  bidButtonInContainer: {
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#16A34A',
   },
   modalContainer: {
     flex: 1,

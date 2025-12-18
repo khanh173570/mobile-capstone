@@ -328,7 +328,7 @@ export const registerUser = async (userData: RegisterData): Promise<ApiResponse<
         
         // Get response text first for debugging
         const responseText = await response.text();
-        console.log('Raw response text:', responseText.substring(0, 200) + (responseText.length > 200 ? '...' : ''));
+        // console.log('Raw response text:', responseText.substring(0, 200) + (responseText.length > 200 ? '...' : ''));
         
         // Try to parse response as JSON
         let data: ApiResponse<User>;
@@ -393,7 +393,7 @@ export const registerUser = async (userData: RegisterData): Promise<ApiResponse<
 // Get user profile
 export const getUserProfile = async (): Promise<ApiResponse<User>> => {
   try {
-    console.log('Get user profile request URL:', `${API_URL}/Auth/Me`);
+    // console.log('Get user profile request URL:', `${API_URL}/Auth/Me`);
     
     const token = await AsyncStorage.getItem('accessToken');
     
@@ -419,12 +419,12 @@ export const getUserProfile = async (): Promise<ApiResponse<User>> => {
     try {
       data = JSON.parse(text);
     } catch (parseError) {
-      console.error('JSON parse error:', parseError);
-      console.error('Response text:', text);
+      // console.error('JSON parse error:', parseError);
+      // console.error('Response text:', text);
       throw new Error('Dữ liệu từ máy chủ không hợp lệ');
     }
     
-    console.log('Get user profile response:', data);
+    // console.log('Get user profile response:', data);
     
     if (!response.ok) {
       throw new Error(data.message || 'Không thể lấy thông tin người dùng');

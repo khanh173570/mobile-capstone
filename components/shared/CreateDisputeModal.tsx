@@ -19,6 +19,7 @@ interface CreateDisputeModalProps {
   visible: boolean;
   escrowId: string;
   totalAmount: number;
+  isWholeSalerCreating?: boolean; // true if wholesaler creating, false if farmer creating
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -27,6 +28,7 @@ export const CreateDisputeModal: React.FC<CreateDisputeModalProps> = ({
   visible,
   escrowId,
   totalAmount,
+  isWholeSalerCreating = false,
   onClose,
   onSuccess,
 }) => {
@@ -78,13 +80,16 @@ export const CreateDisputeModal: React.FC<CreateDisputeModalProps> = ({
         actualGrade2Amount: actualGrade2 ? parseFloat(actualGrade2) : 0,
         actualGrade3Amount: actualGrade3 ? parseFloat(actualGrade3) : 0,
         attachments: attachments,
+        isWholeSalerCreated: isWholeSalerCreating,
       };
 
       await createDispute(request);
 
       Alert.alert(
         'Thành công',
-        'Đã tạo yêu cầu tranh chấp. Chờ nông dân xét duyệt.',
+        isWholeSalerCreating
+          ? 'Đã tạo yêu cầu tranh chấp. Chờ nông dân xét duyệt.'
+          : 'Đã tạo yêu cầu tranh chấp. Chờ thương lái xét duyệt.',
         [
           {
             text: 'OK',
