@@ -237,7 +237,7 @@ export default function WholesalerTransactionsScreen() {
               setShowPayRemainingModal(false);
               setSelectedEscrowForPayment(null);
             }}
-            onSuccess={handlePaymentSuccess}
+            onPaymentSuccess={handlePaymentSuccess}
           />
         </>
       )}
