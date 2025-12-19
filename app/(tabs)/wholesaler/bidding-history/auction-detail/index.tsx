@@ -181,17 +181,7 @@ export default function WholesalerAuctionDetailScreen() {
       // Subscribe to BidPlaced events FIRST, then connect
       console.log('🔔 SignalR: Registering BidPlaced subscriber before connection...');
       const unsubscribeBidPlaced = signalRService.onBidPlaced((event: BidPlacedEvent) => {
-        console.log('');
-        console.log('════════════════════════════════════════════════');
-        console.log('🔔🔔🔔 BidPlaced event received 🔔🔔🔔');
-        console.log('════════════════════════════════════════════════');
-        console.log('   ✅ LISTENER TRIGGERED - BidPlaced event received!');
-        console.log('   Event Details:');
-        console.log('     - Auction ID (event):', event.auctionId);
-        console.log('     - Bidder:', event.userName, `(ID: ${event.userId.substring(0, 8)}...)`);
-        console.log('     - Bid Amount:', event.bidAmount);
-        console.log('     - Price:', event.previousPrice, '→', event.newPrice);
-        console.log('     - Timestamp:', event.placedAt);
+        
         
         // Convert auctionId to string for comparison (in case it's array)
         const currentAuctionId = Array.isArray(auctionId) ? auctionId[0] : auctionId;
