@@ -244,7 +244,7 @@ export default function WholesalerTransactionsScreen() {
     </View>
   );
 }
-
+       
 const styles = StyleSheet.create({
   container: {
     flex: 1,
