@@ -738,11 +738,22 @@ export const isAuthenticated = async (): Promise<boolean> => {
 // Logout user
 export const logout = async (): Promise<void> => {
   try {
+    // Clear push notification token
+    try {
+      const { clearStoredDeviceToken } = await import('./pushNotificationService');
+      await clearStoredDeviceToken();
+    } catch (pushError) {
+      console.warn('Could not clear push notification token during logout:', pushError);
+    }
+
+    // Clear auth tokens and user data
     await AsyncStorage.removeItem('accessToken');
     await AsyncStorage.removeItem('refreshToken');
     await AsyncStorage.removeItem('user');
     await AsyncStorage.removeItem('farm');
     await AsyncStorage.removeItem('userFarms');
+    await AsyncStorage.removeItem('farmNeedsUpdate');
+    await AsyncStorage.removeItem('pendingFarmId');
   } catch (error) {
     console.error('Logout error:', error);
   }

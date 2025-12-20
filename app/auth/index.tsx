@@ -19,6 +19,7 @@ import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { User, Lock, Sprout, Mail } from 'lucide-react-native';
 import { loginUser, LoginData } from '../../services/authService';
+import { setupPushNotifications } from '../../services/pushNotificationService';
 
 export default function LoginScreen() { // Test fix workflow
   const [email, setEmail] = useState('');
@@ -56,6 +57,36 @@ export default function LoginScreen() { // Test fix workflow
       const response = await loginUser(loginData);
       
       if (response.isSuccess) {
+        // 🔔 Setup push notifications after successful login
+        if (response.data?.user?.id) {
+          const userId = response.data.user.id;
+          console.log('🔔 User logged in - extracted userId:', userId);
+          console.log('   userId type:', typeof userId);
+          console.log('   userId length:', userId.length);
+          console.log('   userId preview:', userId.substring(0, 50) + (userId.length > 50 ? '...' : ''));
+          
+          // Call push notification setup asynchronously (don't block navigation)
+          setupPushNotifications(userId)
+            .then(success => {
+              if (success) {
+                console.log('✓ Push notifications setup completed successfully');
+              } else {
+                console.log('⚠️ Push notification setup failed, but continuing with login');
+                console.log('   - Device may not support push notifications');
+                console.log('   - User may not have granted permissions');
+                console.log('   - Check backend logs for validation errors');
+              }
+            })
+            .catch(error => {
+              console.error('❌ Error during push notification setup:', error);
+              // Don't block login if push notification setup fails
+            });
+        } else {
+          console.warn('⚠️ User ID not available for push notification setup');
+          console.warn('   response.data:', response.data);
+          console.warn('   response.data.user:', response.data?.user);
+        }
+        
         // Login successful - let AuthWrapper handle navigation based on farm status
         router.replace('/(tabs)');
       } else {

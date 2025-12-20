@@ -9,6 +9,8 @@ import { NotificationMessage } from '../services/notificationService';
 import { registerGlobalNotificationSetter } from '../services/auctionLogNotificationService';
 import { AuctionContext } from '../hooks/useAuctionContext';
 import { SignalRProvider } from './providers/SignalRProvider';
+import { initializeNotifications } from '../services/pushNotificationService';
+import { initializeFirebase } from '../services/firebaseInit';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -24,6 +26,39 @@ export default function RootLayout() {
   useEffect(() => {
     registerGlobalNotificationSetter(setNotification);
   }, [setNotification]);
+
+  // Initialize Firebase FIRST before anything else
+  useEffect(() => {
+    const initFirebase = async () => {
+      try {
+        const success = await initializeFirebase();
+        if (success) {
+          console.log('✓ Firebase init service ready');
+        } else {
+          console.error('✗ Firebase init service failed');
+        }
+      } catch (error) {
+        console.error('✗ Error initializing Firebase:', error);
+      }
+    };
+
+    initFirebase();
+  }, []);
+
+  // Initialize Firebase Push Notifications
+  // Firebase app is initialized first, then messaging handlers are registered
+  useEffect(() => {
+    const initNotifications = async () => {
+      try {
+        const unsubscribe = await initializeNotifications();
+        console.log('✓ Firebase notifications initialized');
+      } catch (error) {
+        console.error('✗ Failed to initialize notifications:', error);
+      }
+    };
+
+    initNotifications();
+  }, []);
 
   useEffect(() => {
     if (loaded || error) {

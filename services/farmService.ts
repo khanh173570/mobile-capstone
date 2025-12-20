@@ -23,6 +23,7 @@ export interface UpdateFarmData {
 export interface FarmFormData {
   name: string;
   farmImage: string;
+  description?: string;
 }
 
 export interface UpdateFarmFormData {

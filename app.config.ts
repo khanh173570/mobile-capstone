@@ -15,9 +15,7 @@ export default {
     updates: {
       url: "https://u.expo.dev/4efa3864-b8da-485a-8616-023817c89dcc"
     },
-    runtimeVersion: {
-      policy: "sdkVersion"
-    },
+    runtimeVersion: "1.0.0",
     extra: {
       apiUrl: process.env.EXPO_PUBLIC_API_URL,
       eas: {

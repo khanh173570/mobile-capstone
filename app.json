@@ -12,14 +12,35 @@
       "apiUrl": "https://gateway.a-379.store/api"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.agrimart.app",
+      "googleServicesFile": "./GoogleService-Info.plist"
+    },
+    "android": {
+      "package": "com.argimart",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/agriMart.png",
+        "backgroundColor": "#ffffff"
+      },
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
       "output": "single",
       "favicon": "./assets/images/agriMart.png"
     },
-    "plugins": ["expo-router", "expo-font", "expo-web-browser"],
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-web-browser",
+      "@react-native-firebase/app",
+      [
+        "@react-native-firebase/messaging",
+        {
+          "headlessTaskHandlerName": "RNFirebaseBackgroundMessage"
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true
     }

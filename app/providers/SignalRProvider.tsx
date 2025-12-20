@@ -111,3 +111,6 @@ export const SignalRProvider: React.FC<SignalRProviderProps> = ({ children }) =>
     </SignalRContext.Provider>
   );
 };
+
+// Default export for route
+export default SignalRProvider;
