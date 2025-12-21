@@ -242,6 +242,41 @@ class SignalRService {
         console.log(`   - Calling handler ${index + 1}/${this.bidPlacedHandlers.length}`);
         handler(event);
       });
+
+      // 🔥 WORKAROUND: Convert BidPlaced to NewNotification and trigger notification handler
+      // Backend chỉ gửi BidPlaced, frontend tự tạo notification từ đó
+      console.log('🔥 Converting BidPlaced → NewNotification for notification handler');
+      const notificationFromBidPlaced: NewNotificationEvent = {
+        id: event.bidId, // Sử dụng bidId làm notification ID
+        userId: event.userId,
+        type: 1, // Outbid notification type
+        severity: 'Warning',
+        title: `Bạn đã bị Outbid!`,
+        message: `${event.userName} vừa đặt giá cao hơn: ${event.newPrice.toLocaleString('vi-VN')}₫`,
+        isRead: false,
+        data: JSON.stringify({
+          auctionId: event.auctionId,
+          bidId: event.bidId,
+          bidderUserId: event.userId,
+          bidderName: event.userName,
+          bidAmount: event.bidAmount,
+          previousPrice: event.previousPrice,
+          newPrice: event.newPrice,
+        }),
+        relatedEntityId: event.auctionId,
+        relatedEntityType: 'Auction',
+        createdAt: event.placedAt,
+      };
+      
+      console.log('📩 Triggering notification handlers with converted data:', notificationFromBidPlaced);
+      this.newNotificationHandlers.forEach((handler, index) => {
+        console.log(`   - Calling notification handler ${index + 1}/${this.newNotificationHandlers.length}`);
+        try {
+          handler(notificationFromBidPlaced);
+        } catch (error) {
+          console.error(`   ❌ Error in notification handler ${index}:`, error);
+        }
+      });
     });
 
     // BuyNow event
@@ -251,6 +286,38 @@ class SignalRService {
       console.log('   Buyer:', event.userName);
       console.log('   Buy Now Price:', event.buyNowPrice);
       this.buyNowHandlers.forEach(handler => handler(event));
+
+      // 🔥 WORKAROUND: Convert BuyNow to NewNotification for notification handler
+      console.log('🔥 Converting BuyNow → NewNotification for notification handler');
+      const notificationFromBuyNow: NewNotificationEvent = {
+        id: event.bidId, // Sử dụng bidId làm notification ID
+        userId: event.userId,
+        type: 3, // AuctionWon notification type
+        severity: 'Warning',
+        title: `Đấu giá đã bán ngay (Buy Now)`,
+        message: `${event.userName} vừa mua ngay sản phẩm với giá: ${event.buyNowPrice.toLocaleString('vi-VN')}₫`,
+        isRead: false,
+        data: JSON.stringify({
+          auctionId: event.auctionId,
+          bidId: event.bidId,
+          buyerUserId: event.userId,
+          buyerName: event.userName,
+          buyNowPrice: event.buyNowPrice,
+        }),
+        relatedEntityId: event.auctionId,
+        relatedEntityType: 'Auction',
+        createdAt: event.purchasedAt,
+      };
+
+      console.log('📩 Triggering notification handlers with converted BuyNow data:', notificationFromBuyNow);
+      this.newNotificationHandlers.forEach((handler, index) => {
+        console.log(`   - Calling notification handler ${index + 1}/${this.newNotificationHandlers.length}`);
+        try {
+          handler(notificationFromBuyNow);
+        } catch (error) {
+          console.error(`   ❌ Error in notification handler ${index}:`, error);
+        }
+      });
     });
 
     // ReceiveNotification event (generic)
