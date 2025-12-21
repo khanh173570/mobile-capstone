@@ -231,7 +231,7 @@ export default function LoginScreen() { // Test fix workflow
       {/* Login Form */}
       <View style={styles.formContainer}>
         <Text style={styles.welcomeText}>Đăng nhập</Text>
-        <Text style={styles.welcomeSubtext}>Xin chào bạn !</Text>
+        <Text style={styles.welcomeSubtext}>Xin chào bạn vesion mới !</Text>
 
         <View style={styles.inputContainer}>
           <Mail size={20} color="#6B7280" style={styles.inputIcon} />

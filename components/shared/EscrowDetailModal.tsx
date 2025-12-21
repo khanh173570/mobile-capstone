@@ -86,8 +86,8 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
 
     setLoadingDetails(true);
     try {
-      let farmerIdToFetch = null;
-      let wholesalerIdToFetch = null;
+      let farmerIdToFetch: string | null = null;
+      let wholesalerIdToFetch: string | null = null;
 
       // Check if auctionId is valid (not empty UUID)
       const isValidAuctionId = contract.auctionId && contract.auctionId !== '00000000-0000-0000-0000-000000000000' && contract.buyRequestId === null;
@@ -191,8 +191,8 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
         await loadDisputeInfo(contract.id);
         
         // Silently refetch auction/buy request details to get updated status
-        let farmerIdToFetch = null;
-        let wholesalerIdToFetch = null;
+        let farmerIdToFetch: string | null = null;
+        let wholesalerIdToFetch: string | null = null;
 
         if (contract.auctionId) {
           try {
