@@ -3,6 +3,8 @@ import Constants from 'expo-constants';
 // Import Farm type and functions from farmService
 import type { Farm } from './farmService';
 import { getUserFarms } from './farmService';
+// Import push notification setup
+// Push notification setup is now handled in app/auth/index.tsx
 // Removing regular FileSystem import as we're now using the legacy version explicitly
 
 // Get API URL from environment variables
@@ -651,6 +653,9 @@ export const loginUser = async (loginData: LoginData): Promise<ApiResponse<Login
         await AsyncStorage.setItem('refreshToken', data.data.token.refreshToken);
         await AsyncStorage.setItem('user', JSON.stringify(data.data.user));
         
+        // Push notification setup is now handled in app/auth/index.tsx
+        // This avoids double initialization and gives UI control over the setup
+        
         // Xử lý logic farm sau khi login thành công
         if (data.data.farm) {
           await AsyncStorage.setItem('farm', JSON.stringify(data.data.farm));
@@ -1020,15 +1025,25 @@ export const fetchWithTokenRefresh = async (
       accessToken = await AsyncStorage.getItem('accessToken');
     }
 
-    // Add authorization header
-    const headers = {
+    // Add authorization header + CORS headers for web
+    const headers: any = {
       ...options.headers,
       'Authorization': `Bearer ${accessToken}`,
-    } as HeadersInit;
+      'Content-Type': 'application/json',
+    };
+
+    // For web/browser, add CORS headers
+    if (typeof window !== 'undefined') {
+      headers['Access-Control-Allow-Origin'] = '*';
+      headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS';
+      headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
+    }
 
     let response = await fetch(url, {
       ...options,
       headers,
+      mode: 'cors', // Enable CORS mode
+      credentials: 'include', // Include credentials
     });
 
     // If we get 401, try refreshing token once and retry
@@ -1039,14 +1054,23 @@ export const fetchWithTokenRefresh = async (
       if (refreshed) {
         accessToken = await AsyncStorage.getItem('accessToken');
         
-        const retryHeaders = {
+        const retryHeaders: any = {
           ...options.headers,
           'Authorization': `Bearer ${accessToken}`,
-        } as HeadersInit;
+          'Content-Type': 'application/json',
+        };
+
+        if (typeof window !== 'undefined') {
+          retryHeaders['Access-Control-Allow-Origin'] = '*';
+          retryHeaders['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS';
+          retryHeaders['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
+        }
 
         response = await fetch(url, {
           ...options,
           headers: retryHeaders,
+          mode: 'cors',
+          credentials: 'include',
         });
         
         // If still 401 after refresh, logout

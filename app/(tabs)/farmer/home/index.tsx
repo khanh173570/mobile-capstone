@@ -145,11 +145,14 @@ export default function HomeScreen() {
 
   const loadUnreadCount = async () => {
     try {
+      console.log('📞 [API Call] Fetching unread notification count from API...');
       const count = await getUnreadNotificationCount();
-      console.log('📊 Farmer unread notification count:', count);
+      console.log('✅ [API Response] Got count:', count);
+      console.log('🔔 [Bell Badge] Setting unreadCount state to:', count);
       setUnreadCount(count);
+      console.log('✨ [UI Update] Bell icon should update now');
     } catch (error) {
-      console.error('❌ Error loading unread count:', error);
+      console.error('❌ [API Error] Error loading unread count:', error);
     }
   };
 
@@ -158,17 +161,25 @@ export default function HomeScreen() {
       setLoading(true);
       
       // Initialize SignalR connection
-      console.log('🔌 Initializing SignalR for farmer...');
-      await signalRService.connect();
+      console.log('🔌 [Farmer] Initializing SignalR...');
+      try {
+        await signalRService.connect();
+        console.log('✅ [Farmer] SignalR connected');
+      } catch (error) {
+        console.error('❌ [Farmer] SignalR connection failed:', error);
+      }
       
       // Setup real-time notification listener
+      console.log('📡 [Farmer] Setting up notification listener...');
       const unsubscribeNotifications = signalRService.onNewNotification((event: NewNotificationEvent) => {
-        console.log('🔔🔔🔔 New notification received in farmer home 🔔🔔🔔');
-        console.log('   Type:', event.type);
-        console.log('   Title:', event.title);
-        console.log('   Message:', event.message);
-        console.log('   Severity:', event.severity);
-        console.log('   Full event:', JSON.stringify(event, null, 2));
+        console.log('🔔 [SIGNALR LISTENER TRIGGERED] New notification received!');
+        console.log('   📩 From SignalR (REAL-TIME):', {
+          id: event.id,
+          type: event.type,
+          title: event.title,
+          message: event.message,
+          severity: event.severity,
+        });
         
         // Convert SignalR event to UserNotification format
         const userNotification: UserNotification = {
@@ -190,11 +201,15 @@ export default function HomeScreen() {
         // Add new notification to the list at the top
         setNotifications(prev => {
           const updated = [userNotification, ...prev];
-          console.log('📝 Notifications state updated, total count:', updated.length);
+          console.log('📝 [State Update] Notifications list updated, total:', updated.length);
           return updated;
         });
+        
+        // IMPORTANT: Refresh unread count after new notification
+        console.log('🔄 [Bell Update] Calling loadUnreadCount to refresh badge...');
         loadUnreadCount();
       });
+      console.log('✅ [Farmer] Notification listener registered');
       
       await loadData();
       await loadUnreadCount();
@@ -202,6 +217,7 @@ export default function HomeScreen() {
       
       // Cleanup
       return () => {
+        console.log('🧹 [Farmer] Cleaning up notification listener');
         unsubscribeNotifications();
       };
     };

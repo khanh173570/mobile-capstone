@@ -7,8 +7,10 @@
 
 import { fetchWithTokenRefresh } from './authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
-const API_BASE_URL = 'https://gateway.a-379.store/api/messaging-service';
+const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://gateway.a-379.store/api';
+const API_BASE_URL = `${API_URL}/messaging-service`;
 
 export interface UserNotification {
   id: string;
@@ -64,7 +66,7 @@ const getUserIdFromToken = async (): Promise<string | null> => {
       return null;
     }
 
-    console.log('✅ User ID extracted from token:', userId.substring(0, 8) + '...');
+    console.log('✅ User ID extracted from token:', userId.substring(0, 99) + '...');
     return userId;
   } catch (error) {
     console.error('❌ Error extracting user ID from token:', error);

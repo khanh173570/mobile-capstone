@@ -17,7 +17,7 @@
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
-      "package": "com.argimart",
+      "package": "com.agrimart.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/agriMart.png",
         "backgroundColor": "#ffffff"
@@ -30,17 +30,12 @@
       "favicon": "./assets/images/agriMart.png"
     },
     "plugins": [
-      "expo-router",
-      "expo-font",
-      "expo-web-browser",
-      "@react-native-firebase/app",
-      [
-        "@react-native-firebase/messaging",
-        {
-          "headlessTaskHandlerName": "RNFirebaseBackgroundMessage"
-        }
-      ]
-    ],
+  "expo-router",
+  "expo-font",
+  "expo-web-browser",
+  "@react-native-firebase/app",
+  "@react-native-firebase/messaging"
+],
     "experiments": {
       "typedRoutes": true
     }

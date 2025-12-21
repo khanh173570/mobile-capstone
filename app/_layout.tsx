@@ -3,13 +3,14 @@ import { useEffect, useState } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationToast from '../components/shared/NotificationToast';
 import { useNotifications, useSingleAuctionLogPolling } from '../hooks/useNotifications';
 import { NotificationMessage } from '../services/notificationService';
 import { registerGlobalNotificationSetter } from '../services/auctionLogNotificationService';
 import { AuctionContext } from '../hooks/useAuctionContext';
 import { SignalRProvider } from './providers/SignalRProvider';
-import { initializeNotifications } from '../services/pushNotificationService';
+import { initializeNotifications, setupPushNotifications } from '../services/pushNotificationService';
 import { initializeFirebase } from '../services/firebaseInit';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -19,6 +20,7 @@ export default function RootLayout() {
   const [loaded, error] = useFonts({
     // Add your custom fonts here if needed
   });
+  const [firebaseReady, setFirebaseReady] = useState(false);
   const [currentAuctionId, setCurrentAuctionId] = useState<string | null>(null);
   const { notification, setNotification } = useNotifications();
 
@@ -35,10 +37,13 @@ export default function RootLayout() {
         if (success) {
           console.log('✓ Firebase init service ready');
         } else {
-          console.error('✗ Firebase init service failed');
+          console.warn('⚠️ Firebase init failed, but continuing');
         }
       } catch (error) {
         console.error('✗ Error initializing Firebase:', error);
+      } finally {
+        // Always mark Firebase as ready (even if it failed) to unblock the app
+        setFirebaseReady(true);
       }
     };
 
@@ -53,32 +58,72 @@ export default function RootLayout() {
         const unsubscribe = await initializeNotifications();
         console.log('✓ Firebase notifications initialized');
       } catch (error) {
-        console.error('✗ Failed to initialize notifications:', error);
+        console.warn('⚠️ Failed to initialize notifications:', error);
+        // Continue anyway
       }
     };
 
-    initNotifications();
+    if (firebaseReady) {
+      initNotifications();
+    }
+  }, [firebaseReady]);
+
+  // Setup device token on app startup if user is already logged in
+  // This optimizes the flow: device token is ready immediately, not just after login
+  useEffect(() => {
+    const setupDeviceTokenOnStartup = async () => {
+      try {
+        console.log('📱 [Startup] Checking if user is logged in to setup device token...');
+        
+        // Get stored user from AsyncStorage
+        const userJson = await AsyncStorage.getItem('user');
+        if (!userJson) {
+          console.log('ℹ️  [Startup] User not logged in, skipping device token setup');
+          return;
+        }
+        
+        try {
+          const user = JSON.parse(userJson);
+          console.log('✓ [Startup] User found on startup:', user.id.substring(0, 20) + '...');
+          
+          // Check if device token already registered for this user (avoid duplicate setup)
+          const registeredUserId = await AsyncStorage.getItem('deviceTokenRegisteredUserId');
+          if (registeredUserId === user.id) {
+            console.log('✓ [Startup] Device token already registered for this user, skipping');
+            return;
+          }
+          
+          // Setup push notifications for this user
+          console.log('📍 [Startup] Setting up device token on app startup...');
+          const success = await setupPushNotifications(user.id);
+          
+          if (success) {
+            console.log('✅ [Startup] Device token setup completed successfully on app startup');
+          } else {
+            console.warn('⚠️  [Startup] Device token setup had issues, will retry on next login');
+          }
+        } catch (parseError) {
+          console.error('❌ [Startup] Error parsing user from AsyncStorage:', parseError);
+        }
+      } catch (error) {
+        console.error('❌ [Startup] Error setting up device token on startup:', error);
+        // Don't crash the app if device token setup fails on startup
+      }
+    };
+
+    // Don't block on Firebase - just call async setup
+    setupDeviceTokenOnStartup();
   }, []);
 
   useEffect(() => {
-    if (loaded || error) {
+    // Hide splash screen only when BOTH fonts are loaded AND Firebase is ready
+    if ((loaded || error) && firebaseReady) {
       SplashScreen.hideAsync();
     }
-  }, [loaded, error]);
+  }, [loaded, error, firebaseReady]);
 
-  // ❌ Polling DISABLED - Using SignalR for real-time updates instead
-  // SignalR broadcasts events instantly, no need for polling every 20 seconds
-  // useSingleAuctionLogPolling({
-  //   auctionId: currentAuctionId,
-  //   intervalSeconds: 20,
-  //   enabled: !!currentAuctionId,
-  //   resetOnMount: false,
-  //   onNewLog: (logId) => {
-  //     console.log('New log from global polling:', logId);
-  //   },
-  // });
-
-  if (!loaded && !error) {
+  // Don't show anything until both fonts and Firebase are ready
+  if ((!loaded && !error) || !firebaseReady) {
     return null;
   }
 

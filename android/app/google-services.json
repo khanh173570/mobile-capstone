@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "725053487380",
-    "project_id": "argi-mart",
-    "storage_bucket": "argi-mart.firebasestorage.app"
+    "project_number": "927486933062",
+    "project_id": "agrimart-7ca56",
+    "storage_bucket": "agrimart-7ca56.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:725053487380:android:e3c9acc180167f178f6a01",
+        "mobilesdk_app_id": "1:927486933062:android:b8e4d74bffb7606b0ab247",
         "android_client_info": {
-          "package_name": "com.agrimart.shop"
+          "package_name": "com.agrimart.app"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDJNpSmyOeqqbwVpJcMT0Yd9vefbqwoyEA"
+          "current_key": "AIzaSyCeaf0U1-fjw0_JdFIxTHMj9foEwdYwSUg"
         }
       ],
       "services": {

@@ -14,6 +14,7 @@ export const translateErrorMessage = (englishMessage: string): string => {
     'Unauthorized': 'Không được phép',
     'Not found': 'Không tìm thấy',
     'Bad request': 'Yêu cầu không hợp lệ',
+    'This harvest already has an accepted or completed buy request; cannot link it to an auction.': 'Sản phẩm này đã có yêu cầu mua hàng được chấp nhận hoặc hoàn thành; không thể liên kết với đấu giá.',
   };
 
   let translatedMessage = englishMessage;
@@ -206,7 +207,7 @@ export const createAuctionSession = async (auctionData: CreateAuctionData): Prom
   }
 };
 
-// Create auction harvest
+// Create auction harvest WITH VALIDATION
 export const createAuctionHarvest = async (auctionHarvestData: CreateAuctionHarvestData): Promise<AuctionHarvest> => {
   try {
     const token = await AsyncStorage.getItem('accessToken');
@@ -214,7 +215,73 @@ export const createAuctionHarvest = async (auctionHarvestData: CreateAuctionHarv
       throw new Error('No authentication token found');
     }
 
-    console.log('Creating auction harvest:', auctionHarvestData);
+    const { auctionSessionId, harvestId } = auctionHarvestData;
+    
+    console.log('🔍 [createAuctionHarvest] Bắt đầu validation:', { auctionSessionId, harvestId });
+
+    // ============ VALIDATION 1: Check UUID format ============
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    
+    if (!auctionSessionId || !uuidRegex.test(auctionSessionId)) {
+      const error = `❌ Auction Session ID không hợp lệ: "${auctionSessionId}"`;
+      console.error('[createAuctionHarvest]', error);
+      throw new Error(error);
+    }
+    
+    if (!harvestId || !uuidRegex.test(harvestId)) {
+      const error = `❌ Harvest ID không hợp lệ: "${harvestId}"`;
+      console.error('[createAuctionHarvest]', error);
+      throw new Error(error);
+    }
+
+    console.log('✅ UUID format hợp lệ');
+
+    // ============ VALIDATION 2: Check if harvest exists ============
+    console.log('🔍 Kiểm tra harvest tồn tại...');
+    const harvest = await getHarvestById(harvestId);
+    
+    if (!harvest) {
+      const error = `❌ Harvest không tồn tại: ${harvestId}`;
+      console.error('[createAuctionHarvest]', error);
+      throw new Error(error);
+    }
+    
+    console.log('✅ Harvest tồn tại:', {
+      id: harvest.id,
+      cropId: harvest.cropId || harvest.cropID,
+      totalQuantity: harvest.totalQuantity,
+      unit: harvest.unit
+    });
+
+    // ============ VALIDATION 3: Check if harvest already in another active auction ============
+    console.log('🔍 Kiểm tra harvest đã có auction khác...');
+    const hasActiveAuction = await checkHarvestHasActiveAuction(harvestId);
+    
+    if (hasActiveAuction) {
+      const error = `❌ Harvest này đã có đấu giá khác đang hoạt động`;
+      console.error('[createAuctionHarvest]', error);
+      throw new Error(error);
+    }
+    
+    console.log('✅ Harvest không có auction khác');
+
+    // ============ VALIDATION 4: Data format check ============
+    console.log('🔍 Kiểm tra format dữ liệu...');
+    
+    if (typeof auctionSessionId !== 'string' || auctionSessionId.trim() === '') {
+      throw new Error('❌ auctionSessionId phải là string không rỗng');
+    }
+    
+    if (typeof harvestId !== 'string' || harvestId.trim() === '') {
+      throw new Error('❌ harvestId phải là string không rỗng');
+    }
+
+    console.log('✅ Format dữ liệu hợp lệ');
+
+    // ============ API CALL with enhanced error logging ============
+    console.log('📡 Gửi request tới API...');
+    console.log('Request body:', JSON.stringify(auctionHarvestData));
+    
     const response = await fetch(`${API_URL}/auction-service/auctionharvest`, {
       method: 'POST',
       headers: {
@@ -224,24 +291,47 @@ export const createAuctionHarvest = async (auctionHarvestData: CreateAuctionHarv
       body: JSON.stringify(auctionHarvestData),
     });
 
+    console.log('Response status:', response.status);
+
     const text = await response.text();
+    console.log('Response text length:', text.length);
+    
     let data;
     
     try {
       data = text ? JSON.parse(text) : {};
     } catch (e) {
       console.error('JSON parse error:', e);
-      throw new Error('Invalid response format from server');
+      console.error('Raw response:', text);
+      throw new Error(`Invalid response format from server: ${text.substring(0, 100)}`);
     }
 
     if (!response.ok) {
-      throw new Error(data.message || 'Failed to create auction harvest');
+      console.error('API returned error:', {
+        status: response.status,
+        message: data.message,
+        errors: data.errors,
+      });
+      
+      // Lấy error message cụ thể từ errors array hoặc message
+      let errorMessage = data.message || 'Failed to create auction harvest';
+      
+      // Nếu có error array, lấy error đầu tiên
+      if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) {
+        errorMessage = data.errors[0];
+      }
+      
+      // Dịch error message sang Tiếng Việt
+      const translatedMessage = translateErrorMessage(errorMessage);
+      console.error('📋 Translated error:', translatedMessage);
+      
+      throw new Error(translatedMessage);
     }
 
-    console.log('Auction harvest created successfully');
+    console.log('✅ Auction harvest tạo thành công');
     return data.data;
-  } catch (error) {
-    // console.error('Error creating auction harvest:', error);
+  } catch (error: any) {
+    console.error('❌ [createAuctionHarvest] Error:', error.message);
     throw error;
   }
 };

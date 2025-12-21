@@ -1,8 +1,10 @@
 import * as SignalR from '@microsoft/signalr';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import { refreshAccessToken } from './authService';
 
-const SIGNALR_HUB_URL = 'https://gateway.a-379.store/api/messaging-service/hubs/global';
+const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://gateway.a-379.store/api';
+const SIGNALR_HUB_URL = `${API_URL}/messaging-service/hubs/global`;
 
 // Event types
 export type BidPlacedEvent = {

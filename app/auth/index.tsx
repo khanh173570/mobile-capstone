@@ -20,12 +20,16 @@ import { router } from 'expo-router';
 import { User, Lock, Sprout, Mail } from 'lucide-react-native';
 import { loginUser, LoginData } from '../../services/authService';
 import { setupPushNotifications } from '../../services/pushNotificationService';
+import { startLogCapture, stopLogCapture, getCapturedLogs } from '../../services/logCaptureService';
+import { LogDisplayModal } from '../../components/shared/LogDisplayModal';
 
 export default function LoginScreen() { // Test fix workflow
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showLogModal, setShowLogModal] = useState(false);
+  const [setupInProgress, setSetupInProgress] = useState(false);
 
   const handleLogin = async () => {
     // Form validation
@@ -59,6 +63,11 @@ export default function LoginScreen() { // Test fix workflow
       if (response.isSuccess) {
         // 🔔 Setup push notifications after successful login
         if (response.data?.user?.id) {
+          // Start capturing logs for the modal
+          startLogCapture();
+          setShowLogModal(true);
+          setSetupInProgress(true);
+
           const userId = response.data.user.id;
           console.log('🔔 User logged in - extracted userId:', userId);
           console.log('   userId type:', typeof userId);
@@ -76,19 +85,23 @@ export default function LoginScreen() { // Test fix workflow
                 console.log('   - User may not have granted permissions');
                 console.log('   - Check backend logs for validation errors');
               }
+              // Update state after setup is done
+              setTimeout(() => {
+                setSetupInProgress(false);
+              }, 1000);
             })
             .catch(error => {
               console.error('❌ Error during push notification setup:', error);
+              setSetupInProgress(false);
               // Don't block login if push notification setup fails
             });
         } else {
           console.warn('⚠️ User ID not available for push notification setup');
           console.warn('   response.data:', response.data);
           console.warn('   response.data.user:', response.data?.user);
+          // Still navigate even if push notification setup isn't available
+          router.replace('/(tabs)');
         }
-        
-        // Login successful - let AuthWrapper handle navigation based on farm status
-        router.replace('/(tabs)');
       } else {
         // Handle error response
         let errorMessage = 'Đã xảy ra lỗi khi đăng nhập.';
@@ -188,12 +201,20 @@ export default function LoginScreen() { // Test fix workflow
     }
   };
 
+  const handleCloseLogModal = () => {
+    stopLogCapture();
+    setShowLogModal(false);
+    // Navigate to home
+    router.replace('/(tabs)');
+  };
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <StatusBar style="light" />
+    <>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <StatusBar style="light" />
 
       {/* Header Section */}
       <View style={styles.header}>
@@ -209,8 +230,8 @@ export default function LoginScreen() { // Test fix workflow
 
       {/* Login Form */}
       <View style={styles.formContainer}>
-        <Text style={styles.welcomeText}>Đăng nhập </Text>
-        <Text style={styles.welcomeSubtext}>Xin chào !</Text>
+        <Text style={styles.welcomeText}>Đăng nhập</Text>
+        <Text style={styles.welcomeSubtext}>Xin chào bạn !</Text>
 
         <View style={styles.inputContainer}>
           <Mail size={20} color="#6B7280" style={styles.inputIcon} />
@@ -292,6 +313,14 @@ export default function LoginScreen() { // Test fix workflow
 
       </View>
     </KeyboardAvoidingView>
+
+    {/* Log Display Modal */}
+    <LogDisplayModal 
+      visible={showLogModal} 
+      onClose={handleCloseLogModal}
+      isLoading={setupInProgress}
+    />
+    </>
   );
 }
 

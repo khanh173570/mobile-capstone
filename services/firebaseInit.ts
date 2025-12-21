@@ -1,121 +1,106 @@
 /**
  * Firebase Initialization Service
- * CRITICAL: This must be imported early in app lifecycle before any Firebase services are used
- * Initializes Firebase app from google-services.json (Android) / GoogleService-Info.plist (iOS)
+ * CRITICAL: Firebase is automatically initialized by @react-native-firebase/app
+ * from google-services.json (Android) / GoogleService-Info.plist (iOS)
+ * 
+ * This service provides simplified access to Firebase Messaging
+ * 
+ * NOTE: Firebase is NOT available on Expo Go - it only works on APK/Dev Build/Native
+ * This service gracefully handles Firebase unavailability
  */
 
 import { Platform } from 'react-native';
 
+// Firebase Messaging module - try to import, may fail on Expo Go
+let messaging: any = null;
+let firebaseAvailable = false;
+
+try {
+  messaging = require('@react-native-firebase/messaging').default;
+  firebaseAvailable = true;
+  console.log('✓ [Firebase Init] Firebase messaging module loaded successfully');
+} catch (error) {
+  console.warn('⚠️  [Firebase Init] Firebase messaging not available');
+  if (error instanceof Error) {
+    console.warn('  Reason:', error.message);
+  }
+  console.warn('  (This is normal for Expo Go - will use Expo Push Token instead)');
+  messaging = null;
+  firebaseAvailable = false;
+}
+
 let firebaseInitialized = false;
-let firebaseApp: any = null;
-let firebaseMessaging: any = null;
 
 /**
- * Initialize Firebase App and Messaging
- * MUST be called as early as possible in app startup
+ * Initialize Firebase
+ * 
+ * IMPORTANT: Firebase App is ALREADY initialized by @react-native-firebase/app
+ * from google-services.json (Android) when the app starts.
+ * 
+ * This function just marks Firebase as available and verified.
+ * It does NOT create fake objects or call unnecessary init methods.
  */
 export const initializeFirebase = async (): Promise<boolean> => {
   if (firebaseInitialized) {
-    console.log('✓ Firebase already initialized');
+    console.log('✓ [Firebase Init] Firebase already initialized');
     return true;
   }
 
+  // If Firebase messaging module is not available, can't proceed
+  if (!firebaseAvailable || !messaging) {
+    console.warn('⚠️  [Firebase Init] Firebase messaging module not available');
+    console.warn('  This is normal on Expo Go. Using Expo Push Token instead.');
+    console.warn('  Package: com.agrimart.app');
+    firebaseInitialized = false;
+    return false;
+  }
+
   try {
-    console.log('🔥 [Firebase Init] Starting Firebase initialization...');
+    console.log('🔥 [Firebase Init] Verifying Firebase messaging availability...');
     console.log('  Platform:', Platform.OS);
+    console.log('  Package: com.agrimart.app');
+    console.log('  google-services.json: android/app/google-services.json');
 
-    // Step 1: Initialize Firebase App from google-services.json / GoogleService-Info.plist
-    console.log('📋 [Firebase Init] Step 1: Initializing Firebase App...');
-    try {
-      // CRITICAL: Import Firebase App module
-      // @react-native-firebase/app auto-initializes from google-services.json
-      const firebaseAppModule = require('@react-native-firebase/app');
-      // The module exports the app directly, not as .default
-      firebaseApp = firebaseAppModule;
-      
-      // Firebase is auto-initialized by the native module
-      console.log('✓ [Firebase Init] Firebase App loaded from native module');
-      console.log('  (Auto-initialized from google-services.json)');
-      
-      if (!firebaseApp) {
-        throw new Error('Firebase app module returned falsy value');
-      }
-      
-      console.log('✓ [Firebase Init] Firebase App initialized successfully');
-      console.log('  App name:', firebaseApp.name || '[DEFAULT]');
-    } catch (appError) {
-      console.error('❌ [Firebase Init] Failed to initialize Firebase App:', appError);
-      throw new Error(
-        `Firebase App initialization failed: ${appError instanceof Error ? appError.message : String(appError)}`
-      );
+    // Verify messaging has the expected methods
+    if (typeof messaging().getToken !== 'function') {
+      console.error('❌ [Firebase Init] messaging().getToken is not available');
+      firebaseInitialized = false;
+      return false;
     }
 
-    // Step 2: Initialize Firebase Messaging
-    console.log('💬 [Firebase Init] Step 2: Initializing Firebase Messaging...');
-    try {
-      const messagingModule = require('@react-native-firebase/messaging');
-      firebaseMessaging = messagingModule.default || messagingModule;
-      
-      if (!firebaseMessaging) {
-        throw new Error('Firebase messaging module returned falsy value');
-      }
-      
-      console.log('✓ [Firebase Init] Firebase Messaging initialized successfully');
-    } catch (messagingError) {
-      console.error('❌ [Firebase Init] Failed to initialize Firebase Messaging:', messagingError);
-      throw new Error(
-        `Firebase Messaging initialization failed: ${messagingError instanceof Error ? messagingError.message : String(messagingError)}`
-      );
+    if (typeof messaging().requestPermission !== 'function') {
+      console.error('❌ [Firebase Init] messaging().requestPermission is not available');
+      firebaseInitialized = false;
+      return false;
     }
 
-    // Step 3: Verify Firebase configuration
-    console.log('🔍 [Firebase Init] Step 3: Verifying Firebase configuration...');
-    try {
-      // Check if Firebase App has config
-      console.log('  Firebase App configured: ✓');
-      console.log('  Firebase Messaging ready: ✓');
-      console.log('  Package: com.agrimart.shop');
-      console.log('  google-services.json must be at: android/app/google-services.json');
-    } catch (verifyError) {
-      console.warn('⚠️  [Firebase Init] Could not verify configuration:', verifyError);
-      // Continue anyway - Firebase might still work
-    }
-
+    console.log('✓ [Firebase Init] Firebase messaging methods verified');
     firebaseInitialized = true;
-    console.log('✅ [Firebase Init] Firebase initialization complete');
+    console.log('✅ [Firebase Init] Firebase ready for FCM token retrieval');
     return true;
 
   } catch (error) {
-    console.error('❌ [Firebase Init] Fatal error during Firebase initialization:', error);
+    console.error('❌ [Firebase Init] Error verifying Firebase:', error);
+    if (error instanceof Error) {
+      console.error('  Message:', error.message);
+    }
     firebaseInitialized = false;
     return false;
   }
 };
 
 /**
- * Get initialized Firebase App instance
- */
-export const getFirebaseApp = (): any => {
-  if (!firebaseInitialized) {
-    console.warn('⚠️  [Firebase Init] Firebase not yet initialized. Call initializeFirebase() first.');
-    return null;
-  }
-  return firebaseApp;
-};
-
-/**
- * Get initialized Firebase Messaging instance
+ * Get Firebase Messaging instance (callable)
+ * Returns the messaging() function that can be called to get the messaging service
  */
 export const getFirebaseMessaging = (): any => {
-  if (!firebaseInitialized) {
-    console.warn('⚠️  [Firebase Init] Firebase not yet initialized. Call initializeFirebase() first.');
-    return null;
-  }
-  return firebaseMessaging;
+  // Return the messaging function directly
+  // It's available even if initializeFirebase hasn't been called
+  return messaging;
 };
 
 /**
- * Check if Firebase is initialized
+ * Check if Firebase is available and initialized
  */
 export const isFirebaseInitialized = (): boolean => {
   return firebaseInitialized;
@@ -124,9 +109,36 @@ export const isFirebaseInitialized = (): boolean => {
 /**
  * Check if Firebase modules are available
  */
-export const checkFirebaseAvailability = (): { app: boolean; messaging: boolean } => {
+export const checkFirebaseAvailability = (): { messaging: boolean } => {
   return {
-    app: !!firebaseApp,
-    messaging: !!firebaseMessaging,
+    messaging: !!messaging,
   };
+};
+
+/**
+ * Wait for Firebase to be fully initialized
+ * @param maxWaitTime - Maximum time to wait in milliseconds (default: 3000ms)
+ * @returns Promise<boolean> - true if Firebase initialized, false if timeout
+ */
+export const waitForFirebaseInitialization = async (maxWaitTime: number = 3000): Promise<boolean> => {
+  const startTime = Date.now();
+  const checkInterval = 500;
+
+  console.log('⏳ Waiting for Firebase to be initialized...');
+  console.log('  Max wait time:', maxWaitTime / 1000, 'seconds');
+
+  while (Date.now() - startTime < maxWaitTime) {
+    if (firebaseInitialized) {
+      const elapsedTime = Date.now() - startTime;
+      console.log('✅ Firebase initialized');
+      console.log('  Time taken:', elapsedTime, 'ms');
+      return true;
+    }
+
+    await new Promise(resolve => setTimeout(resolve, checkInterval));
+  }
+
+  const elapsedTime = Date.now() - startTime;
+  console.error('❌ Firebase initialization timeout after', elapsedTime, 'ms');
+  return false;
 };

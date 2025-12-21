@@ -72,17 +72,25 @@ export default function WholesalerHomeScreen() {
   useEffect(() => {
     const initializeApp = async () => {
       // Initialize SignalR connection
-      console.log('🔌 Initializing SignalR for wholesaler...');
-      await signalRService.connect();
+      console.log('🔌 [Wholesaler] Initializing SignalR...');
+      try {
+        await signalRService.connect();
+        console.log('✅ [Wholesaler] SignalR connected');
+      } catch (error) {
+        console.error('❌ [Wholesaler] SignalR connection failed:', error);
+      }
       
       // Setup real-time notification listener
+      console.log('📡 [Wholesaler] Setting up notification listener...');
       const unsubscribeNotifications = signalRService.onNewNotification((event: NewNotificationEvent) => {
-        console.log('🔔🔔🔔 New notification received in wholesaler home 🔔🔔🔔');
-        console.log('   Type:', event.type);
-        console.log('   Title:', event.title);
-        console.log('   Message:', event.message);
-        console.log('   Severity:', event.severity);
-        console.log('   Full event:', JSON.stringify(event, null, 2));
+        console.log('🔔 [SIGNALR LISTENER TRIGGERED] New notification received!');
+        console.log('   📩 From SignalR (REAL-TIME):', {
+          id: event.id,
+          type: event.type,
+          title: event.title,
+          message: event.message,
+          severity: event.severity,
+        });
         
         // Convert SignalR event to UserNotification format
         const userNotification: UserNotification = {
@@ -103,9 +111,11 @@ export default function WholesalerHomeScreen() {
         
         // Add new notification to the list at the top
         setNotifications(prev => [userNotification, ...prev]);
-        console.log('📝 Notification added to list, reloading unread count...');
+        console.log('📝 [State Update] Notifications list updated');
+        console.log('🔄 [Bell Update] Calling loadUnreadNotifications to refresh badge...');
         loadUnreadNotifications();
       });
+      console.log('✅ [Wholesaler] Notification listener registered');
       
       loadDataQuietly();
       loadUnreadNotifications();
@@ -299,10 +309,14 @@ export default function WholesalerHomeScreen() {
 
   const loadUnreadNotifications = async () => {
     try {
+      console.log('📞 [API Call] Fetching unread notification count from API...');
       const count = await getUnreadNotificationCount();
+      console.log('✅ [API Response] Got count:', count);
+      console.log('🔔 [Bell Badge] Setting unreadCount state to:', count);
       setUnreadCount(count);
+      console.log('✨ [UI Update] Bell icon should update now');
     } catch (error) {
-      console.error('Error loading unread count:', error);
+      console.error('❌ [API Error] Error loading unread count:', error);
     }
   };
 
