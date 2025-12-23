@@ -40,15 +40,15 @@ export default function BiddingHistoryScreen() {
     
     // Auto-refresh every 30 seconds when screen is active (quiet mode)
     const autoRefreshInterval = setInterval(() => {
-      console.log('🔄 Auto-refreshing bidding history...');
+      //console.log('🔄 Auto-refreshing bidding history...');
       loadAuctionsQuietly(); // Use quiet mode for auto-refresh
     }, 30000); // 30 seconds
 
     // Listen for bid creation notifications
     const notificationListener = registerNotificationListener((notification) => {
-      console.log('📬 Bidding history received notification:', notification);
+      //console.log('📬 Bidding history received notification:', notification);
       if (notification.data?.action === 'refresh_bids') {
-        console.log('🔄 Refreshing bidding history due to new bid...');
+        //console.log('🔄 Refreshing bidding history due to new bid...');
         loadAuctionsQuietly();
       }
     });
@@ -67,10 +67,10 @@ export default function BiddingHistoryScreen() {
 
   // Setup real-time bid update listener (runs once on mount)
   useEffect(() => {
-    console.log('🔔 Setting up BidPlaced listener for bidding history page');
+    //console.log('🔔 Setting up BidPlaced listener for bidding history page');
     
     const unsubscribeBidPlaced = signalRService.onBidPlaced((event: any) => {
-      console.log('💰 BidPlaced event received in bidding history:', event.auctionId, 'new price:', event.newPrice);
+      //console.log('💰 BidPlaced event received in bidding history:', event.auctionId, 'new price:', event.newPrice);
       // Update realtime price for this auction
       setRealtimePrices(prev => ({
         ...prev,
@@ -80,7 +80,7 @@ export default function BiddingHistoryScreen() {
     
     // Cleanup on unmount
     return () => {
-      console.log('🔔 Cleaning up BidPlaced listener from bidding history page');
+      //console.log('🔔 Cleaning up BidPlaced listener from bidding history page');
       unsubscribeBidPlaced();
     };
   }, []); // Empty dependency array - only run once on mount

@@ -46,11 +46,11 @@ export const sendFCMNotification = async (
   request: FCMSendNotificationRequest
 ): Promise<FCMSendNotificationResponse> => {
   try {
-    console.log('📤 Sending FCM notification...');
-    console.log('  Device Token:', request.deviceToken);
-    console.log('  Title:', request.title);
-    console.log('  Body:', request.body);
-    console.log('  Data:', request.dataJson);
+    //console.log('📤 Sending FCM notification...');
+    //console.log('  Device Token:', request.deviceToken);
+    //console.log('  Title:', request.title);
+    //console.log('  Body:', request.body);
+    //console.log('  Data:', request.dataJson);
 
     // Build query parameters
     const params = new URLSearchParams();
@@ -65,7 +65,7 @@ export const sendFCMNotification = async (
 
     const url = `${API_URL}?${params.toString()}`;
 
-    console.log('  URL:', url);
+    //console.log('  URL:', url);
 
     // Make the API call
     const response = await axios.post(
@@ -78,8 +78,8 @@ export const sendFCMNotification = async (
       }
     );
 
-    console.log('✅ FCM notification sent successfully');
-    console.log('  Response:', response.data);
+    //console.log('✅ FCM notification sent successfully');
+    //console.log('  Response:', response.data);
 
     return response.data as FCMSendNotificationResponse;
   } catch (error) {
@@ -131,7 +131,7 @@ export const sendFCMNotificationToMultipleTokens = async (
   data?: Record<string, any>
 ): Promise<FCMSendNotificationResponse[]> => {
   try {
-    console.log(`📤 Sending FCM notification to ${deviceTokens.length} devices...`);
+    // //console.log(`📤 Sending FCM notification to ${deviceTokens.length} devices...`);
 
     const promises = deviceTokens.map((deviceToken) =>
       sendFCMNotification({
@@ -144,7 +144,7 @@ export const sendFCMNotificationToMultipleTokens = async (
 
     const results = await Promise.all(promises);
 
-    console.log(`✅ FCM notifications sent to ${deviceTokens.length} devices`);
+    // //console.log(`✅ FCM notifications sent to ${deviceTokens.length} devices`);
 
     return results;
   } catch (error) {

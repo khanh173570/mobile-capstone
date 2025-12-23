@@ -25,10 +25,11 @@ import {
   X,
   ChevronDown,
   Filter,
+  Calendar,
 } from 'lucide-react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   searchHarvests,
-  getHarvestsByCrop,
   createBuyRequest,
   SearchResult,
   Harvest,
@@ -43,6 +44,8 @@ import { getCustardAppleTypes, CustardAppleType } from '../../../../services/cro
 interface SearchFilters {
   district: string;
   cropType: string;
+  fromStartDate: string;
+  toStartDate: string;
   minQuantity: string;
   maxQuantity: string;
 }
@@ -60,9 +63,13 @@ export default function AuctionBrowseScreen() {
   const [selectedProvince, setSelectedProvince] = useState('');
   const [showWardDropdown, setShowWardDropdown] = useState(false);
   const [showCropTypeDropdown, setShowCropTypeDropdown] = useState(false);
+  const [showFromDatePicker, setShowFromDatePicker] = useState(false);
+  const [showToDatePicker, setShowToDatePicker] = useState(false);
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({
     district: '',
     cropType: '',
+    fromStartDate: '',
+    toStartDate: '',
     minQuantity: '',
     maxQuantity: '',
   });
@@ -84,6 +91,15 @@ export default function AuctionBrowseScreen() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<StatusFilter | null>(null);
   const [showStatusFilter, setShowStatusFilter] = useState(false);
+  const [showHistoryFilters, setShowHistoryFilters] = useState(false);
+  const [historyFilters, setHistoryFilters] = useState({
+    district: '',
+    typeName: '',
+    fromStartDate: '',
+    toStartDate: '',
+    minQuantity: '',
+    maxQuantity: '',
+  });
 
   useEffect(() => {
     loadInitialData();
@@ -116,7 +132,19 @@ export default function AuctionBrowseScreen() {
   const loadBuyRequestHistory = async (status?: string) => {
     try {
       setHistoryLoading(true);
-      const requests = await getBuyRequestHistory(status);
+      const filterParams: any = {};
+      
+      if (status) filterParams.status = status;
+      if (historyFilters.district) filterParams.district = historyFilters.district;
+      if (historyFilters.typeName) filterParams.typeName = historyFilters.typeName;
+      if (historyFilters.fromStartDate) filterParams.fromStartDate = new Date(historyFilters.fromStartDate).toISOString();
+      if (historyFilters.toStartDate) filterParams.toStartDate = new Date(historyFilters.toStartDate).toISOString();
+      if (historyFilters.minQuantity) filterParams.minTotalQuantity = parseFloat(historyFilters.minQuantity);
+      if (historyFilters.maxQuantity) filterParams.maxTotalQuantity = parseFloat(historyFilters.maxQuantity);
+      
+      //console.log('[AuctionBrowse] Loading history with filters:', filterParams);
+      
+      const requests = await getBuyRequestHistory(Object.keys(filterParams).length > 0 ? filterParams : status);
       setBuyRequestHistory(requests);
     } catch (error) {
       console.error('Error loading buy request history:', error);
@@ -181,7 +209,7 @@ export default function AuctionBrowseScreen() {
       
       // Load provinces and set Tây Ninh as default
       const provinceList = await getProvinces();
-      console.log('📍 Provinces loaded:', provinceList.length);
+      //console.log('📍 Provinces loaded:', provinceList.length);
       setProvinces(provinceList);
       
       const tayNinhProvince = provinceList.find((p) => p.name.includes('Tây Ninh'));
@@ -190,13 +218,13 @@ export default function AuctionBrowseScreen() {
         
         // Load wards for Tây Ninh
         const wardList = await getWardsFromProvince(tayNinhProvince.id);
-        console.log('📍 Wards loaded:', wardList.length);
+        //console.log('📍 Wards loaded:', wardList.length);
         setWards(wardList);
       }
       
       // Load crop types
       const types = await getCustardAppleTypes();
-      console.log('🌾 Crop types loaded:', types.length);
+      //console.log('🌾 Crop types loaded:', types.length);
       setCropTypes(types);
     } catch (error) {
       console.error('❌ Error loading initial data:', error);
@@ -211,7 +239,7 @@ export default function AuctionBrowseScreen() {
     
     try {
       const types = await getCustardAppleTypes();
-      console.log('🌾 Crop types loaded:', types.length);
+      //console.log('🌾 Crop types loaded:', types.length);
       setCropTypes(types);
     } catch (error) {
       console.error('❌ Error loading crop types:', error);
@@ -226,7 +254,7 @@ export default function AuctionBrowseScreen() {
       if (provinces.length === 0) {
         try {
           const provinceList = await getProvinces();
-          console.log('📍 Provinces loaded:', provinceList.length);
+          //console.log('📍 Provinces loaded:', provinceList.length);
           setProvinces(provinceList);
           
           // Set default province: Tây Ninh
@@ -246,7 +274,7 @@ export default function AuctionBrowseScreen() {
     if (selectedProvince && wards.length === 0) {
       try {
         const wardList = await getWardsFromProvince(selectedProvince);
-        console.log('📍 Wards loaded:', wardList.length);
+        //console.log('📍 Wards loaded:', wardList.length);
         setWards(wardList);
       } catch (error) {
         console.error('❌ Error loading wards:', error);
@@ -262,7 +290,7 @@ export default function AuctionBrowseScreen() {
   useEffect(() => {
     // Auto-search when wards are loaded and district is selected
     if (wards.length > 0 && searchFilters.district) {
-      console.log('🔍 Auto-searching with district:', searchFilters.district);
+      //console.log('🔍 Auto-searching with district:', searchFilters.district);
       handleSearch();
     }
   }, [wards, searchFilters.district]);
@@ -302,6 +330,12 @@ export default function AuctionBrowseScreen() {
           filters.TypeName = cropType.name; // Send crop type name
         }
       }
+      if (searchFilters.fromStartDate) {
+        filters.FromStartDate = new Date(searchFilters.fromStartDate).toISOString();
+      }
+      if (searchFilters.toStartDate) {
+        filters.ToStartDate = new Date(searchFilters.toStartDate).toISOString();
+      }
       if (searchFilters.minQuantity) filters.MinTotalQuantity = parseInt(searchFilters.minQuantity);
       if (searchFilters.maxQuantity) filters.MaxTotalQuantity = parseInt(searchFilters.maxQuantity);
 
@@ -331,29 +365,14 @@ export default function AuctionBrowseScreen() {
     }
   };
 
-  const handleSelectHarvest = async (harvest: SearchResult) => {
-    try {
-      // Get full harvest details
-      const harvests = await getHarvestsByCrop(harvest.cropID);
-      const harvestDetail = harvests.find((h) => h.id === harvest.id);
-      
-      // Merge details with search result
-      const fullHarvest = {
-        ...harvest,
-        ...harvestDetail,
-      };
-      
-      // Navigate to detail page
-      router.push({
-        pathname: '/(tabs)/wholesaler/auction-browse/detail',
-        params: {
-          harvest: JSON.stringify(fullHarvest),
-        },
-      });
-    } catch (error) {
-      console.error('Error selecting harvest:', error);
-      Alert.alert('Lỗi', 'Không thể tải chi tiết sản phẩm');
-    }
+  const handleSelectHarvest = (harvest: SearchResult) => {
+    // Navigate directly with search result data - it already has all needed info including harvestGradeDetailDTOs
+    router.push({
+      pathname: '/(tabs)/wholesaler/auction-browse/detail',
+      params: {
+        harvest: JSON.stringify(harvest),
+      },
+    });
   };
 
   const handleSubmitBuyRequest = async () => {
@@ -404,9 +423,10 @@ export default function AuctionBrowseScreen() {
           },
         },
       ]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating buy request:', error);
-      Alert.alert('Lỗi', 'Không thể tạo yêu cầu mua');
+      const errorMessage = error?.message || error?.toString() || 'Không thể tạo yêu cầu mua';
+      Alert.alert('Lỗi', errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -558,6 +578,63 @@ export default function AuctionBrowseScreen() {
               </View>
             )}
 
+            <View style={styles.dateRow}>
+              <TouchableOpacity
+                style={[styles.input, styles.dateInput]}
+                onPress={() => setShowFromDatePicker(true)}
+              >
+                <Calendar size={18} color="#6B7280" />
+                <Text style={searchFilters.fromStartDate ? styles.dateText : styles.datePlaceholder}>
+                  {searchFilters.fromStartDate
+                    ? new Date(searchFilters.fromStartDate).toLocaleDateString('vi-VN')
+                    : 'Từ ngày'}
+                </Text>
+              </TouchableOpacity>
+              {showFromDatePicker && (
+                <DateTimePicker
+                  value={searchFilters.fromStartDate ? new Date(searchFilters.fromStartDate) : new Date()}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={(event, selectedDate) => {
+                    setShowFromDatePicker(Platform.OS === 'ios');
+                    if (selectedDate) {
+                      setSearchFilters((prev) => ({
+                        ...prev,
+                        fromStartDate: selectedDate.toISOString(),
+                      }));
+                    }
+                  }}
+                />
+              )}
+              <TouchableOpacity
+                style={[styles.input, styles.dateInput]}
+                onPress={() => setShowToDatePicker(true)}
+              >
+                <Calendar size={18} color="#6B7280" />
+                <Text style={searchFilters.toStartDate ? styles.dateText : styles.datePlaceholder}>
+                  {searchFilters.toStartDate
+                    ? new Date(searchFilters.toStartDate).toLocaleDateString('vi-VN')
+                    : 'Đến ngày'}
+                </Text>
+              </TouchableOpacity>
+              {showToDatePicker && (
+                <DateTimePicker
+                  value={searchFilters.toStartDate ? new Date(searchFilters.toStartDate) : new Date()}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={(event, selectedDate) => {
+                    setShowToDatePicker(Platform.OS === 'ios');
+                    if (selectedDate) {
+                      setSearchFilters((prev) => ({
+                        ...prev,
+                        toStartDate: selectedDate.toISOString(),
+                      }));
+                    }
+                  }}
+                />
+              )}
+            </View>
+
             <View style={styles.quantityRow}>
               <TextInput
                 style={[styles.input, styles.quantityInput]}
@@ -602,6 +679,8 @@ export default function AuctionBrowseScreen() {
                   setSearchFilters({
                     district: '',
                     cropType: '',
+                    fromStartDate: '',
+                    toStartDate: '',
                     minQuantity: '',
                     maxQuantity: '',
                   });
@@ -684,7 +763,7 @@ export default function AuctionBrowseScreen() {
             <Text style={styles.historyTitle}>Lịch sử yêu cầu mua</Text>
           </View>
 
-          {/* Filter chips */}
+          {/* Filter chips and advanced filter button */}
           <View style={styles.historyFilterContainer}>
             <ScrollView
               horizontal
@@ -699,7 +778,10 @@ export default function AuctionBrowseScreen() {
                     styles.historyFilterChip,
                     selectedStatusFilter === option.value && styles.historyFilterChipActive,
                   ]}
-                  onPress={() => setSelectedStatusFilter(option.value as StatusFilter | null)}
+                  onPress={() => {
+                    setSelectedStatusFilter(option.value as StatusFilter | null);
+                    loadBuyRequestHistory(option.value === 'All' || option.value === null ? undefined : option.value as string);
+                  }}
                 >
                   <Text
                     style={[
@@ -711,6 +793,12 @@ export default function AuctionBrowseScreen() {
                   </Text>
                 </TouchableOpacity>
               ))}
+              <TouchableOpacity
+                style={styles.advancedFilterButton}
+                onPress={() => setShowHistoryFilters(true)}
+              >
+                <Text style={styles.advancedFilterText}>Bộ lọc</Text>
+              </TouchableOpacity>
             </ScrollView>
           </View>
 
@@ -802,6 +890,141 @@ export default function AuctionBrowseScreen() {
           )}
         </View>
       )}
+
+      {/* Advanced Filters Modal */}
+      <Modal
+        visible={showHistoryFilters}
+        transparent
+        animationType="slide"
+      >
+        <View style={styles.filterModalOverlay}>
+          <View style={styles.filterModal}>
+            {/* Header */}
+            <View style={styles.filterModalHeader}>
+              <Text style={styles.filterModalTitle}>Bộ lọc nâng cao</Text>
+              <TouchableOpacity onPress={() => setShowHistoryFilters(false)}>
+                <X size={24} color="#111827" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Content */}
+            <ScrollView style={styles.filterModalContent} showsVerticalScrollIndicator={false}>
+              {/* District */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Huyện/Quận</Text>
+                <TextInput
+                  style={styles.filterInput}
+                  placeholder="Nhập tên huyện"
+                  value={historyFilters.district}
+                  onChangeText={(text) => setHistoryFilters(prev => ({ ...prev, district: text }))}
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+
+              {/* Type Name */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Loại sản phẩm</Text>
+                <TextInput
+                  style={styles.filterInput}
+                  placeholder="Nhập tên loại sản phẩm"
+                  value={historyFilters.typeName}
+                  onChangeText={(text) => setHistoryFilters(prev => ({ ...prev, typeName: text }))}
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+
+              {/* Date Range */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Từ ngày</Text>
+                <TouchableOpacity
+                  style={styles.datePickerButton}
+                  onPress={() => {
+                    // Date picker logic
+                  }}
+                >
+                  <Calendar size={18} color="#6B7280" />
+                  <Text style={styles.datePickerText}>
+                    {historyFilters.fromStartDate
+                      ? new Date(historyFilters.fromStartDate).toLocaleDateString('vi-VN')
+                      : 'Chọn ngày'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Đến ngày</Text>
+                <TouchableOpacity
+                  style={styles.datePickerButton}
+                  onPress={() => {
+                    // Date picker logic
+                  }}
+                >
+                  <Calendar size={18} color="#6B7280" />
+                  <Text style={styles.datePickerText}>
+                    {historyFilters.toStartDate
+                      ? new Date(historyFilters.toStartDate).toLocaleDateString('vi-VN')
+                      : 'Chọn ngày'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Quantity Range */}
+              <View style={styles.quantityRangeRow}>
+                <View style={[styles.filterSection, { flex: 1, marginRight: 8 }]}>
+                  <Text style={styles.filterLabel}>Số lượng tối thiểu (kg)</Text>
+                  <TextInput
+                    style={styles.filterInput}
+                    placeholder="0"
+                    keyboardType="decimal-pad"
+                    value={historyFilters.minQuantity}
+                    onChangeText={(text) => setHistoryFilters(prev => ({ ...prev, minQuantity: text }))}
+                    placeholderTextColor="#9CA3AF"
+                  />
+                </View>
+                <View style={[styles.filterSection, { flex: 1, marginLeft: 8 }]}>
+                  <Text style={styles.filterLabel}>Số lượng tối đa (kg)</Text>
+                  <TextInput
+                    style={styles.filterInput}
+                    placeholder="0"
+                    keyboardType="decimal-pad"
+                    value={historyFilters.maxQuantity}
+                    onChangeText={(text) => setHistoryFilters(prev => ({ ...prev, maxQuantity: text }))}
+                    placeholderTextColor="#9CA3AF"
+                  />
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* Actions */}
+            <View style={styles.filterModalActions}>
+              <TouchableOpacity
+                style={[styles.filterButton, styles.filterResetButton]}
+                onPress={() => {
+                  setHistoryFilters({
+                    district: '',
+                    typeName: '',
+                    fromStartDate: '',
+                    toStartDate: '',
+                    minQuantity: '',
+                    maxQuantity: '',
+                  });
+                }}
+              >
+                <Text style={styles.filterResetButtonText}>Đặt lại</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.filterButton, styles.filterApplyButton]}
+                onPress={() => {
+                  loadBuyRequestHistory();
+                  setShowHistoryFilters(false);
+                }}
+              >
+                <Text style={styles.filterApplyButtonText}>Áp dụng</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Footer Navigation */}
       <View style={styles.footerWrapper}>
@@ -908,6 +1131,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#111827',
     backgroundColor: '#FFFFFF',
+  },
+  dateRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  dateInput: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+  },
+  dateText: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '500',
+  },
+  datePlaceholder: {
+    fontSize: 14,
+    color: '#9CA3AF',
   },
   quantityRow: {
     flexDirection: 'row',
@@ -1477,6 +1725,119 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   historyFilterChipTextActive: {
+    color: '#FFFFFF',
+  },
+  advancedFilterButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#10B981',
+    marginRight: 16,
+  },
+  advancedFilterText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  filterModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  filterModal: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '90%',
+    paddingTop: 0,
+  },
+  filterModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  filterModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  filterModalContent: {
+    padding: 20,
+    maxHeight: '70%',
+  },
+  filterSection: {
+    marginBottom: 20,
+  },
+  filterLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  filterInput: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#111827',
+  },
+  datePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  datePickerText: {
+    fontSize: 14,
+    color: '#6B7280',
+    flex: 1,
+  },
+  quantityRangeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  filterModalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  filterButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterResetButton: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  filterResetButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  filterApplyButton: {
+    backgroundColor: '#10B981',
+  },
+  filterApplyButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
     color: '#FFFFFF',
   },
 });

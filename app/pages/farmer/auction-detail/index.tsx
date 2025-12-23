@@ -59,9 +59,9 @@ export default function AuctionDetailScreen() {
 
   // Debug: Log state changes
   useEffect(() => {
-    console.log('📊 Farmer State bidLogs changed, count:', bidLogs.length);
+    //console.log('📊 Farmer State bidLogs changed, count:', bidLogs.length);
     if (bidLogs.length > 0) {
-      console.log('📊 Farmer First bid:', bidLogs[0].userName, '-', bidLogs[0].type);
+      //console.log('📊 Farmer First bid:', bidLogs[0].userName, '-', bidLogs[0].type);
     }
   }, [bidLogs]);
 
@@ -75,7 +75,7 @@ export default function AuctionDetailScreen() {
   ) => {
     // NO setBidLogsLoading(true)!
     try {
-      console.log('🔄 Farmer Quiet: START, retry:', retryCount);
+      //console.log('🔄 Farmer Quiet: START, retry:', retryCount);
       
       if (retryCount > 0) {
         const delay = 300 * retryCount;
@@ -83,7 +83,7 @@ export default function AuctionDetailScreen() {
       }
       
       const bids = await getAllBidsForAuction(auctionId);
-      console.log('✅ Farmer Quiet: Loaded', bids.length, 'logs');
+      //console.log('✅ Farmer Quiet: Loaded', bids.length, 'logs');
       
       let currentCount = previousCount;
       let latestTimestamp = previousLatestTime;
@@ -118,12 +118,12 @@ export default function AuctionDetailScreen() {
       }
       
       if (!hasNewerData && retryCount >= 2) {
-        console.log('⏭️ Farmer Quiet: Max retries, keeping optimistic');
+        //console.log('⏭️ Farmer Quiet: Max retries, keeping optimistic');
         return;
       }
       
       setBidLogs(bids);
-      console.log('✅ Farmer Quiet: State updated with', bids.length, 'logs');
+      //console.log('✅ Farmer Quiet: State updated with', bids.length, 'logs');
     } catch (error) {
       console.error('❌ Farmer Quiet: Error:', error);
     }
@@ -137,17 +137,17 @@ export default function AuctionDetailScreen() {
   ) => {
     setBidLogsLoading(true);
     try {
-      console.log('🔄 Farmer: START loadBidLogs, retry:', retryCount);
+      //console.log('🔄 Farmer: START loadBidLogs, retry:', retryCount);
       
       // Add small delay to let backend sync
       if (retryCount > 0) {
         const delay = 300 * retryCount;
-        console.log(`⏳ Farmer: Waiting ${delay}ms for backend to sync...`);
+        // //console.log(`⏳ Farmer: Waiting ${delay}ms for backend to sync...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
       
       const bids = await getAllBidsForAuction(auctionId);
-      console.log('✅ Farmer: Bid logs loaded:', bids.length);
+      //console.log('✅ Farmer: Bid logs loaded:', bids.length);
       
       // Get current count and latest timestamp from state
       let currentCount = previousCount;
@@ -162,9 +162,9 @@ export default function AuctionDetailScreen() {
                 new Date(b.dateTimeUpdate).getTime() - new Date(a.dateTimeUpdate).getTime()
               );
               latestTimestamp = sorted[0].dateTimeUpdate;
-              console.log('📊 Farmer: Current count:', currentCount, '| Latest:', latestTimestamp);
+              //console.log('📊 Farmer: Current count:', currentCount, '| Latest:', latestTimestamp);
             } else {
-              console.log('📊 Farmer: Current count:', currentCount);
+              //console.log('📊 Farmer: Current count:', currentCount);
             }
             resolve();
             return prev;
@@ -178,14 +178,14 @@ export default function AuctionDetailScreen() {
         const apiLatestTime = new Date(bids[0].dateTimeUpdate).getTime();
         const stateLatestTime = new Date(latestTimestamp).getTime();
         hasNewerData = apiLatestTime > stateLatestTime;
-        console.log('🔍 Farmer: Newer?', hasNewerData);
+        //console.log('🔍 Farmer: Newer?', hasNewerData);
       } else if (bids.length > (currentCount || 0)) {
         hasNewerData = true;
       }
       
       // ✅ FIX: Nếu cả API và state đều empty (0 bids), đừng retry
       if (bids.length === 0 && (currentCount === 0 || currentCount === undefined)) {
-        console.log('ℹ️ Farmer: No bids yet, skipping retry');
+        //console.log('ℹ️ Farmer: No bids yet, skipping retry');
         setBidLogs([]);
         setBidLogsLoading(false);
         return;
@@ -193,20 +193,20 @@ export default function AuctionDetailScreen() {
       
       // Check if we need to retry
       if (retryCount < 2 && !hasNewerData) {
-        console.log(`⚠️ Farmer: No newer data, retrying...`);
+        // //console.log(`⚠️ Farmer: No newer data, retrying...`);
         setBidLogsLoading(false);
         return loadBidLogs(auctionId, retryCount + 1, currentCount, latestTimestamp);
       }
       
       // If still no newer data after retries, keep optimistic updates
       if (!hasNewerData && retryCount >= 2) {
-        console.log('⏭️ Farmer: Max retries, keeping optimistic data');
+        //console.log('⏭️ Farmer: Max retries, keeping optimistic data');
         setBidLogsLoading(false);
         return;
       }
       
       setBidLogs(bids);
-      console.log('✅ Farmer: State updated with', bids.length, 'bid logs');
+      //console.log('✅ Farmer: State updated with', bids.length, 'bid logs');
     } catch (error) {
       console.error('❌ Farmer: Error loading bid logs:', error);
       // Don't show alert, just log the error
@@ -236,7 +236,7 @@ export default function AuctionDetailScreen() {
             try {
               await signalRService.connect();
               await signalRService.joinAuctionGroup(parsedAuction.id);
-              console.log('Farmer: Joined auction group', parsedAuction.id);
+              //console.log('Farmer: Joined auction group', parsedAuction.id);
             } catch (error) {
               console.error('Farmer: SignalR setup failed', error);
             }
@@ -246,22 +246,22 @@ export default function AuctionDetailScreen() {
 
         // Subscribe to BidPlaced events
         const unsubscribeBidPlaced = signalRService.onBidPlaced((event: BidPlacedEvent) => {
-          console.log('🔔 Farmer: BidPlaced event received', {
-            auctionId: event.auctionId,
-            userName: event.userName,
-            bidAmount: event.bidAmount,
-            newPrice: event.newPrice,
-          });
+          //console.log('🔔 Farmer: BidPlaced event received', {
+          //  auctionId: event.auctionId,
+          //  userName: event.userName,
+          //  bidAmount: event.bidAmount,
+          //  newPrice: event.newPrice,
+          //});
           
           // Only refresh if event is for this auction
           if (event.auctionId === parsedAuction.id) {
-            console.log('✅ Farmer: Event matches current auction, updating data...');
-            console.log(`💰 Farmer: Price: ${event.previousPrice} → ${event.newPrice}`);
-            console.log(`👤 Farmer: Bidder: ${event.userName} (${event.userId})`);
+            // //console.log('✅ Farmer: Event matches current auction, updating data...');
+            // //console.log(`💰 Farmer: Price: ${event.previousPrice} → ${event.newPrice}`);
+            // //console.log(`👤 Farmer: Bidder: ${event.userName} (${event.userId})`);
             
             // Update auction current price immediately
             setAuction(prev => {
-              console.log('💰 Farmer: Updating auction price:', prev?.currentPrice, '→', event.newPrice);
+              //console.log('💰 Farmer: Updating auction price:', prev?.currentPrice, '→', event.newPrice);
               return prev ? { ...prev, currentPrice: event.newPrice } : prev;
             });
             
@@ -293,31 +293,31 @@ export default function AuctionDetailScreen() {
             };
             
             // Add optimistic bid immediately
-            console.log('⚡ Farmer: Adding optimistic bid:', event.bidAmount);
+            //console.log('⚡ Farmer: Adding optimistic bid:', event.bidAmount);
             setBidLogs(prev => {
               const exists = prev.some((log: any) => 
                 log.dateTimeUpdate === event.placedAt
               );
               if (exists) {
-                console.log('✓ Farmer: Bid with same timestamp exists, skipping');
+                //console.log('✓ Farmer: Bid with same timestamp exists, skipping');
                 return prev;
               }
-              console.log('✓ Farmer: Optimistic bid added, count:', prev.length + 1);
+              //console.log('✓ Farmer: Optimistic bid added, count:', prev.length + 1);
               return [optimisticBidLog, ...prev];
             });
             
             // Fetch fresh data from API (quiet - no loading spinner)
-            console.log('🔄 Farmer: Quiet reloading bid data from API...');
-            console.log('📊 Farmer: Current bid logs count:', bidLogs.length);
+            //console.log('🔄 Farmer: Quiet reloading bid data from API...');
+            //console.log('📊 Farmer: Current bid logs count:', bidLogs.length);
             loadBidLogsQuietly(parsedAuction.id);
           } else {
-            console.log('❌ Farmer: Event for different auction, ignoring');
+            //console.log('❌ Farmer: Event for different auction, ignoring');
           }
         });
 
         // Subscribe to BuyNow events
         const unsubscribeBuyNow = signalRService.onBuyNow((event: BuyNowEvent) => {
-          console.log('Farmer: BuyNow event', event);
+          //console.log('Farmer: BuyNow event', event);
           
           if (event.auctionId === parsedAuction.id) {
             // Reload auction to get updated status
@@ -365,25 +365,25 @@ export default function AuctionDetailScreen() {
     setHarvestsLoading(true);
     try {
       const sessionHarvests = await getAuctionSessionHarvests(auctionId);
-      console.log('Session harvests:', sessionHarvests);
+      //console.log('Session harvests:', sessionHarvests);
       
       const harvestDetails = await Promise.all(
         sessionHarvests.map(async (sh) => {
-          console.log('Fetching harvest ID:', sh.harvestId);
+          //console.log('Fetching harvest ID:', sh.harvestId);
           const harvest = await getHarvestById(sh.harvestId);
-          console.log('Harvest detail received:', harvest ? 
-            { id: harvest.id, cropId: harvest.cropId, hasGradeDetails: !!harvest.harvestGradeDetailDTOs } : 
-            'null'
-          );
+          //console.log('Harvest detail received:', harvest ? 
+          //  { id: harvest.id, cropId: harvest.cropId, hasGradeDetails: !!harvest.harvestGradeDetailDTOs } : 
+          //  'null'
+          //);
           if (harvest?.harvestGradeDetailDTOs) {
-            console.log('Harvest grade details count:', harvest.harvestGradeDetailDTOs.length);
+            //console.log('Harvest grade details count:', harvest.harvestGradeDetailDTOs.length);
           }
           return harvest;
         })
       );
 
       const validHarvests = harvestDetails.filter(h => h !== null) as HarvestDetail[];
-      console.log('Valid harvests count:', validHarvests.length);
+      //console.log('Valid harvests count:', validHarvests.length);
       setHarvests(validHarvests);
     } catch (error) {
       console.error('Error loading auction harvests:', error);
@@ -398,7 +398,7 @@ export default function AuctionDetailScreen() {
     try {
       // First get session harvests to find crop IDs
       const sessionHarvests = await getAuctionSessionHarvests(auctionId);
-      console.log('Session harvests for crops:', sessionHarvests);
+      //console.log('Session harvests for crops:', sessionHarvests);
       
       // Get harvest details to extract crop IDs
       const harvestDetails = await Promise.all(
@@ -409,12 +409,7 @@ export default function AuctionDetailScreen() {
       );
 
       // Extract unique crop IDs
-      console.log('Harvest details received:', harvestDetails.map(h => h ? { 
-        id: h.id, 
-        cropId: h.cropId, 
-        cropID: h.cropID,
-        actualCropId: h.cropId || h.cropID 
-      } : 'null'));
+      // console.log('Harvest details received:', harvestDetails.map(h => h ? { id: h.id, cropId: h.cropId, cropID: h.cropID, actualCropId: h.cropId || h.cropID } : 'null'));
       
       const cropIds = [...new Set(
         harvestDetails
@@ -423,7 +418,7 @@ export default function AuctionDetailScreen() {
           .filter(id => id !== undefined)
       )];
 
-      console.log('Unique crop IDs:', cropIds);
+      //console.log('Unique crop IDs:', cropIds);
 
       // Fetch crop details and current harvests
       const cropPromises = cropIds.map(async (cropId) => {
@@ -437,7 +432,7 @@ export default function AuctionDetailScreen() {
               [cropId]: currentHarvest
             }));
           } catch (error) {
-            console.log(`No current harvest for crop ${cropId}:`, error);
+            // //console.log(`No current harvest for crop ${cropId}:`, error);
           }
         }
         return crop;
@@ -446,7 +441,7 @@ export default function AuctionDetailScreen() {
       const cropDetails = await Promise.all(cropPromises);
       const validCrops = cropDetails.filter(c => c !== null) as Crop[];
       
-      console.log('Loaded crops:', validCrops.length);
+      //console.log('Loaded crops:', validCrops.length);
       setCrops(validCrops);
 
     } catch (error) {
@@ -774,7 +769,7 @@ export default function AuctionDetailScreen() {
                         <View style={styles.cropInfo}>
                           <Text style={styles.cropTitle}>{crop.name}</Text>
                           <Text style={styles.cropSubtitle}>
-                            {crop.custardAppleType} • {crop.area} m²
+                            {crop.custardAppleType} • {crop.area} ha
                           </Text>
                         </View>
                       </View>
@@ -1032,6 +1027,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
+   
   },
   auctionHeader: {
     flexDirection: 'row',

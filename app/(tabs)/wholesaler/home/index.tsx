@@ -44,6 +44,9 @@ interface Auction {
   buyNowPrice?: number;
   createdAt: string;
   updatedAt: string;
+  harvests?: Array<{
+    startDate?: string;
+  }>;
 }
 
 export default function WholesalerHomeScreen() {
@@ -72,25 +75,19 @@ export default function WholesalerHomeScreen() {
   useEffect(() => {
     const initializeApp = async () => {
       // Initialize SignalR connection
-      console.log('🔌 [Wholesaler] Initializing SignalR...');
+      //console.log('🔌 [Wholesaler] Initializing SignalR...');
       try {
         await signalRService.connect();
-        console.log('✅ [Wholesaler] SignalR connected');
+        //console.log('✅ [Wholesaler] SignalR connected');
       } catch (error) {
         console.error('❌ [Wholesaler] SignalR connection failed:', error);
       }
       
       // Setup real-time notification listener
-      console.log('📡 [Wholesaler] Setting up notification listener...');
+      //console.log('📡 [Wholesaler] Setting up notification listener...');
       const unsubscribeNotifications = signalRService.onNewNotification((event: NewNotificationEvent) => {
-        console.log('🔔 [SIGNALR LISTENER TRIGGERED] New notification received!');
-        console.log('   📩 From SignalR (REAL-TIME):', {
-          id: event.id,
-          type: event.type,
-          title: event.title,
-          message: event.message,
-          severity: event.severity,
-        });
+        //console.log('🔔 [SIGNALR LISTENER TRIGGERED] New notification received!');
+        //console.log('   📩 From SignalR (REAL-TIME):', { id: event.id, type: event.type, title: event.title, message: event.message, severity: event.severity });
         
         // Convert SignalR event to UserNotification format
         const userNotification: UserNotification = {
@@ -111,11 +108,11 @@ export default function WholesalerHomeScreen() {
         
         // Add new notification to the list at the top
         setNotifications(prev => [userNotification, ...prev]);
-        console.log('📝 [State Update] Notifications list updated');
-        console.log('🔄 [Bell Update] Calling loadUnreadNotifications to refresh badge...');
+        //console.log('📝 [State Update] Notifications list updated');
+        //console.log('🔄 [Bell Update] Calling loadUnreadNotifications to refresh badge...');
         loadUnreadNotifications();
       });
-      console.log('✅ [Wholesaler] Notification listener registered');
+      //console.log('✅ [Wholesaler] Notification listener registered');
       
       loadDataQuietly();
       loadUnreadNotifications();
@@ -127,7 +124,7 @@ export default function WholesalerHomeScreen() {
     
     // Auto-refresh every 30 seconds when screen is active
     const autoRefreshInterval = setInterval(() => {
-      console.log('🔄 Auto-refreshing wholesaler home auctions...');
+      // //console.log('🔄 Auto-refreshing wholesaler home auctions...');
       loadDataQuietly();
     }, 30000);
     
@@ -139,10 +136,10 @@ export default function WholesalerHomeScreen() {
 
   // Setup real-time bid update listener (runs once on mount)
   useEffect(() => {
-    console.log('🔔 Setting up BidPlaced listener for home page');
+    // //console.log('🔔 Setting up BidPlaced listener for home page');
     
     const unsubscribeBidPlaced = signalRService.onBidPlaced((event: any) => {
-      console.log('💰 BidPlaced event received in home page:', event.auctionId, 'new price:', event.newPrice);
+      // //console.log('💰 BidPlaced event received in home page:', event.auctionId, 'new price:', event.newPrice);
       // Update realtime price for this auction
       setRealtimePrices(prev => ({
         ...prev,
@@ -152,7 +149,7 @@ export default function WholesalerHomeScreen() {
     
     // Cleanup on unmount
     return () => {
-      console.log('🔔 Cleaning up BidPlaced listener from home page');
+      //console.log('🔔 Cleaning up BidPlaced listener from home page');
       unsubscribeBidPlaced();
     };
   }, []); // Empty dependency array - only run once on mount
@@ -183,14 +180,44 @@ export default function WholesalerHomeScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
-      console.log('WholesalerHomeScreen focused - reloading auctions');
+      //console.log('WholesalerHomeScreen focused - reloading auctions');
       loadDataQuietly();
     }, [])
   );
 
-  const calculateCountdown = (endDate: string) => {
-    const end = new Date(endDate).getTime();
+  // Countdown helper that supports "Approved" (upcoming) auctions.
+  const calculateCountdownForAuction = (auction: Auction) => {
     const now = new Date().getTime();
+
+    // If auction is Approved: countdown to publicDate (or startDate fallback).
+    if (auction.status === 'Approved') {
+      const publicTs = auction.publishDate ? new Date(auction.publishDate).getTime() : undefined;
+      const startTs = auction.harvests && auction.harvests[0]?.startDate
+        ? new Date(auction.harvests[0].startDate).getTime()
+        : undefined;
+      const target = publicTs || startTs || new Date(auction.endDate).getTime();
+      const diffToPublic = target - now;
+
+      // If still waiting for public time
+      if (diffToPublic > 0) {
+        const days = Math.floor(diffToPublic / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diffToPublic % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diffToPublic % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diffToPublic % (1000 * 60)) / 1000);
+
+        return {
+          days: String(days).padStart(2, '0'),
+          hours: String(hours).padStart(2, '0'),
+          minutes: String(minutes).padStart(2, '0'),
+          seconds: String(seconds).padStart(2, '0'),
+          isEnded: false,
+          phase: 'upcoming', // waiting to open
+        };
+      }
+      // Past public/start -> fall through to normal countdown to end
+    }
+
+    const end = new Date(auction.endDate).getTime();
     const diff = end - now;
 
     if (diff <= 0) {
@@ -200,6 +227,7 @@ export default function WholesalerHomeScreen() {
         minutes: '00',
         seconds: '00',
         isEnded: true,
+        phase: 'ended',
       };
     }
 
@@ -214,6 +242,7 @@ export default function WholesalerHomeScreen() {
       minutes: String(minutes).padStart(2, '0'),
       seconds: String(seconds).padStart(2, '0'),
       isEnded: false,
+      phase: 'running',
     };
   };
 
@@ -222,7 +251,7 @@ export default function WholesalerHomeScreen() {
     if (auctions.length > 0) {
       const initialCountdowns: { [key: string]: any } = {};
       auctions.forEach((auction) => {
-        initialCountdowns[auction.id] = calculateCountdown(auction.endDate);
+        initialCountdowns[auction.id] = calculateCountdownForAuction(auction);
       });
       setCountdowns(initialCountdowns);
     }
@@ -231,7 +260,7 @@ export default function WholesalerHomeScreen() {
     const interval = setInterval(() => {
       const newCountdowns: { [key: string]: any } = {};
       auctions.forEach((auction) => {
-        newCountdowns[auction.id] = calculateCountdown(auction.endDate);
+        newCountdowns[auction.id] = calculateCountdownForAuction(auction);
       });
       setCountdowns(newCountdowns);
     }, 1000);
@@ -249,11 +278,18 @@ export default function WholesalerHomeScreen() {
         setUser(currentUser);
       }
 
-      // Load auctions (increased pageSize to 100 to ensure we get all auctions)
-      const auctionData = await getAuctionsByStatus('OnGoing', 1, 100);
-      if (auctionData.isSuccess && auctionData.data.items) {
-        setAuctions(auctionData.data.items);
-      }
+      // Load auctions (OnGoing + Approved) - Approved are view-only
+      const [onGoing, approved] = await Promise.all([
+        getAuctionsByStatus('OnGoing', 1, 100),
+        getAuctionsByStatus('Approved', 1, 100),
+      ]);
+      const combined = [
+        ...(onGoing?.data?.items || []),
+        ...(approved?.data?.items || []),
+      ];
+      // Remove duplicates by id
+      const unique = Array.from(new Map(combined.map((a: any) => [a.id, a])).values());
+      setAuctions(unique);
     } catch (error) {
       console.error('Error loading data:', error);
       Alert.alert('Lỗi', 'Không thể tải danh sách đấu giá');
@@ -271,19 +307,26 @@ export default function WholesalerHomeScreen() {
         setUser(currentUser);
       }
 
-      // Load auctions (increased pageSize to 100 to ensure we get all auctions)
-      const auctionData = await getAuctionsByStatus('OnGoing', 1, 100);
-      if (auctionData.isSuccess && auctionData.data.items) {
-        // Calculate countdowns immediately before setting auctions
-        const initialCountdowns: { [key: string]: any } = {};
-        auctionData.data.items.forEach((auction: Auction) => {
-          initialCountdowns[auction.id] = calculateCountdown(auction.endDate);
-        });
-        setCountdowns(initialCountdowns);
-        
-        // Then set auctions
-        setAuctions(auctionData.data.items);
-      }
+      // Load auctions (OnGoing + Approved) - Approved are view-only
+      const [onGoing, approved] = await Promise.all([
+        getAuctionsByStatus('OnGoing', 1, 100),
+        getAuctionsByStatus('Approved', 1, 100),
+      ]);
+      const combined = [
+        ...(onGoing?.data?.items || []),
+        ...(approved?.data?.items || []),
+      ];
+      const unique = Array.from(new Map(combined.map((a: any) => [a.id, a])).values());
+
+      // Calculate countdowns immediately before setting auctions
+      const initialCountdowns: { [key: string]: any } = {};
+      unique.forEach((auction: Auction) => {
+        initialCountdowns[auction.id] = calculateCountdownForAuction(auction);
+      });
+      setCountdowns(initialCountdowns);
+      
+      // Then set auctions
+      setAuctions(unique);
     } catch (error) {
       console.error('Error loading data quietly:', error);
       // Don't show alert on quiet load
@@ -295,10 +338,16 @@ export default function WholesalerHomeScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      const auctionData = await getAuctionsByStatus('OnGoing', 1, 100);
-      if (auctionData.isSuccess && auctionData.data.items) {
-        setAuctions(auctionData.data.items);
-      }
+      const [onGoing, approved] = await Promise.all([
+        getAuctionsByStatus('OnGoing', 1, 100),
+        getAuctionsByStatus('Approved', 1, 100),
+      ]);
+      const combined = [
+        ...(onGoing?.data?.items || []),
+        ...(approved?.data?.items || []),
+      ];
+      const unique = Array.from(new Map(combined.map((a: any) => [a.id, a])).values());
+      setAuctions(unique);
       await loadUnreadNotifications();
     } catch (error) {
       console.error('Error refreshing:', error);
@@ -309,14 +358,14 @@ export default function WholesalerHomeScreen() {
 
   const loadUnreadNotifications = async () => {
     try {
-      console.log('📞 [API Call] Fetching unread notification count from API...');
+      // //console.log('📞 [API Call] Fetching unread notification count from API...');
       const count = await getUnreadNotificationCount();
-      console.log('✅ [API Response] Got count:', count);
-      console.log('🔔 [Bell Badge] Setting unreadCount state to:', count);
+      // //console.log('✅ [API Response] Got count:', count);
+      // //console.log('🔔 [Bell Badge] Setting unreadCount state to:', count);
       setUnreadCount(count);
-      console.log('✨ [UI Update] Bell icon should update now');
+      // //console.log('✨ [UI Update] Bell icon should update now');
     } catch (error) {
-      console.error('❌ [API Error] Error loading unread count:', error);
+      // console.error('❌ [API Error] Error loading unread count:', error);
     }
   };
 
@@ -338,6 +387,13 @@ export default function WholesalerHomeScreen() {
   }, []);
 
   const getStatusInfo = useCallback((status: string) => {
+    if (status === 'Approved') {
+      return {
+        name: 'Sắp diễn ra',
+        color: '#2563EB',
+        backgroundColor: '#DBEAFE',
+      };
+    }
     return getAuctionStatusInfo(status);
   }, []);
 

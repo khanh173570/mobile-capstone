@@ -14,6 +14,8 @@ import {
   getFarmerBuyRequests,
   FarmerBuyRequest,
   BuyRequestListResponse,
+  getWholesalerInfo,
+  WholesalerInfo,
 } from '../../../../services/farmerBuyRequestManagementService';
 
 export default function BuyRequestManagementScreen() {
@@ -25,6 +27,7 @@ export default function BuyRequestManagementScreen() {
   const [hasNextPage, setHasNextPage] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
+  const [wholesalerInfoMap, setWholesalerInfoMap] = useState<Record<string, WholesalerInfo>>({});
 
   useFocusEffect(
     React.useCallback(() => {
@@ -39,6 +42,22 @@ export default function BuyRequestManagementScreen() {
       setBuyRequests(data.items);
       setHasNextPage(data.nextPage);
       setTotalCount(data.totalCount);
+      
+      // Load wholesaler info for each buy request
+      const wholesalerMap: Record<string, WholesalerInfo> = {};
+      await Promise.all(
+        data.items.map(async (request) => {
+          if (request.wholesalerId) {
+            try {
+              const wholesalerInfo = await getWholesalerInfo(request.wholesalerId);
+              wholesalerMap[request.id] = wholesalerInfo;
+            } catch (error) {
+              console.error(`Error loading wholesaler info for ${request.id}:`, error);
+            }
+          }
+        })
+      );
+      setWholesalerInfoMap(wholesalerMap);
     } catch (error) {
       console.error('Error loading buy requests:', error);
     } finally {
@@ -54,6 +73,22 @@ export default function BuyRequestManagementScreen() {
       setBuyRequests(data.items);
       setHasNextPage(data.nextPage);
       setTotalCount(data.totalCount);
+      
+      // Load wholesaler info for each buy request
+      const wholesalerMap: Record<string, WholesalerInfo> = {};
+      await Promise.all(
+        data.items.map(async (request) => {
+          if (request.wholesalerId) {
+            try {
+              const wholesalerInfo = await getWholesalerInfo(request.wholesalerId);
+              wholesalerMap[request.id] = wholesalerInfo;
+            } catch (error) {
+              console.error(`Error loading wholesaler info for ${request.id}:`, error);
+            }
+          }
+        })
+      );
+      setWholesalerInfoMap(wholesalerMap);
     } catch (error) {
       console.error('Error refreshing:', error);
     } finally {
@@ -69,6 +104,22 @@ export default function BuyRequestManagementScreen() {
         setBuyRequests([...buyRequests, ...data.items]);
         setPageNumber(nextPage);
         setHasNextPage(data.nextPage);
+        
+        // Load wholesaler info for new items
+        const newWholesalerMap: Record<string, WholesalerInfo> = { ...wholesalerInfoMap };
+        await Promise.all(
+          data.items.map(async (request) => {
+            if (request.wholesalerId) {
+              try {
+                const wholesalerInfo = await getWholesalerInfo(request.wholesalerId);
+                newWholesalerMap[request.id] = wholesalerInfo;
+              } catch (error) {
+                console.error(`Error loading wholesaler info for ${request.id}:`, error);
+              }
+            }
+          })
+        );
+        setWholesalerInfoMap(newWholesalerMap);
       } catch (error) {
         console.error('Error loading more:', error);
       }
@@ -145,10 +196,47 @@ export default function BuyRequestManagementScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Filter chips - At the top */}
+      {buyRequests.length > 0 && (
+        <View style={styles.filterContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterScroll}
+          >
+            <Filter size={18} color="#6B7280" style={styles.filterIcon} />
+            {filterOptions.map((option) => (
+              <TouchableOpacity
+                key={option.value || 'all'}
+                style={[
+                  styles.filterChip,
+                  selectedFilter === option.value && styles.filterChipActive,
+                ]}
+                onPress={() => setSelectedFilter(option.value)}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    selectedFilter === option.value && styles.filterChipTextActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       {buyRequests.length === 0 ? (
         <ScrollView style={styles.content} contentContainerStyle={styles.emptyContainer}>
           <Package size={48} color="#D1D5DB" />
           <Text style={styles.emptyText}>Chưa có yêu cầu mua hàng nào</Text>
+        </ScrollView>
+      ) : filteredBuyRequests.length === 0 ? (
+        <ScrollView style={styles.content} contentContainerStyle={styles.emptyContainer}>
+          <Package size={48} color="#D1D5DB" />
+          <Text style={styles.emptyText}>Không có yêu cầu mua hàng nào</Text>
         </ScrollView>
       ) : (
         <FlatList
@@ -160,57 +248,86 @@ export default function BuyRequestManagementScreen() {
               onPress={() => handleViewDetail(item.id)}
             >
               <View style={styles.cardContent}>
+                {/* Header with Request Code and Status */}
                 <View style={styles.cardHeader}>
-                  <View style={styles.cardTitle}>
-                    <Text style={styles.requestId}>
-                      {item.harvestId.substring(0, 8).toUpperCase()}
-                    </Text>
+                  <Text style={styles.requestCode}>
+                    {(item as any).requestCode || (item.id ? `BRQ-${item.id.slice(0, 99).toUpperCase()}` : 'N/A')}
+                  </Text>
+                  <View style={styles.headerRight}>
                     <View
                       style={[
                         styles.statusBadge,
-                        { backgroundColor: getStatusColor(item.status) },
+                        { backgroundColor: getStatusColor(item.status), borderColor: getStatusColor(item.status) },
                       ]}
                     >
-                      <Text style={styles.statusText}>{getStatusLabel(item.status)}</Text>
+                      <Text style={styles.statusText}>
+                        {getStatusLabel(item.status)}
+                      </Text>
                     </View>
+                    <ChevronRight size={20} color="#9CA3AF" />
                   </View>
-                  <ChevronRight size={20} color="#9CA3AF" />
                 </View>
 
                 <View style={styles.cardDetails}>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Giá dự tính:</Text>
-                    <Text style={styles.detailValue}>
-                      {item.expectedPrice.toLocaleString('vi-VN')} đ
-                    </Text>
-                  </View>
-
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Số lượng:</Text>
-                    <Text style={styles.detailValue}>
-                      {item.totalQuantity} {item.totalQuantity > 0 ? 'kg' : '-'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Ngày cần:</Text>
-                    <Text style={styles.detailValue}>
-                      {new Date(item.requiredDate).toLocaleDateString('vi-VN')}
-                    </Text>
-                  </View>
-
-                  <View style={styles.messageRow}>
-                    <Text style={styles.detailLabel}>Ghi chú:</Text>
-                    <Text style={styles.messageText} numberOfLines={2}>
-                      {item.message}
-                    </Text>
-                  </View>
-
-                  {item.isBuyingBulk && (
-                    <View style={styles.bulkBadge}>
-                      <Text style={styles.bulkText}>Mua hàng loạt</Text>
+                  {/* Wholesaler Info - Highlighted */}
+                  {wholesalerInfoMap[item.id] && (
+                    <View style={styles.wholesalerCard}>
+                      <Text style={styles.wholesalerLabel}>Thương lái</Text>
+                      <Text style={styles.wholesalerName}>
+                        {wholesalerInfoMap[item.id].firstName} {wholesalerInfoMap[item.id].lastName}
+                      </Text>
+                      {wholesalerInfoMap[item.id].address && (
+                        <Text style={styles.wholesalerAddress}>
+                          {wholesalerInfoMap[item.id].address}
+                          {wholesalerInfoMap[item.id].communes && `, ${wholesalerInfoMap[item.id].communes}`}
+                          {wholesalerInfoMap[item.id].province && `, ${wholesalerInfoMap[item.id].province}`}
+                        </Text>
+                      )}
                     </View>
                   )}
+
+                  {/* Details Grid */}
+                  <View style={styles.detailsGrid}>
+                    <View style={styles.detailItem}>
+                      <View style={styles.detailContent}>
+                        <Text style={styles.detailLabel}>Giá dự tính</Text>
+                        <Text style={styles.detailValue}>
+                          {item.expectedPrice.toLocaleString('vi-VN')} đ
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.detailItem}>
+                      <View style={styles.detailContent}>
+                        <Text style={styles.detailLabel}>Số lượng</Text>
+                        <Text style={styles.detailValue}>
+                          {item.totalQuantity} {item.totalQuantity > 0 ? 'kg' : '-'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.detailItem}>
+                      <View style={styles.detailContent}>
+                        <Text style={styles.detailLabel}>Ngày cần</Text>
+                        <Text style={styles.detailValue}>
+                          {new Date(item.requiredDate).toLocaleDateString('vi-VN')}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Message */}
+                  {item.message && (
+                    <View style={styles.messageCard}>
+                      <Text style={styles.messageLabel}>Ghi chú</Text>
+                      <Text style={styles.messageText} numberOfLines={2}>
+                        {item.message}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Bulk Badge */}
+                  
                 </View>
               </View>
             </TouchableOpacity>
@@ -223,36 +340,6 @@ export default function BuyRequestManagementScreen() {
           scrollEnabled={true}
         />
       )}
-
-      {/* Filter chips - Fixed above bottom tabs */}
-      <View style={styles.filterContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterScroll}
-        >
-          <Filter size={18} color="#6B7280" style={styles.filterIcon} />
-          {filterOptions.map((option) => (
-            <TouchableOpacity
-              key={option.value || 'all'}
-              style={[
-                styles.filterChip,
-                selectedFilter === option.value && styles.filterChipActive,
-              ]}
-              onPress={() => setSelectedFilter(option.value)}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  selectedFilter === option.value && styles.filterChipTextActive,
-                ]}
-              >
-                {option.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
     </View>
   );
 }
@@ -261,13 +348,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+    paddingTop: 40,
   },
   content: {
     flex: 1,
   },
   listContent: {
-    padding: 12,
-    paddingBottom: 32,
+    padding: 16,
+    paddingBottom: 100,
   },
   loadingContainer: {
     flex: 1,
@@ -293,20 +381,38 @@ const styles = StyleSheet.create({
   },
   requestCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 12,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   cardContent: {
-    padding: 14,
+    padding: 12,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  requestCode: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   cardTitle: {
     flexDirection: 'row',
@@ -320,62 +426,141 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1.5,
   },
   statusText: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   cardDetails: {
     gap: 8,
+  },
+  // Wholesaler Card
+  wholesalerCard: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#D1FAE5',
+    marginBottom: 4,
+  },
+  wholesalerLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#059669',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  wholesalerName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  wholesalerAddress: {
+    fontSize: 12,
+    color: '#6B7280',
+    lineHeight: 18,
+  },
+  // Details Grid
+  detailsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  detailItem: {
+    flex: 1,
+    minWidth: 100,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 10,
+    padding: 10,
+  },
+  detailContent: {
+    width: '100%',
+  },
+  detailLabel: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '500',
+    marginBottom: 3,
+  },
+  detailValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#111827',
+    flexWrap: 'nowrap',
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  detailLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontWeight: '500',
+  // Message Card
+  messageCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 10,
+    padding: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: '#10B981',
   },
-  detailValue: {
-    fontSize: 12,
+  messageLabel: {
+    fontSize: 11,
     fontWeight: '600',
-    color: '#111827',
-    textAlign: 'right',
+    color: '#6B7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  messageText: {
+    fontSize: 12,
+    color: '#374151',
+    lineHeight: 18,
   },
   messageRow: {
     marginTop: 4,
   },
-  messageText: {
-    fontSize: 11,
-    color: '#4B5563',
-    marginTop: 4,
-    fontStyle: 'italic',
-    lineHeight: 16,
-  },
+  // Bulk Badge
   bulkBadge: {
     backgroundColor: '#FEF3C7',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
     alignSelf: 'flex-start',
-    marginTop: 4,
+    borderWidth: 1,
+    borderColor: '#FCD34D',
   },
   bulkText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#D97706',
   },
+  // Old styles (kept for compatibility)
+  wholesalerInfoRow: {
+    marginBottom: 8,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  wholesalerInfo: {
+    flex: 1,
+    marginTop: 4,
+  },
+  // Filter
   filterContainer: {
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
     paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
   },
   filterScroll: {
     paddingHorizontal: 16,
@@ -390,16 +575,20 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#F3F4F6',
     marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   filterChipActive: {
     backgroundColor: '#10B981',
+    borderColor: '#10B981',
   },
   filterChipText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#6B7280',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   filterChipTextActive: {
     color: '#FFFFFF',
+    fontWeight: '700',
   },
 });

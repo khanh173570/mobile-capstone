@@ -33,7 +33,12 @@ export const CreateDisputeModal: React.FC<CreateDisputeModalProps> = ({
   onSuccess,
 }) => {
   const [message, setMessage] = useState('');
+  
+  React.useEffect(() => {
+    //console.log('[CreateDisputeModal] Received isWholeSalerCreating prop:', isWholeSalerCreating, 'type:', typeof isWholeSalerCreating);
+  }, [isWholeSalerCreating]);
   const [actualAmount, setActualAmount] = useState('');
+  const [refundAmount, setRefundAmount] = useState('');
   const [actualGrade1, setActualGrade1] = useState('');
   const [actualGrade2, setActualGrade2] = useState('');
   const [actualGrade3, setActualGrade3] = useState('');
@@ -69,13 +74,34 @@ export const CreateDisputeModal: React.FC<CreateDisputeModalProps> = ({
       return;
     }
 
+    if (!refundAmount || isNaN(parseFloat(refundAmount))) {
+      Alert.alert('Lỗi', 'Vui lòng nhập số tiền cần hoàn lại');
+      return;
+    }
+
+    const refundAmountNum = parseFloat(refundAmount);
+    //console.log('[CreateDisputeModal] Refund amount input:', refundAmount);
+    //console.log('[CreateDisputeModal] Refund amount parsed:', refundAmountNum);
+    
+    if (refundAmountNum < 0) {
+      Alert.alert('Lỗi', 'Số tiền hoàn lại không được âm');
+      return;
+    }
+
+    if (refundAmountNum > totalAmount) {
+      Alert.alert('Lỗi', 'Số tiền hoàn lại không được vượt quá tổng giá trị hợp đồng');
+      return;
+    }
+
     try {
       setLoading(true);
+      console.log('🔄 [CreateDisputeModal] Starting dispute creation process...');
 
       const request: CreateDisputeRequest = {
         escrowId,
         disputeMessage: message.trim(),
         actualAmount: parseFloat(actualAmount),
+        refundAmount: refundAmountNum,
         actualGrade1Amount: actualGrade1 ? parseFloat(actualGrade1) : 0,
         actualGrade2Amount: actualGrade2 ? parseFloat(actualGrade2) : 0,
         actualGrade3Amount: actualGrade3 ? parseFloat(actualGrade3) : 0,
@@ -83,8 +109,21 @@ export const CreateDisputeModal: React.FC<CreateDisputeModalProps> = ({
         isWholeSalerCreated: isWholeSalerCreating,
       };
 
+      console.log('📝 [CreateDisputeModal] Dispute request built:', JSON.stringify({
+        escrowId: request.escrowId,
+        disputeMessage: request.disputeMessage?.substring(0, 50) + '...',
+        actualAmount: request.actualAmount,
+        refundAmount: request.refundAmount,
+        attachmentsCount: request.attachments?.length || 0,
+        isWholeSalerCreated: request.isWholeSalerCreated
+      }, null, 2));
+      
+      console.log('📤 [CreateDisputeModal] Calling createDispute API...');
       await createDispute(request);
+      console.log('✅ [CreateDisputeModal] Dispute created successfully!');
 
+      console.log('🎉 [CreateDisputeModal] Dispute creation confirmed. Creator:', isWholeSalerCreating ? 'Wholesaler' : 'Farmer');
+      
       Alert.alert(
         'Thành công',
         isWholeSalerCreating
@@ -99,6 +138,7 @@ export const CreateDisputeModal: React.FC<CreateDisputeModalProps> = ({
               // Reset form
               setMessage('');
               setActualAmount('');
+              setRefundAmount('');
               setActualGrade1('');
               setActualGrade2('');
               setActualGrade3('');
@@ -108,10 +148,16 @@ export const CreateDisputeModal: React.FC<CreateDisputeModalProps> = ({
         ]
       );
     } catch (error: any) {
-      console.error('Error creating dispute:', error);
+      console.error('❌ [CreateDisputeModal] Error creating dispute:', error);
+      console.error('   Error details:', {
+        message: error.message,
+        status: error.status,
+        code: error.code
+      });
       Alert.alert('Lỗi', error.message || 'Không thể tạo tranh chấp');
     } finally {
       setLoading(false);
+      console.log('⏹️  [CreateDisputeModal] Dispute creation process finished');
     }
   };
 
@@ -161,6 +207,25 @@ export const CreateDisputeModal: React.FC<CreateDisputeModalProps> = ({
                 onChangeText={setActualAmount}
                 editable={!loading}
               />
+            </View>
+
+            {/* Refund Amount */}
+            <View style={styles.inputSection}>
+              <Text style={styles.label}>Số tiền cần hoàn lại (VND) *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Nhập số tiền"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="decimal-pad"
+                value={refundAmount}
+                onChangeText={setRefundAmount}
+                editable={!loading}
+              />
+              {refundAmount && (
+                <Text style={styles.helperText}>
+                  ≈ {parseFloat(refundAmount).toLocaleString('vi-VN')} VND
+                </Text>
+              )}
             </View>
 
             <View style={styles.row}>
@@ -327,6 +392,11 @@ const styles = StyleSheet.create({
     color: '#111827',
     backgroundColor: '#FFFFFF',
   },
+  helperText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+  },
   textArea: {
     borderWidth: 1,
     borderColor: '#D1D5DB',
@@ -395,6 +465,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     padding: 20,
+    paddingBottom: 40,
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
   },

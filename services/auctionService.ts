@@ -110,7 +110,7 @@ export const getCurrentHarvest = async (cropId: string): Promise<CurrentHarvest>
       throw new Error('No authentication token found');
     }
 
-    console.log('Fetching current harvest for crop:', cropId);
+    //console.log('Fetching current harvest for crop:', cropId);
     const response = await fetch(`${API_URL}/farm-service/crop/${cropId}/currentharvest`, {
       method: 'GET',
       headers: {
@@ -139,7 +139,7 @@ export const getCurrentHarvest = async (cropId: string): Promise<CurrentHarvest>
       throw error;
     }
 
-    console.log('Current harvest fetched successfully:', data.data?.id);
+    //console.log('Current harvest fetched successfully:', data.data?.id);
     return data.data;
   } catch (error) {
     // Only log unexpected errors (not the "harvest doesn't exist" case)
@@ -163,8 +163,8 @@ export const createAuctionSession = async (auctionData: CreateAuctionData): Prom
       Object.entries(auctionData).filter(([_, value]) => value !== null && value !== undefined)
     );
 
-    console.log('Creating auction session with cleaned data:', JSON.stringify(cleanedData, null, 2));
-    console.log('Data fields:', Object.keys(cleanedData));
+    //console.log('Creating auction session with cleaned data:', JSON.stringify(cleanedData, null, 2));
+    //console.log('Data fields:', Object.keys(cleanedData));
     
     const response = await fetch(`${API_URL}/auction-service/englishauction`, {
       method: 'POST',
@@ -175,10 +175,10 @@ export const createAuctionSession = async (auctionData: CreateAuctionData): Prom
       body: JSON.stringify(cleanedData),
     });
 
-    console.log('Response status:', response.status);
+    //console.log('Response status:', response.status);
     
     const text = await response.text();
-    // console.log('Response text:', text);
+    // //console.log('Response text:', text);
     
     let data;
     
@@ -199,7 +199,7 @@ export const createAuctionSession = async (auctionData: CreateAuctionData): Prom
       throw error;
     }
 
-    console.log('Auction session created successfully:', data.data?.id);
+    //console.log('Auction session created successfully:', data.data?.id);
     return data.data;
   } catch (error) {
     // console.error('Error creating auction session:', error);
@@ -217,7 +217,7 @@ export const createAuctionHarvest = async (auctionHarvestData: CreateAuctionHarv
 
     const { auctionSessionId, harvestId } = auctionHarvestData;
     
-    console.log('🔍 [createAuctionHarvest] Bắt đầu validation:', { auctionSessionId, harvestId });
+    //console.log('🔍 [createAuctionHarvest] Bắt đầu validation:', { auctionSessionId, harvestId });
 
     // ============ VALIDATION 1: Check UUID format ============
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -234,10 +234,10 @@ export const createAuctionHarvest = async (auctionHarvestData: CreateAuctionHarv
       throw new Error(error);
     }
 
-    console.log('✅ UUID format hợp lệ');
+    //console.log('✅ UUID format hợp lệ');
 
     // ============ VALIDATION 2: Check if harvest exists ============
-    console.log('🔍 Kiểm tra harvest tồn tại...');
+    //console.log('🔍 Kiểm tra harvest tồn tại...');
     const harvest = await getHarvestById(harvestId);
     
     if (!harvest) {
@@ -246,15 +246,15 @@ export const createAuctionHarvest = async (auctionHarvestData: CreateAuctionHarv
       throw new Error(error);
     }
     
-    console.log('✅ Harvest tồn tại:', {
-      id: harvest.id,
-      cropId: harvest.cropId || harvest.cropID,
-      totalQuantity: harvest.totalQuantity,
-      unit: harvest.unit
-    });
+    //console.log('✅ Harvest tồn tại:', {
+    //  id: harvest.id,
+    //  cropId: harvest.cropId || harvest.cropID,
+    //  totalQuantity: harvest.totalQuantity,
+    //  unit: harvest.unit
+    //});
 
     // ============ VALIDATION 3: Check if harvest already in another active auction ============
-    console.log('🔍 Kiểm tra harvest đã có auction khác...');
+    //console.log('🔍 Kiểm tra harvest đã có auction khác...');
     const hasActiveAuction = await checkHarvestHasActiveAuction(harvestId);
     
     if (hasActiveAuction) {
@@ -263,10 +263,10 @@ export const createAuctionHarvest = async (auctionHarvestData: CreateAuctionHarv
       throw new Error(error);
     }
     
-    console.log('✅ Harvest không có auction khác');
+    //console.log('✅ Harvest không có auction khác');
 
     // ============ VALIDATION 4: Data format check ============
-    console.log('🔍 Kiểm tra format dữ liệu...');
+    //console.log('🔍 Kiểm tra format dữ liệu...');
     
     if (typeof auctionSessionId !== 'string' || auctionSessionId.trim() === '') {
       throw new Error('❌ auctionSessionId phải là string không rỗng');
@@ -276,11 +276,11 @@ export const createAuctionHarvest = async (auctionHarvestData: CreateAuctionHarv
       throw new Error('❌ harvestId phải là string không rỗng');
     }
 
-    console.log('✅ Format dữ liệu hợp lệ');
+    //console.log('✅ Format dữ liệu hợp lệ');
 
     // ============ API CALL with enhanced error logging ============
-    console.log('📡 Gửi request tới API...');
-    console.log('Request body:', JSON.stringify(auctionHarvestData));
+    //console.log('📡 Gửi request tới API...');
+    //console.log('Request body:', JSON.stringify(auctionHarvestData));
     
     const response = await fetch(`${API_URL}/auction-service/auctionharvest`, {
       method: 'POST',
@@ -291,10 +291,10 @@ export const createAuctionHarvest = async (auctionHarvestData: CreateAuctionHarv
       body: JSON.stringify(auctionHarvestData),
     });
 
-    console.log('Response status:', response.status);
+    //console.log('Response status:', response.status);
 
     const text = await response.text();
-    console.log('Response text length:', text.length);
+    //console.log('Response text length:', text.length);
     
     let data;
     
@@ -328,7 +328,7 @@ export const createAuctionHarvest = async (auctionHarvestData: CreateAuctionHarv
       throw new Error(translatedMessage);
     }
 
-    console.log('✅ Auction harvest tạo thành công');
+    //console.log('✅ Auction harvest tạo thành công');
     return data.data;
   } catch (error: any) {
     console.error('❌ [createAuctionHarvest] Error:', error.message);
@@ -345,7 +345,7 @@ export const updateAuctionSessionStatus = async (auctionSessionId: string, statu
     }
 
     const statusValue = status === 'Draft' ? 0 : 1; // 0 = Draft, 1 = Pending
-    console.log('Updating auction session status:', { auctionSessionId, status, statusValue });
+    //console.log('Updating auction session status:', { auctionSessionId, status, statusValue });
     const response = await fetch(`${API_URL}/auction-service/englishauction/${auctionSessionId}/status`, {
       method: 'PUT',
       headers: {
@@ -369,7 +369,7 @@ export const updateAuctionSessionStatus = async (auctionSessionId: string, statu
       throw new Error(data.message || 'Failed to update auction session status');
     }
 
-    console.log('Auction session status updated successfully');
+    //console.log('Auction session status updated successfully');
     return data.data;
   } catch (error) {
     console.error('Error updating auction session status:', error);
@@ -467,7 +467,7 @@ export const getFarmerAuctions = async (): Promise<FarmerAuction[]> => {
 
     const text = await response.text();
     if (!text || text.trim() === '') {
-      console.log('Empty response, returning empty array');
+      //console.log('Empty response, returning empty array');
       return [];
     }
 
@@ -516,7 +516,7 @@ export const getAuctionSessionHarvests = async (auctionSessionId: string): Promi
 
     const text = await response.text();
     if (!text || text.trim() === '') {
-      console.log('Empty response, returning empty array');
+      //console.log('Empty response, returning empty array');
       return [];
     }
 
@@ -555,7 +555,7 @@ export const getHarvestById = async (harvestId: string): Promise<HarvestDetail |
       throw new Error('No access token found');
     }
 
-    console.log(`Fetching harvest details for ID: ${harvestId}`);
+    //console.log(`Fetching harvest details for ID: ${harvestId}`);
     const response = await fetch(`${API_URL}/farm-service/harvest/${harvestId}`, {
       method: 'GET',
       headers: {
@@ -564,24 +564,24 @@ export const getHarvestById = async (harvestId: string): Promise<HarvestDetail |
       },
     });
 
-    console.log(`Harvest API response status: ${response.status}`);
+    //console.log(`Harvest API response status: ${response.status}`);
     const text = await response.text();
-    // console.log(`Harvest API response text length: ${text?.length || 0}`);
+    // //console.log(`Harvest API response text length: ${text?.length || 0}`);
     
     if (!text || text.trim() === '') {
-      console.log('Empty response for harvest:', harvestId);
+      //console.log('Empty response for harvest:', harvestId);
       return null;
     }
 
     let result: ApiResponse<HarvestDetail>;
     try {
       result = JSON.parse(text);
-      console.log('Parsed harvest result:', {
-        isSuccess: result.isSuccess,
-        statusCode: result.statusCode,
-        hasData: !!result.data,
-        dataKeys: result.data ? Object.keys(result.data) : []
-      });
+      //console.log('Parsed harvest result:', {
+      //  isSuccess: result.isSuccess,
+      //  statusCode: result.statusCode,
+      //  hasData: !!result.data,
+      //  dataKeys: result.data ? Object.keys(result.data) : []
+      //});
     } catch (parseError) {
       // console.error('JSON parse error for harvest:', parseError);
       // console.error('Raw response text:', text);
@@ -595,16 +595,16 @@ export const getHarvestById = async (harvestId: string): Promise<HarvestDetail |
     }
 
     if (result.isSuccess && result.data) {
-      console.log('Harvest data retrieved successfully:', {
-        id: result.data.id,
-        cropId: result.data.cropId,
-        hasGradeDetails: !!result.data.harvestGradeDetailDTOs,
-        gradeDetailsCount: result.data.harvestGradeDetailDTOs?.length || 0
-      });
+      //console.log('Harvest data retrieved successfully:', {
+      //  id: result.data.id,
+      //  cropId: result.data.cropId,
+      //  hasGradeDetails: !!result.data.harvestGradeDetailDTOs,
+      //  gradeDetailsCount: result.data.harvestGradeDetailDTOs?.length || 0
+      //});
       return result.data;
     }
 
-    console.log('No harvest data in successful response:', result);
+    //console.log('No harvest data in successful response:', result);
     return null;
   } catch (error) {
     console.error('Get harvest by ID error:', error);
@@ -723,7 +723,7 @@ export const getAuctionsByStatus = async (
     }
 
     const url = `${API_URL}/auction-service/englishauction?status=${status}&pageNumber=${pageNumber}&pageSize=${pageSize}`;
-    console.log('Fetching auctions with status:', url);
+    // //console.log('Fetching auctions with status:', url);
 
     const response = await fetch(url, {
       method: 'GET',
@@ -738,7 +738,7 @@ export const getAuctionsByStatus = async (
     }
 
     const data = await response.json();
-    // console.log('Auctions fetched successfully:', data);
+    // //console.log('Auctions fetched successfully:', data);
     return data;
   } catch (error) {
     console.error('Error fetching auctions by status:', error);
@@ -770,7 +770,7 @@ export const getAuctionDetail = async (auctionId: string): Promise<any> => {
     if (!response.ok) {
       // Xử lý 404 im lặng (escrow từ buy request không có auction)
       if (response.status === 404) {
-        console.log('Auction not found (404), this is expected for buy request escrows');
+        //console.log('Auction not found (404), this is expected for buy request escrows');
         return null;
       }
       throw new Error(`Failed to get auction detail: ${response.status}`);
@@ -781,7 +781,7 @@ export const getAuctionDetail = async (auctionId: string): Promise<any> => {
   } catch (error: any) {
     // Nếu là lỗi 404, chỉ log info và return null thay vì throw
     if (error.message?.includes('404')) {
-      console.log('Auction not found, this is expected for buy request escrows');
+      //console.log('Auction not found, this is expected for buy request escrows');
       return null;
     }
     // Các lỗi khác vẫn throw
@@ -811,14 +811,14 @@ export const checkHarvestHasActiveAuction = async (harvestId: string): Promise<b
       const sessionHarvests = await getAuctionSessionHarvests(auction.id);
       const hasHarvest = sessionHarvests.some(sh => sh.harvestId === harvestId);
       if (hasHarvest) {
-        console.log(`Harvest ${harvestId} has active auction:`, auction.id, auction.status);
+        // //console.log(`Harvest ${harvestId} has active auction:`, auction.id, auction.status);
         return true;
       }
     }
     
     return false;
   } catch (error) {
-    console.error('Error checking harvest active auction:', error);
+    // console.error('Error checking harvest active auction:', error);
     // Return false to allow operations on error (fail-open approach)
     return false;
   }
@@ -849,7 +849,7 @@ export const checkCropHasActiveAuction = async (cropId: string): Promise<boolean
       for (const sessionHarvest of sessionHarvests) {
         const harvestDetail = await getHarvestById(sessionHarvest.harvestId);
         if (harvestDetail && (harvestDetail.cropId === cropId || harvestDetail.cropID === cropId)) {
-          console.log(`Crop ${cropId} has active auction:`, auction.id, auction.status);
+          //console.log(`Crop ${cropId} has active auction:`, auction.id, auction.status);
           return true;
         }
       }

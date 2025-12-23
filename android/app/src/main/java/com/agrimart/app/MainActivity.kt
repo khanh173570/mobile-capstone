@@ -1,4 +1,4 @@
-package com.agrimart.shop
+package com.agrimart.app
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

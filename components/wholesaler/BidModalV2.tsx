@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import {
   getBidSuggestions,
   createBid,
   updateBid,
+  updateAutoBid,
   BidResponse,
   UpdateBidRequest,
 } from '../../services/bidService';
@@ -40,6 +41,8 @@ interface CreateBidModalProps {
   userProfile?: { userId: string; fullName: string } | null;
   startingPrice?: number;
   buyNowPrice?: number;
+  enableReserveProxy?: boolean;
+  isAutoBidUpdate?: boolean; // true = update auto-bid, false/undefined = update manual bid
 }
 
 export default function CreateBidModal({
@@ -55,36 +58,63 @@ export default function CreateBidModal({
   userProfile,
   startingPrice = 0,
   buyNowPrice,
+  enableReserveProxy = true,
+  isAutoBidUpdate = false,
 }: CreateBidModalProps) {
   const [isAutoBid, setIsAutoBid] = useState(false); // Default to manual bid (safer)
   const [autoBidMaxLimit, setAutoBidMaxLimit] = useState<string>('');
+  const [autoBidEnabled, setAutoBidEnabled] = useState(true); // toggle for update auto-bid
   const [manualBidAmount, setManualBidAmount] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState<number | null>(null);
+  const prevVisibleRef = useRef(false);
 
-  // Log visibility changes
+  // Force manual mode if auto-bid is not allowed
   React.useEffect(() => {
-    console.log('CreateBidModal visible changed:', visible, 'existingBid:', existingBid);
-    if (visible && existingBid) {
-      // Update mode: set manual bid amount from existing bid
-      setManualBidAmount(existingBid.bidAmount.toString());
-      setIsAutoBid(false); // Force to manual mode in update
+    if (!enableReserveProxy && isAutoBid) {
+      setIsAutoBid(false);
       setAutoBidMaxLimit('');
       setSelectedSuggestion(null);
-    } else if (visible && !existingBid) {
-      // Create mode: reset based on auto/manual selection
-      // Auto mode: clear manual bid, keep auto bid limit input
-      // Manual mode: clear auto bid, keep manual bid input
-      if (isAutoBid) {
-        setManualBidAmount('');
-        // Keep autoBidMaxLimit for user to input
-      } else {
-        setAutoBidMaxLimit('');
-        // Keep manualBidAmount for user to input
-      }
-      setSelectedSuggestion(null);
+      setAutoBidEnabled(false);
     }
-  }, [visible, existingBid]);
+  }, [enableReserveProxy, isAutoBid]);
+
+  // Initialize state when modal opens; do not override user toggles while open
+  React.useEffect(() => {
+    if (visible && !prevVisibleRef.current) {
+      if (existingBid) {
+        // Use isAutoBidUpdate to determine which form to show
+        // - isAutoBidUpdate = true → show auto-bid update form
+        // - isAutoBidUpdate = false → show manual bid update form
+        if (isAutoBidUpdate) {
+          // Existing auto-bid: show auto-bid update form
+          setIsAutoBid(true);
+          setAutoBidEnabled(true);
+          setAutoBidMaxLimit(
+            existingBid.autoBidMaxLimit !== undefined && existingBid.autoBidMaxLimit !== null
+              ? existingBid.autoBidMaxLimit.toString()
+              : ''
+          );
+          setManualBidAmount('');
+        } else {
+          // Show manual bid update form (even if existing bid is auto-bid)
+          setManualBidAmount(existingBid.bidAmount.toString());
+          setIsAutoBid(false);
+          setAutoBidEnabled(false);
+          setAutoBidMaxLimit('');
+        }
+        setSelectedSuggestion(null);
+      } else {
+        // New bid: default to manual bid
+        setIsAutoBid(false);
+        setAutoBidEnabled(false);
+        setAutoBidMaxLimit('');
+        setManualBidAmount('');
+        setSelectedSuggestion(null);
+      }
+    }
+    prevVisibleRef.current = visible;
+  }, [visible, existingBid, isAutoBidUpdate]);
 
   const minAutoBidLimit = useMemo(
     () => calculateMinAutoBidLimit(currentPrice, minBidIncrement),
@@ -121,24 +151,24 @@ export default function CreateBidModal({
       return { isValid: false, message: 'Vui lòng nhập số hợp lệ' };
     }
     const result = validateBidAmount(amountValue, currentPrice, minBidIncrement);
-    console.log('manualBidValidation:', {
-      manualBidAmount,
-      amountValue,
-      currentPrice,
-      minBidIncrement,
-      result,
-    });
+    //console.log('manualBidValidation:', {
+    // manualBidAmount,
+    //   amountValue,
+    //   currentPrice,
+    //   minBidIncrement,
+    //   result,
+    // });
     return result;
   }, [manualBidAmount, currentPrice, minBidIncrement]);
 
-  // In update mode, always use manual bid validation
+  // In update mode: check validation based on current bid type
   // In create mode: auto mode needs autoBidMaxLimit, manual mode is always valid (no input needed)
-  const isValid = existingBid 
-    ? manualBidValidation.isValid 
+  const isValid = existingBid
+    ? (isAutoBid ? autoBidValidation.isValid : manualBidValidation.isValid)
     : (isAutoBid ? autoBidValidation.isValid : true); // Manual mode is always valid
 
   const handleSelectSuggestion = (value: number) => {
-    console.log('Selected suggestion:', value);
+    //console.log('Selected suggestion:', value);
     setManualBidAmount(value.toString());
     setSelectedSuggestion(value);
   };
@@ -153,10 +183,10 @@ export default function CreateBidModal({
   const handleConfirmBid = () => {
     // Prevent double submission
     if (loading) {
-      console.log('⚠️ Already processing, ignoring duplicate click');
+      //console.log('⚠️ Already processing, ignoring duplicate click');
       return;
     }
-    
+
     // If updating existing bid, skip fee notification
     if (existingBid) {
       handleCreateOrUpdateBid();
@@ -178,7 +208,7 @@ export default function CreateBidModal({
         {
           text: 'Đồng ý',
           onPress: () => {
-            console.log('✅ User confirmed fee, proceeding to create bid');
+            //console.log('✅ User confirmed fee, proceeding to create bid');
             handleCreateOrUpdateBid();
           },
         },
@@ -187,15 +217,15 @@ export default function CreateBidModal({
   };
 
   const handleCreateOrUpdateBid = async () => {
-    console.log('=== BidModal: handleCreateOrUpdateBid ===');
-    console.log('existingBid:', existingBid);
-    console.log('isAutoBid:', isAutoBid);
-    console.log('manualBidAmount:', manualBidAmount);
-    console.log('autoBidMaxLimit:', autoBidMaxLimit);
-    console.log('isValid:', isValid);
-    console.log('autoBidValidation:', autoBidValidation);
-    console.log('manualBidValidation:', manualBidValidation);
-    
+    //console.log('=== BidModal: handleCreateOrUpdateBid ===');
+    //console.log('existingBid:', existingBid);
+    //console.log('isAutoBid:', isAutoBid);
+    //console.log('manualBidAmount:', manualBidAmount);
+    //console.log('autoBidMaxLimit:', autoBidMaxLimit);
+    //console.log('isValid:', isValid);
+    //console.log('autoBidValidation:', autoBidValidation);
+    //console.log('manualBidValidation:', manualBidValidation);
+
     // Check if auction is still ongoing
     if (auctionStatus !== 'OnGoing') {
       Alert.alert(
@@ -205,13 +235,15 @@ export default function CreateBidModal({
       );
       return;
     }
-    
+
     if (!isValid) {
       const errorMessage = existingBid
-        ? (manualBidValidation.message || 'Vui lòng kiểm tra giá đặt')
-        : (isAutoBid 
-            ? (autoBidValidation.message || 'Vui lòng nhập giá tối đa')
-            : 'Lỗi không xác định'); // Manual should always be valid
+        ? (existingBid.isAutoBid
+          ? (autoBidValidation.message || 'Vui lòng kiểm tra giá tối đa')
+          : (manualBidValidation.message || 'Vui lòng kiểm tra giá đặt'))
+        : (isAutoBid
+          ? (autoBidValidation.message || 'Vui lòng nhập giá tối đa')
+          : 'Lỗi không xác định'); // Manual should always be valid
       Alert.alert('Lỗi', errorMessage);
       return;
     }
@@ -219,82 +251,80 @@ export default function CreateBidModal({
     setLoading(true);
     try {
       if (existingBid) {
-        const amountValue = parseFloat(manualBidAmount);
-        
-        // Check if bid amount actually changed
-        if (amountValue === existingBid.bidAmount) {
-          console.log('⚠️ Bid amount unchanged:', amountValue, '=', existingBid.bidAmount);
-          Alert.alert('Thông báo', 'Giá đặt không thay đổi. Vui lòng nhập giá khác.');
-          setLoading(false);
-          return;
-        }
-        
-        console.log('✏️ Updating bid from', existingBid.bidAmount, 'to', amountValue);
-        const response = await updateBid({
-          auctionSessionId,
-          bidAmount: amountValue,
-        });
+        if (isAutoBidUpdate) {
+          const limitValue = parseFloat(autoBidMaxLimit);
+          const response = await updateAutoBid({
+            auctionSessionId,
+            autoBidMaxLimit: limitValue,
+            isAutoBid: isAutoBid,
+          });
 
-        console.log('🔵 UpdateBid Response:', {
-          isSuccess: response.isSuccess,
-          statusCode: response.statusCode,
-          message: response.message,
-          data: response.data,
-          errors: response.errors,
-        });
-
-        if (response.isSuccess) {
-          console.log('✅ Bid updated successfully! New value:', amountValue);
-          
-          // DEBUG: Auto-trigger BidPlaced event for updated bid
-          setTimeout(() => {
-            console.log('🧪 DEBUG: Auto-triggering BidPlaced event for updated bid');
-            signalRService.debugTriggerBidPlaced({
-              auctionId: auctionSessionId,
-              bidId: 'updated-' + Date.now(),
-              userId: userProfile?.userId || 'unknown',
-              userName: userProfile?.fullName || 'Thương Lái',
-              bidAmount: amountValue,
-              previousPrice: existingBid.bidAmount,
-              newPrice: amountValue,
-              placedAt: new Date().toISOString(),
-            });
-          }, 500);
-
-          // Wait a bit for backend to process
-          await new Promise(resolve => setTimeout(resolve, 500));
-
-          // Show success alert with details
-          Alert.alert(
-            'Cập nhật thành công!',
-            `Bạn đã thay đổi giá thành công!\n\nPhiên đấu giá: ${sessionCode}\nGiá cũ: ${existingBid.bidAmount.toLocaleString('vi-VN')} ₫\nGiá mới: ${amountValue.toLocaleString('vi-VN')} ₫`,
-            [
-              {
-                text: 'OK',
-                onPress: () => {
-                  onBidCreated?.();
-                  onClose();
-                  setManualBidAmount('');
-                  setAutoBidMaxLimit('');
-                  setSelectedSuggestion(null);
+          if (response.isSuccess) {
+            Alert.alert(
+              'Cập nhật thành công!',
+              `Đã cập nhật giá tối đa auto-bid: ${limitValue.toLocaleString('vi-VN')} ₫`,
+              [
+                {
+                  text: 'OK',
+                  onPress: () => {
+                    onBidCreated?.();
+                    onClose();
+                    setAutoBidMaxLimit('');
+                    setSelectedSuggestion(null);
+                  }
                 }
-              }
-            ]
-          );
+              ]
+            );
+          } else {
+            Alert.alert('Lỗi', response.message || 'Không thể cập nhật auto-bid');
+          }
         } else {
-          Alert.alert('Lỗi', response.message || 'Không thể cập nhật giá');
+          const amountValue = parseFloat(manualBidAmount);
+
+          // Check if bid amount actually changed
+          if (amountValue === existingBid.bidAmount) {
+            Alert.alert('Thông báo', 'Giá đặt không thay đổi. Vui lòng nhập giá khác.');
+            setLoading(false);
+            return;
+          }
+
+          const response = await updateBid({
+            auctionSessionId,
+            bidAmount: amountValue,
+          });
+
+          if (response.isSuccess) {
+            Alert.alert(
+              'Cập nhật thành công!',
+              `Bạn đã thay đổi giá thành công!\n\nPhiên đấu giá: ${sessionCode}\nGiá cũ: ${existingBid.bidAmount.toLocaleString('vi-VN')} ₫\nGiá mới: ${amountValue.toLocaleString('vi-VN')} ₫`,
+              [
+                {
+                  text: 'OK',
+                  onPress: () => {
+                    onBidCreated?.();
+                    onClose();
+                    setManualBidAmount('');
+                    setAutoBidMaxLimit('');
+                    setSelectedSuggestion(null);
+                  }
+                }
+              ]
+            );
+          } else {
+            Alert.alert('Lỗi', response.message || 'Không thể cập nhật giá');
+          }
         }
       } else {
         // Create new bid
-        console.log('🔍 Debug Before CreateBid:', {
-          isAutoBid,
-          manualBidAmount,
-          autoBidMaxLimit,
-          currentPrice,
-          minBidIncrement,
-          auctionSessionId,
-        });
-        
+        //console.log('🔍 Debug Before CreateBid:', {
+        //   isAutoBid,
+        //   manualBidAmount,
+        //   autoBidMaxLimit,
+        //   currentPrice,
+        //   minBidIncrement,
+        //   auctionSessionId,
+        // });
+
         // Validate inputs
         if (isAutoBid) {
           if (!autoBidMaxLimit || autoBidMaxLimit.trim() === '') {
@@ -302,7 +332,7 @@ export default function CreateBidModal({
             setLoading(false);
             return;
           }
-          
+
           // Parse and validate the number
           const maxLimitValue = parseFloat(autoBidMaxLimit.replace(/,/g, ''));
           if (isNaN(maxLimitValue) || maxLimitValue <= 0) {
@@ -310,7 +340,7 @@ export default function CreateBidModal({
             setLoading(false);
             return;
           }
-          
+
           // Check if exceeds buy now price
           if (buyNowPrice && maxLimitValue > buyNowPrice) {
             Alert.alert(
@@ -320,7 +350,7 @@ export default function CreateBidModal({
             setLoading(false);
             return;
           }
-          
+
           // Validate against current price and increment
           const validation = validateAutoBidLimit(maxLimitValue, currentPrice, minBidIncrement);
           if (!validation.isValid) {
@@ -329,74 +359,74 @@ export default function CreateBidModal({
             return;
           }
         }
-        
+
         // Create bid - only 3 fields:
         // Manual: { isAutoBid: false, auctionSessionId }
         // Auto: { isAutoBid: true, autoBidMaxLimit, auctionSessionId }
-        
+
         const request: CreateBidRequest = {
           isAutoBid,
           auctionSessionId,
         };
-        
+
         // Only add autoBidMaxLimit if auto bid
         if (isAutoBid && autoBidMaxLimit) {
           const maxLimitValue = parseFloat(autoBidMaxLimit.replace(/,/g, '').replace(/\./g, ''));
-          console.log('🔍 Parsing autoBidMaxLimit:', {
-            original: autoBidMaxLimit,
-            afterReplace: autoBidMaxLimit.replace(/,/g, '').replace(/\./g, ''),
-            parsed: maxLimitValue,
-            isNaN: isNaN(maxLimitValue),
-            type: typeof maxLimitValue,
-          });
-          
+          //console.log('🔍 Parsing autoBidMaxLimit:', {
+          //   original: autoBidMaxLimit,
+          //   afterReplace: autoBidMaxLimit.replace(/,/g, '').replace(/\./g, ''),
+          //   parsed: maxLimitValue,
+          //   isNaN: isNaN(maxLimitValue),
+          //   type: typeof maxLimitValue,
+          // });
+
           if (isNaN(maxLimitValue) || maxLimitValue <= 0) {
             Alert.alert('Lỗi', 'Giá tối đa không hợp lệ. Vui lòng kiểm tra lại số nhập vào.');
             setLoading(false);
             return;
           }
-          
+
           request.autoBidMaxLimit = maxLimitValue;
         }
-        
-        console.log('🔍 CreateBid Request:', {
-          isAutoBid,
-          auctionSessionId,
-          autoBidMaxLimit: request.autoBidMaxLimit,
-          autoBidMaxLimitType: typeof request.autoBidMaxLimit,
-          note: isAutoBid ? 'Auto bid with max limit' : 'Manual bid - join only',
-        });
-        
-        console.log('🔍 Final Request Object:', JSON.stringify(request, null, 2));
 
-        console.log('🔵 Final Request Object:', JSON.stringify(request, null, 2));
+        //console.log('🔍 CreateBid Request:', {
+        //   isAutoBid,
+        //   auctionSessionId,
+        //   autoBidMaxLimit: request.autoBidMaxLimit,
+        //   autoBidMaxLimitType: typeof request.autoBidMaxLimit,
+        //   note: isAutoBid ? 'Auto bid with max limit' : 'Manual bid - join only',
+        // });
+
+        //console.log('🔍 Final Request Object:', JSON.stringify(request, null, 2));
+
+        //console.log('🔵 Final Request Object:', JSON.stringify(request, null, 2));
 
         const response = await createBid(request);
 
-        console.log('🔵 CreateBid Response:', {
-          isSuccess: response.isSuccess,
-          statusCode: response.statusCode,
-          message: response.message,
-          data: response.data,
-          errors: response.errors,
-        });
+        //console.log('🔵 CreateBid Response:', {
+        //   isSuccess: response.isSuccess,
+        //   statusCode: response.statusCode,
+        //   message: response.message,
+        //   data: response.data,
+        //   errors: response.errors,
+        // });
 
         if (response.isSuccess) {
           // For auto bid: actual bid price = currentPrice + minBidIncrement (first bid)
           // autoBidMaxLimit is the max limit, not the actual bid price
           // For manual bid: actual bid price = manualBidAmount
-          const actualBidPrice = isAutoBid 
+          const actualBidPrice = isAutoBid
             ? currentPrice + minBidIncrement
             : parseFloat(manualBidAmount);
 
-          console.log('✅ Bid created successfully!');
-          console.log('   isAutoBid:', isAutoBid);
-          console.log('   autoBidMaxLimit:', autoBidMaxLimit);
-          console.log('   manualBidAmount:', manualBidAmount);
-          console.log('   actualBidPrice:', actualBidPrice);
-          console.log('   currentPrice:', currentPrice);
-          console.log('   minBidIncrement:', minBidIncrement);
-          console.log('   NOTE: NOT triggering BidPlaced event on CREATE - will wait for backend SignalR');
+          //console.log('✅ Bid created successfully!');
+          //console.log('   isAutoBid:', isAutoBid);
+          //console.log('   autoBidMaxLimit:', autoBidMaxLimit);
+          //console.log('   manualBidAmount:', manualBidAmount);
+          //console.log('   actualBidPrice:', actualBidPrice);
+          //console.log('   currentPrice:', currentPrice);
+          //console.log('   minBidIncrement:', minBidIncrement);
+          //console.log('   NOTE: NOT triggering BidPlaced event on CREATE - will wait for backend SignalR');
 
           // Close modal and trigger callback without alert
           // DO NOT trigger BidPlaced event on CREATE - let backend handle it
@@ -418,13 +448,13 @@ export default function CreateBidModal({
       }
     } catch (error: any) {
       // console.error('❌ Error creating/updating bid:', error);
-      
+
       // Try to extract detailed errors from response
       let errorMessage = 'Có lỗi xảy ra';
-      
+
       if (error instanceof Error) {
         errorMessage = error.message;
-        
+
         // If error has response data with errors array, use it
         if (error.cause && typeof error.cause === 'object') {
           const cause = error.cause as any;
@@ -433,16 +463,16 @@ export default function CreateBidModal({
           }
         }
       }
-      
-      console.log('📋 Error details:', {
-        message: errorMessage,
-        error: error,
-      });
-      
+
+      // console.log('📋 Error details:', {
+      //   message: errorMessage,
+      //   error: error,
+      // });
+
       // Check if error is due to insufficient funds
       if (errorMessage.toLowerCase().includes('insufficient funds') ||
-          errorMessage.toLowerCase().includes('insufficient') ||
-          errorMessage.toLowerCase().includes('wallet')) {
+        errorMessage.toLowerCase().includes('insufficient') ||
+        errorMessage.toLowerCase().includes('wallet')) {
         Alert.alert(
           '❌ Không đủ tiền trong ví',
           'Bạn không có đủ tiền trong ví để đặt giá này. Vui lòng nạp tiền hoặc đặt giá thấp hơn.',
@@ -453,8 +483,8 @@ export default function CreateBidModal({
       }
       // Check if error is due to someone else bidding (only check outbid/higher bid messages)
       else if (errorMessage.toLowerCase().includes('outbid') ||
-          errorMessage.toLowerCase().includes('higher bid') ||
-          errorMessage.toLowerCase().includes('đã đặt giá cao hơn')) {
+        errorMessage.toLowerCase().includes('higher bid') ||
+        errorMessage.toLowerCase().includes('đã đặt giá cao hơn')) {
         Alert.alert(
           '⏰ Ai đó đã đặt giá cao hơn',
           'Có người khác vừa đặt giá cao hơn của bạn. Vui lòng kiểm tra giá hiện tại và thử lại.',
@@ -526,27 +556,32 @@ export default function CreateBidModal({
 
           {!existingBid && (
             <>
-              {/* Bid Type Toggle */}
+              {/* Bid Type Toggle (only show auto option when allowed) */}
               <View style={styles.bidTypeSection}>
                 <Text style={styles.bidTypeLabel}>Chọn loại đặt giá</Text>
                 <View style={styles.bidTypeContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.bidTypeButton,
-                      isAutoBid && styles.bidTypeButtonActive,
-                    ]}
-                    onPress={() => setIsAutoBid(true)}
-                    disabled={loading}
-                  >
-                    <Text
+                  {enableReserveProxy && (
+                    <TouchableOpacity
                       style={[
-                        styles.bidTypeText,
-                        isAutoBid && styles.bidTypeTextActive,
+                        styles.bidTypeButton,
+                        isAutoBid && styles.bidTypeButtonActive,
                       ]}
+                      onPress={() => {
+                        if (loading) return;
+                        setIsAutoBid(true);
+                      }}
+                      disabled={loading}
                     >
-                      🤖 Tự động
-                    </Text>
-                  </TouchableOpacity>
+                      <Text
+                        style={[
+                          styles.bidTypeText,
+                          isAutoBid && styles.bidTypeTextActive,
+                        ]}
+                      >
+                        🤖 Tự động
+                      </Text>
+                    </TouchableOpacity>
+                  )}
 
                   <TouchableOpacity
                     style={[
@@ -568,8 +603,8 @@ export default function CreateBidModal({
                 </View>
               </View>
 
-              {/* Auto Bid Input */}
-              {isAutoBid && (
+              {/* Auto Bid Input (only when allowed and selected) */}
+              {enableReserveProxy && isAutoBid && (
                 <View style={styles.inputSection}>
                   <Text style={styles.inputLabel}>Giá tối đa (Auto Bid)</Text>
                   <View style={[
@@ -638,74 +673,122 @@ export default function CreateBidModal({
 
           {existingBid && (
             <>
-              <View style={styles.inputSection}>
-                <Text style={styles.inputLabel}>Giá đặt mới</Text>
-                <View style={[
-                  styles.inputWrapper,
-                  manualBidValidation.isValid === false && manualBidAmount
-                    ? styles.inputError
-                    : null,
-                ]}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Nhập giá đặt mới"
-                    placeholderTextColor="#9CA3AF"
-                    keyboardType="decimal-pad"
-                    value={manualBidAmount}
-                    onChangeText={setManualBidAmount}
-                    editable={!loading}
-                  />
-                  <Text style={styles.currency}>₫</Text>
-                </View>
-
-                {manualBidValidation.isValid === false && manualBidAmount && (
-                  <View style={styles.errorContainer}>
-                    <AlertCircle size={16} color="#DC2626" />
-                    <Text style={styles.errorText}>{manualBidValidation.message}</Text>
-                  </View>
-                )}
-
-                {manualBidValidation.isValid && manualBidAmount && (
-                  <View style={styles.successContainer}>
-                    <Check size={16} color="#10B981" />
-                    <Text style={styles.successText}>Giá hợp lệ ✓</Text>
-                  </View>
-                )}
-              </View>
-
-              <View style={styles.suggestionsSection}>
-                <Text style={styles.suggestionsTitle}>Gợi ý giá</Text>
-                <View style={styles.suggestionsGrid}>
-                  {suggestions.map((suggestion: number, index: number) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={[
-                        styles.suggestionButton,
-                        selectedSuggestion === suggestion && styles.suggestionButtonSelected,
-                      ]}
-                      onPress={() => handleSelectSuggestion(suggestion)}
-                      disabled={loading}
-                    >
-                      <Text
+              {isAutoBidUpdate ? (
+                <>
+                  <View style={styles.bidTypeSection}>
+                    <Text style={styles.bidTypeLabel}>Trạng thái Auto Bid</Text>
+                    <View style={styles.bidTypeContainer}>
+                      <TouchableOpacity
                         style={[
-                          styles.suggestionText,
-                          selectedSuggestion === suggestion && styles.suggestionTextSelected,
+                          styles.bidTypeButton,
+                          isAutoBid && styles.bidTypeButtonActive,
                         ]}
+                        onPress={() => setIsAutoBid(true)}
+                        disabled={loading}
                       >
-                        +{(minBidIncrement * (index + 1)).toLocaleString('vi-VN')}₫
-                      </Text>
-                      <Text
+                        <Text
+                          style={[
+                            styles.bidTypeText,
+                            isAutoBid && styles.bidTypeTextActive,
+                          ]}
+                        >
+                          🤖 Bật
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
                         style={[
-                          styles.suggestionValue,
-                          selectedSuggestion === suggestion && styles.suggestionValueSelected,
+                          styles.bidTypeButton,
+                          !isAutoBid && styles.bidTypeButtonActive,
                         ]}
+                        onPress={() => setIsAutoBid(false)}
+                        disabled={loading}
                       >
-                        {suggestion.toLocaleString('vi-VN')}₫
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                        <Text
+                          style={[
+                            styles.bidTypeText,
+                            !isAutoBid && styles.bidTypeTextActive,
+                          ]}
+                        >
+                          🚫 Tắt
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {isAutoBid && (
+                    <View style={styles.inputSection}>
+                      <Text style={styles.inputLabel}>Giá tối đa (Auto Bid)</Text>
+                      <View style={[
+                        styles.inputWrapper,
+                        autoBidValidation.isValid === false && autoBidMaxLimit
+                          ? styles.inputError
+                          : null,
+                      ]}>
+                        <TextInput
+                          style={styles.input}
+                          placeholder="Nhập giá tối đa"
+                          placeholderTextColor="#9CA3AF"
+                          keyboardType="decimal-pad"
+                          value={autoBidMaxLimit}
+                          onChangeText={setAutoBidMaxLimit}
+                          editable={!loading}
+                        />
+                        <Text style={styles.currency}>₫</Text>
+                      </View>
+
+                      {autoBidValidation.isValid === false && autoBidMaxLimit && (
+                        <View style={styles.errorContainer}>
+                          <AlertCircle size={16} color="#DC2626" />
+                          <Text style={styles.errorText}>{autoBidValidation.message}</Text>
+                        </View>
+                      )}
+
+                      {autoBidValidation.isValid && autoBidMaxLimit && (
+                        <View style={styles.successContainer}>
+                          <Check size={16} color="#10B981" />
+                          <Text style={styles.successText}>Giá hợp lệ ✓</Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </>
+              ) : (
+                <View style={styles.inputSection}>
+                  <Text style={styles.inputLabel}>Giá đặt mới</Text>
+                  <View style={[
+                    styles.inputWrapper,
+                    manualBidValidation.isValid === false && manualBidAmount
+                      ? styles.inputError
+                      : null,
+                  ]}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Nhập giá đặt mới"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="decimal-pad"
+                      value={manualBidAmount}
+                      onChangeText={setManualBidAmount}
+                      editable={!loading}
+                    />
+                    <Text style={styles.currency}>₫</Text>
+                  </View>
+
+                  {manualBidValidation.isValid === false && manualBidAmount && (
+                    <View style={styles.errorContainer}>
+                      <AlertCircle size={16} color="#DC2626" />
+                      <Text style={styles.errorText}>{manualBidValidation.message}</Text>
+                    </View>
+                  )}
+
+                  {manualBidValidation.isValid && manualBidAmount && (
+                    <View style={styles.successContainer}>
+                      <Check size={16} color="#10B981" />
+                      <Text style={styles.successText}>Giá hợp lệ ✓</Text>
+                    </View>
+                  )}
                 </View>
-              </View>
+              )}
             </>
           )}
 

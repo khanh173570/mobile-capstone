@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { X, Wallet, DollarSign } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAddFundsUrl } from '../../services/walletService';
 import PaymentWebView from '../shared/PaymentWebView';
 
@@ -30,6 +31,8 @@ export default function AddFundsModal({
   const [loading, setLoading] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState<string>('');
+  const [authenticatedUserId, setAuthenticatedUserId] = useState<string | null>(null);
+  const [userIdMismatch, setUserIdMismatch] = useState(false);
 
   // Suggested amounts
   const suggestedAmounts = [
@@ -40,6 +43,31 @@ export default function AddFundsModal({
     10000000, // 10M
     20000000, // 20M
   ];
+
+  // Load authenticated user ID when modal opens
+  useEffect(() => {
+    if (visible) {
+      loadAuthenticatedUserId();
+    }
+  }, [visible]);
+
+  const loadAuthenticatedUserId = async () => {
+    try {
+      const storedUserId = await AsyncStorage.getItem('userId');
+      setAuthenticatedUserId(storedUserId);
+      
+      if (storedUserId && storedUserId !== userId) {
+        console.warn('⚠️ User ID mismatch!');
+        console.warn('Authenticated User ID:', storedUserId);
+        console.warn('Requested User ID:', userId);
+        setUserIdMismatch(true);
+      } else {
+        setUserIdMismatch(false);
+      }
+    } catch (error) {
+      console.error('Error loading authenticated user ID:', error);
+    }
+  };
 
   const handleAmountSelect = (value: number) => {
     setAmount(value.toString());
@@ -67,19 +95,68 @@ export default function AddFundsModal({
       return;
     }
 
+    // Check for user ID mismatch
+    if (userIdMismatch) {
+      Alert.alert(
+        'Lỗi',
+        'Bạn không thể nạp tiền vào tài khoản khác. Vui lòng đăng nhập lại bằng tài khoản chính xác.'
+      );
+      return;
+    }
+
     setLoading(true);
     try {
-      console.log('AddFundsModal - Calling getAddFundsUrl with userId:', userId, 'amount:', amountValue);
+      //console.log('🔐 Verification:');
+      //console.log('  Authenticated User ID:', authenticatedUserId);
+      //console.log('  Requested User ID:', userId);
+      //console.log('  Match:', authenticatedUserId === userId);
+      //console.log('💳 AddFundsModal - Calling getAddFundsUrl');
+      //console.log('  User ID:', userId);
+      //console.log('  Amount:', amountValue);
+      
       const url = await getAddFundsUrl(userId, amountValue);
-      console.log('AddFundsModal - Got payment URL:', url);
+      //console.log('✅ AddFundsModal - Got payment URL successfully');
       setPaymentUrl(url);
       setShowPayment(true);
     } catch (error: any) {
-      console.error('AddFundsModal - Error:', error);
-      Alert.alert(
-        'Không thể tạo link thanh toán',
-        error.message || 'Không thể tạo yêu cầu nạp tiền. Vui lòng thử lại sau.'
-      );
+      console.error('❌ AddFundsModal - Error:', error);
+      
+      // Parse error message to provide better feedback
+      let userMessage = error.message || 'Không thể tạo yêu cầu nạp tiền. Vui lòng thử lại sau.';
+      
+      // If session expired, suggest re-login
+      if (error.message?.includes('Phiên đăng nhập')) {
+        Alert.alert(
+          'Phiên hết hạn',
+          'Vui lòng đăng nhập lại để tiếp tục nạp tiền.',
+          [
+            {
+              text: 'Đóng',
+              onPress: () => {
+                onClose();
+              },
+            },
+          ]
+        );
+      } else if (error.message?.includes('không có quyền')) {
+        Alert.alert(
+          'Không có quyền',
+          'Tài khoản của bạn chưa được xác nhận hoặc không có quyền nạp tiền. Vui lòng liên hệ hỗ trợ.',
+          [
+            {
+              text: 'Đóng',
+              onPress: () => {
+                onClose();
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Không thể tạo link thanh toán',
+          userMessage
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -231,6 +308,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
+    height: '100%',
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
@@ -240,6 +318,7 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     paddingHorizontal: 20,
     maxHeight: '80%',
+    minHeight: '70%',
   },
   header: {
     flexDirection: 'row',

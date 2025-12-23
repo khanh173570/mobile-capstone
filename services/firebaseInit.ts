@@ -18,9 +18,9 @@ let firebaseAvailable = false;
 try {
   messaging = require('@react-native-firebase/messaging').default;
   firebaseAvailable = true;
-  console.log('✓ [Firebase Init] Firebase messaging module loaded successfully');
+  //console.log('✓ [Firebase Init] Firebase messaging module loaded successfully');
 } catch (error) {
-  console.warn('⚠️  [Firebase Init] Firebase messaging not available');
+  // console.warn('⚠️  [Firebase Init] Firebase messaging not available');
   if (error instanceof Error) {
     console.warn('  Reason:', error.message);
   }
@@ -42,24 +42,24 @@ let firebaseInitialized = false;
  */
 export const initializeFirebase = async (): Promise<boolean> => {
   if (firebaseInitialized) {
-    console.log('✓ [Firebase Init] Firebase already initialized');
+    //console.log('✓ [Firebase Init] Firebase already initialized');
     return true;
   }
 
   // If Firebase messaging module is not available, can't proceed
   if (!firebaseAvailable || !messaging) {
-    console.warn('⚠️  [Firebase Init] Firebase messaging module not available');
-    console.warn('  This is normal on Expo Go. Using Expo Push Token instead.');
-    console.warn('  Package: com.agrimart.app');
+    // console.warn('⚠️  [Firebase Init] Firebase messaging module not available');
+    // console.warn('  This is normal on Expo Go. Using Expo Push Token instead.');
+    // console.warn('  Package: com.agrimart.app');
     firebaseInitialized = false;
     return false;
   }
 
   try {
-    console.log('🔥 [Firebase Init] Verifying Firebase messaging availability...');
-    console.log('  Platform:', Platform.OS);
-    console.log('  Package: com.agrimart.app');
-    console.log('  google-services.json: android/app/google-services.json');
+    //console.log('🔥 [Firebase Init] Verifying Firebase messaging availability...');
+    //console.log('  Platform:', Platform.OS);
+    //console.log('  Package: com.agrimart.app');
+    //console.log('  google-services.json: android/app/google-services.json');
 
     // Verify messaging has the expected methods
     if (typeof messaging().getToken !== 'function') {
@@ -74,9 +74,9 @@ export const initializeFirebase = async (): Promise<boolean> => {
       return false;
     }
 
-    console.log('✓ [Firebase Init] Firebase messaging methods verified');
+    //console.log('✓ [Firebase Init] Firebase messaging methods verified');
     firebaseInitialized = true;
-    console.log('✅ [Firebase Init] Firebase ready for FCM token retrieval');
+    //console.log('✅ [Firebase Init] Firebase ready for FCM token retrieval');
     return true;
 
   } catch (error) {
@@ -124,14 +124,14 @@ export const waitForFirebaseInitialization = async (maxWaitTime: number = 3000):
   const startTime = Date.now();
   const checkInterval = 500;
 
-  console.log('⏳ Waiting for Firebase to be initialized...');
-  console.log('  Max wait time:', maxWaitTime / 1000, 'seconds');
+  //console.log('⏳ Waiting for Firebase to be initialized...');
+  //console.log('  Max wait time:', maxWaitTime / 1000, 'seconds');
 
   while (Date.now() - startTime < maxWaitTime) {
     if (firebaseInitialized) {
       const elapsedTime = Date.now() - startTime;
-      console.log('✅ Firebase initialized');
-      console.log('  Time taken:', elapsedTime, 'ms');
+      //console.log('✅ Firebase initialized');
+      //console.log('  Time taken:', elapsedTime, 'ms');
       return true;
     }
 

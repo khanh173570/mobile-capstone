@@ -153,38 +153,6 @@ export const createUserBankAccount = async (
 };
 
 /**
- * Update user bank account
- */
-export const updateUserBankAccount = async (
-  accountId: string,
-  request: Omit<CreateUserBankAccountRequest, 'userId'>
-): Promise<UserBankAccount> => {
-  try {
-    const response = await fetchWithTokenRefresh(
-      `${API_URL}/userbankaccount/${accountId}`,
-      {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(request),
-      }
-    );
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.message || 'Failed to update bank account');
-    }
-
-    return result.data;
-  } catch (error) {
-    console.error('Error updating bank account:', error);
-    throw error;
-  }
-};
-
-/**
  * Delete user bank account
  */
 export const deleteUserBankAccount = async (

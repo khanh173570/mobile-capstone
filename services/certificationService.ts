@@ -100,7 +100,7 @@ export const getCertificationStatusInfo = (status: CertificationStatus): { name:
  */
 export const getMyCertifications = async (): Promise<Certification[]> => {
   try {
-    console.log('🔄 Fetching my certifications...');
+    //console.log('🔄 Fetching my certifications...');
     
     const response = await fetchWithTokenRefresh(`${API_BASE_URL}/my-certifications`, {
       method: 'GET',
@@ -112,7 +112,7 @@ export const getMyCertifications = async (): Promise<Certification[]> => {
       throw new Error(result.message || 'Failed to get certifications');
     }
 
-    console.log('✅ Fetched certifications:', result.data.length);
+    //console.log('✅ Fetched certifications:', result.data.length);
     return result.data;
   } catch (error) {
     console.error('❌ Error fetching certifications:', error);
@@ -127,15 +127,15 @@ export const getMyCertifications = async (): Promise<Certification[]> => {
  */
 export const createCertification = async (request: CreateCertificationRequest): Promise<Certification> => {
   try {
-    console.log('🔄 Creating certification...');
-    console.log('📝 Request data:', {
-      type: request.type,
-      name: request.certificationName,
-      organization: request.issuingOrganization,
-      issueDate: request.issueDate,
-      expiryDate: request.expiryDate,
-      imageUri: request.certificateImage.uri,
-    });
+    // console.log('🔄 Creating certification...');
+    // console.log('📝 Request data:', {
+    //   type: request.type,
+    //   name: request.certificationName,
+    //   organization: request.issuingOrganization,
+    //   issueDate: request.issueDate,
+    //   expiryDate: request.expiryDate,
+    //   imageUri: request.certificateImage.uri,
+    // });
     
     // Create FormData with proper React Native format
     const formData = new FormData();
@@ -155,7 +155,7 @@ export const createCertification = async (request: CreateCertificationRequest): 
       type: `image/${fileType}`,
     } as any);
 
-    console.log('📤 Sending FormData to:', `${API_BASE_URL}`);
+    //console.log('📤 Sending FormData to:', `${API_BASE_URL}`);
 
     const response = await fetchWithTokenRefresh(`${API_BASE_URL}`, {
       method: 'POST',
@@ -171,7 +171,7 @@ export const createCertification = async (request: CreateCertificationRequest): 
       throw new Error(result.message || 'Failed to create certification');
     }
 
-    console.log('✅ Certification created:', result.data.id);
+    //console.log('✅ Certification created:', result.data.id);
     return result.data;
   } catch (error) {
     console.error('❌ Error creating certification:', error);

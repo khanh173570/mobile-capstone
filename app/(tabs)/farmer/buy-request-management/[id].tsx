@@ -296,11 +296,11 @@ export default function BuyRequestDetailScreen() {
   const getGradeLabel = (grade: number) => {
     switch (grade) {
       case 1:
-        return 'Grade 1 (Cao)';
+        return 'Loại 1';
       case 2:
-        return 'Grade 2 (Trung)';
+        return 'Loại 2';
       case 3:
-        return 'Grade 3 (Thấp)';
+        return 'Loại 3';
       default:
         return `Grade ${grade}`;
     }
@@ -458,39 +458,16 @@ export default function BuyRequestDetailScreen() {
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Chi Tiết Phân Loại</Text>
 
-            {buyRequest.details.map((detail, index) => (
-              <View key={detail.id}>
-                <View style={styles.detailCard}>
-                  <View style={styles.gradeHeader}>
-                    <Text style={styles.gradeLabel}>{getGradeLabel(detail.grade)}</Text>
-                    <View style={styles.quantityBadge}>
-                      <Text style={styles.quantityText}>{detail.quantity} kg</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Giá:</Text>
-                    <Text style={styles.detailValue}>
-                      {detail.price.toLocaleString('vi-VN')} đ
-                    </Text>
-                  </View>
-
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Dung sai:</Text>
-                    <Text style={styles.detailValue}>{detail.allowedDeviationPercent}%</Text>
-                  </View>
-
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Đơn vị:</Text>
-                    <Text style={styles.detailValue}>{detail.unit}</Text>
+            <View style={styles.gradeContainer}>
+              {buyRequest.details.map((detail, index) => (
+                <View key={detail.id} style={styles.gradeCard}>
+                  <Text style={styles.gradeLabel}>{getGradeLabel(detail.grade)}</Text>
+                  <View style={styles.quantityBadge}>
+                    <Text style={styles.quantityText}>{detail.quantity} {detail.unit || 'kg'}</Text>
                   </View>
                 </View>
-
-                {index < buyRequest.details.length - 1 && (
-                  <View style={styles.detailDivider} />
-                )}
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
         )}
 
@@ -883,6 +860,22 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
   },
+  gradeContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 12,
+  },
+  gradeCard: {
+    flex: 1,
+    minWidth: '30%',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
   gradeHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -893,6 +886,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#111827',
+    marginBottom: 8,
   },
   quantityBadge: {
     backgroundColor: '#10B981',

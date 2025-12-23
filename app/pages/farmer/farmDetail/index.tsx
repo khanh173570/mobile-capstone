@@ -49,12 +49,12 @@ export default function FarmDetailScreen() {
         setFarmData(farm);
         // Load crops for this farm
         try {
-          console.log('Loading crops for farm:', farm.id);
+          //console.log('Loading crops for farm:', farm.id);
           const cropsData = await getCropsByFarmId(farm.id);
-          console.log('Raw crops data:', cropsData);
+          //console.log('Raw crops data:', cropsData);
           // Sort crops by ID to maintain consistent order 
           const sortedCrops = (cropsData || []).sort((a, b) => a.id.localeCompare(b.id));
-          console.log('Sorted crops:', sortedCrops);
+          //console.log('Sorted crops:', sortedCrops);
           setCrops(sortedCrops);
         } catch (cropError) {
           console.error('Error loading crops:', cropError);
@@ -257,17 +257,17 @@ export default function FarmDetailScreen() {
                   onEdit={() => handleEditCrop(crop)}
                   onDelete={() => handleDeleteCrop(crop)}
                   onCreateHarvest={() => {
-                    console.log('=== Navigate to Harvest List ===');
-                    console.log('Crop ID:', crop.id);
-                    console.log('Crop custardAppleType:', crop.custardAppleType);
-                    console.log('Crop status:', crop.status);
+                    //console.log('=== Navigate to Harvest List ===');
+                    //console.log('Crop ID:', crop.id);
+                    //console.log('Crop custardAppleType:', crop.custardAppleType);
+                    //console.log('Crop status:', crop.status);
                     
                     try {
                       // Using relative path with query params, pass crop status
                       const path = `/pages/farmer/harvestList?cropId=${crop.id}&cropName=${encodeURIComponent(crop.custardAppleType || 'Vườn mãng cầu')}&cropPlantingDate=${encodeURIComponent(crop.startPlantingDate)}&cropStatus=${crop.status}`;
-                      console.log('Navigation path:', path);
+                      //console.log('Navigation path:', path);
                       router.push(path as any);
-                      console.log('Navigation called successfully');
+                      //console.log('Navigation called successfully');
                     } catch (error) {
                       console.error('Navigation error:', error);
                     }

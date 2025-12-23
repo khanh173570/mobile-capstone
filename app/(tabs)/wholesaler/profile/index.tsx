@@ -148,7 +148,7 @@ export default function WholesalerProfileScreen() {
           </View>
 
           {/* Province */}
-          <View style={[styles.infoRow, styles.borderTop]}>
+          {/* <View style={[styles.infoRow, styles.borderTop]}>
             <View style={styles.iconContainer}>
               <Building2 size={20} color="#6B7280" />
             </View>
@@ -156,10 +156,10 @@ export default function WholesalerProfileScreen() {
               <Text style={styles.label}>Tỉnh/Thành phố</Text>
               <Text style={styles.value}>{user.province}</Text>
             </View>
-          </View>
+          </View> */}
 
           {/* District/Commune */}
-          <View style={[styles.infoRow, styles.borderTop]}>
+          {/* <View style={[styles.infoRow, styles.borderTop]}>
             <View style={styles.iconContainer}>
               <MapPinned size={20} color="#6B7280" />
             </View>
@@ -167,7 +167,7 @@ export default function WholesalerProfileScreen() {
               <Text style={styles.label}>Quận/Phường</Text>
               <Text style={styles.value}>{user.communes}</Text>
             </View>
-          </View>
+          </View> */}
 
           {/* Address */}
           <View style={[styles.infoRow, styles.borderTop]}>
@@ -181,7 +181,7 @@ export default function WholesalerProfileScreen() {
           </View>
 
           {/* Reputation Score */}
-          <View style={[styles.infoRow, styles.borderTop]}>
+          {/* <View style={[styles.infoRow, styles.borderTop]}>
             <View style={styles.iconContainer}>
               <Text style={{ fontSize: 20 }}>⭐</Text>
             </View>
@@ -192,7 +192,7 @@ export default function WholesalerProfileScreen() {
                 Trust Score: {user?.reputation?.trustScore ?? 0}
               </Text>
             </View>
-          </View>
+          </View> */}
         </View>
 
         {/* Financial Services Section - 4 Services in 3 Columns */}
@@ -285,6 +285,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+    paddingTop: 20,
+    paddingBottom: 10,
   },
   content: {
     flex: 1,
@@ -398,6 +400,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     marginBottom: 4,
+    flexWrap: 'nowrap',
   },
   value: {
     fontSize: 14,

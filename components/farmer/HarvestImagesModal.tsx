@@ -42,26 +42,26 @@ export default function HarvestImagesModal({
   }, [visible, harvestId]);
 
   const loadImages = async () => {
-    console.log('=== HarvestImagesModal: Loading images ===');
-    console.log('HarvestId:', harvestId);
-    console.log('Visible:', visible);
+    //console.log('=== HarvestImagesModal: Loading images ===');
+    //console.log('HarvestId:', harvestId);
+    //console.log('Visible:', visible);
     setLoading(true);
     try {
       const data = await getHarvestImages(harvestId);
-      console.log('✅ Images loaded successfully!');
-      console.log('Number of images:', data.length);
-      console.log('Images array:', data);
+      //console.log('✅ Images loaded successfully!');
+      //console.log('Number of images:', data.length);
+      //console.log('Images array:', data);
       if (data.length > 0) {
-        console.log('First image sample:', JSON.stringify(data[0], null, 2));
+        //console.log('First image sample:', JSON.stringify(data[0], null, 2));
       }
       setImages(data);
-      console.log('State updated with', data.length, 'images');
+      //console.log('State updated with', data.length, 'images');
     } catch (error) {
       console.error('❌ Error loading harvest images:', error);
       Alert.alert('Lỗi', 'Không thể tải danh sách ảnh');
     } finally {
       setLoading(false);
-      console.log('Loading finished');
+      //console.log('Loading finished');
     }
   };
 
@@ -93,9 +93,9 @@ export default function HarvestImagesModal({
   const handleUploadImage = async (uri: string) => {
     setUploading(true);
     try {
-      console.log('\n=== STARTING IMAGE UPLOAD ===');
-      console.log('URI:', uri);
-      console.log('HarvestId:', harvestId);
+      //console.log('\n=== STARTING IMAGE UPLOAD ===');
+      //console.log('URI:', uri);
+      //console.log('HarvestId:', harvestId);
       
       const filename = uri.split('/').pop() || 'image.jpg';
       const match = /\.(\w+)$/.exec(filename);
@@ -114,55 +114,55 @@ export default function HarvestImagesModal({
       // Use 'Images' (array) instead of 'Image' to match Swagger API
       formData.append('Images', imageData);
 
-      console.log('📤 Uploading to harvestId:', harvestId);
-      console.log('📄 Image filename:', filename);
-      console.log('📋 Image type:', type);
-      console.log('🔑 Using field name: Images (array)');
+      //console.log('📤 Uploading to harvestId:', harvestId);
+      //console.log('📄 Image filename:', filename);
+      //console.log('📋 Image type:', type);
+      //console.log('🔑 Using field name: Images (array)');
       
       // Get current count before upload
       const currentCount = images.length;
-      console.log('📊 Current image count before upload:', currentCount);
+      //console.log('📊 Current image count before upload:', currentCount);
       
       const result = await uploadHarvestImage(harvestId, formData);
-      console.log('✅ Upload completed!');
-      console.log('📦 Upload result:', JSON.stringify(result, null, 2));
+      //console.log('✅ Upload completed!');
+      //console.log('📦 Upload result:', JSON.stringify(result, null, 2));
       
       if (!result.isSuccess) {
         throw new Error(result.message || 'Upload failed');
       }
       
       // Retry logic: Try to get images multiple times until new image appears
-      console.log('\n🔄 Attempting to reload images with retry...');
+      //console.log('\n🔄 Attempting to reload images with retry...');
       let retryCount = 0;
       const maxRetries = 5;
       let newImages = images;
       
       while (retryCount < maxRetries) {
         retryCount++;
-        console.log(`🔄 Retry attempt ${retryCount}/${maxRetries}...`);
+        // //console.log(`🔄 Retry attempt ${retryCount}/${maxRetries}...`);
         
         // Wait before retry (increasing delay)
         await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
         
         // Fetch images
         const fetchedImages = await getHarvestImages(harvestId);
-        console.log(`📊 Fetched ${fetchedImages.length} images (expected: ${currentCount + 1})`);
+        // //console.log(`📊 Fetched ${fetchedImages.length} images (expected: ${currentCount + 1})`);
         
         if (fetchedImages.length > currentCount) {
-          console.log('✅ New image detected!');
+          //console.log('✅ New image detected!');
           newImages = fetchedImages;
           break;
         }
         
         if (retryCount < maxRetries) {
-          console.log(`⏳ No new image yet, waiting ${retryCount + 1}s before next retry...`);
+          // //console.log(`⏳ No new image yet, waiting ${retryCount + 1}s before next retry...`);
         }
       }
       
       // Update state with latest images
       setImages(newImages);
-      console.log(`📊 Final image count: ${newImages.length}`);
-      console.log('=== UPLOAD PROCESS COMPLETED ===\n');
+      // //console.log(`📊 Final image count: ${newImages.length}`);
+      // //console.log('=== UPLOAD PROCESS COMPLETED ===\n');
       
       if (newImages.length > currentCount) {
         Alert.alert('Thành công', 'Đã tải ảnh lên thành công');
@@ -256,14 +256,14 @@ export default function HarvestImagesModal({
             ) : (
               <View style={styles.imagesGrid}>
                 {images.map((image) => {
-                  console.log('🖼️ Rendering image:', image.id, image.imageUrl);
+                  //console.log('🖼️ Rendering image:', image.id, image.imageUrl);
                   return (
                     <View key={image.id} style={styles.imageCard}>
                       <Image
                         source={{ uri: image.imageUrl }}
                         style={styles.image}
                         resizeMode="cover"
-                        onLoad={() => console.log('✅ Image loaded:', image.id)}
+                        onLoad={() => {}} // //console.log('✅ Image loaded:', image.id)
                         onError={(e) => console.error('❌ Image load error:', image.id, e.nativeEvent.error)}
                       />
                       <TouchableOpacity

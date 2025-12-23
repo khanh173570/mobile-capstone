@@ -14,6 +14,7 @@ interface BidListDisplayProps {
   bids: BidResponse[];
   loading: boolean;
   onEditBid?: (bid: BidResponse) => void;
+  onEditAutoBid?: (bid: BidResponse) => void;
   minBidIncrement: number;
   auctionStatus?: string;
 }
@@ -22,6 +23,7 @@ export default function BidListDisplay({
   bids,
   loading,
   onEditBid,
+  onEditAutoBid,
   minBidIncrement,
   auctionStatus,
 }: BidListDisplayProps) {
@@ -95,6 +97,15 @@ export default function BidListDisplay({
                 <Text style={styles.maxLimitValue}>
                   {bid.autoBidMaxLimit.toLocaleString('vi-VN')} ₫
                 </Text>
+                {auctionStatus === 'OnGoing' && (
+                  <TouchableOpacity
+                    style={styles.updateAutoBidButton}
+                    onPress={() => onEditAutoBid ? onEditAutoBid(bid) : onEditBid?.(bid)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.updateAutoBidText}>Cập nhật auto-bid</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
 
@@ -260,6 +271,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#15803D',
+  },
+  updateAutoBidButton: {
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#2563EB',
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+  },
+  updateAutoBidText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 12,
   },
 
   // Edit Button

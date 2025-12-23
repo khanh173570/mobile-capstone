@@ -52,9 +52,9 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
   const loadNotifications = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Loading notifications from API...');
+      // //console.log('🔄 Loading notifications from API...');
       const data = await getUserNotifications(1, 50); // Get latest 50
-      console.log(`✅ Loaded ${data.length} notifications`);
+      // //console.log(`✅ Loaded ${data.length} notifications`);
       setNotifications(data);
       onNotificationsChange?.(data);
     } catch (error) {
@@ -67,7 +67,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
-      console.log('🔄 Marking notification as read:', notificationId);
+      // //console.log('🔄 Marking notification as read:', notificationId);
       const success = await markNotificationAsRead(notificationId);
       if (success) {
         // Update local state immediately
@@ -81,7 +81,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
         onRefresh?.(); // Refresh unread count in parent
       }
     } catch (error) {
-      console.error('❌ Error marking notification as read:', error);
+      // console.error('❌ Error marking notification as read:', error);
     }
   };
 
@@ -91,7 +91,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
       const updated = notifications.filter(n => n.id !== notificationId);
       setNotifications(updated);
       onNotificationsChange?.(updated);
-      console.log('✅ Notification removed from UI:', notificationId);
+      //console.log('✅ Notification removed from UI:', notificationId);
     } catch (error) {
       console.error('❌ Error deleting notification:', error);
     }
@@ -105,7 +105,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
 
   const handleMarkAllAsRead = async () => {
     try {
-      console.log('🔄 Marking all notifications as read...');
+      //console.log('🔄 Marking all notifications as read...');
       const success = await markAllNotificationsAsRead();
       if (success) {
         // Update local state immediately

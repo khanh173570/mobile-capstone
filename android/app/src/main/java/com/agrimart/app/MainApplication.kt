@@ -1,4 +1,4 @@
-package com.agrimart.shop
+package com.agrimart.app
 
 import android.app.Application
 import android.content.res.Configuration

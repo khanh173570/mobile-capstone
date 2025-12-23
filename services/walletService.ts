@@ -66,10 +66,23 @@ export const getMyWallet = async (): Promise<Wallet> => {
       }
     );
 
+    // Check response status first
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
+      }
+      if (response.status === 403) {
+        throw new Error('Bạn không có quyền truy cập ví tiền.');
+      }
+      
+      const errorResult: WalletResponse = await response.json();
+      throw new Error(errorResult.message || 'Không thể lấy thông tin ví');
+    }
+
     const result: WalletResponse = await response.json();
 
     if (!result.isSuccess) {
-      throw new Error(result.message || 'Failed to get wallet information');
+      throw new Error(result.message || 'Không thể lấy thông tin ví');
     }
 
     return result.data;
@@ -87,10 +100,19 @@ export const getAddFundsUrl = async (
   amount: number
 ): Promise<string> => {
   try {
-    console.log('Getting add funds URL for userId:', userId, 'amount:', amount);
+    //console.log('🔐 DEBUG: Checking token before getAddFundsUrl');
+    const token = await AsyncStorage.getItem('accessToken');
+    //console.log('🔐 DEBUG: Token exists:', !!token);
+    
+    if (!token) {
+      console.error('❌ No access token found in storage');
+      throw new Error('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
+    }
+    
+    //console.log('Getting add funds URL for userId:', userId, 'amount:', amount);
     
     const url = `${API_URL}/payment-service/payos/addfunds-url?userId=${userId}&amount=${amount}`;
-    console.log('Request URL:', url);
+    //console.log('Request URL:', url);
     
     const response = await fetchWithTokenRefresh(url, {
       method: 'GET',
@@ -99,28 +121,41 @@ export const getAddFundsUrl = async (
       },
     });
 
-    console.log('Response status:', response.status);
+    //console.log('Response status:', response.status);
+
+    // Check response status first
+    if (!response.ok) {
+      console.error('Response not OK, status:', response.status);
+      
+      if (response.status === 401) {
+        throw new Error('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
+      }
+      if (response.status === 403) {
+        throw new Error('Bạn không có quyền truy cập tính năng này.');
+      }
+      if (response.status === 404) {
+        throw new Error('Endpoint nạp tiền chưa khả dụng. Vui lòng liên hệ hỗ trợ.');
+      }
+      
+      try {
+        const errorResult: AddFundsUrlResponse = await response.json();
+        throw new Error(errorResult.message || 'Không thể tải URL thanh toán');
+      } catch (jsonError) {
+        throw new Error('Không thể tải URL thanh toán');
+      }
+    }
 
     const result: AddFundsUrlResponse = await response.json();
-    console.log('Response data:', result);
+    //console.log('Response data:', result);
 
     if (!result.isSuccess) {
-      throw new Error(result.message || 'Failed to get payment URL');
+      throw new Error(result.message || 'Không thể tải URL thanh toán');
     }
 
     return result.data;
   } catch (error: any) {
     console.error('Error getting add funds URL:', error);
-    console.error('Error details:', {
-      message: error.message,
-      status: error.response?.status,
-      data: error.response?.data,
-    });
-    
-    // Provide more specific error message
-    if (error.response?.status === 404) {
-      throw new Error('Endpoint nạp tiền chưa khả dụng. Vui lòng liên hệ hỗ trợ.');
-    }
+    console.error('Error message:', error.message);
     
     throw error;
   }
@@ -141,10 +176,23 @@ export const getMyLedgers = async (): Promise<Ledger[]> => {
       }
     );
 
+    // Check response status first
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
+      }
+      if (response.status === 403) {
+        throw new Error('Bạn không có quyền xem lịch sử giao dịch.');
+      }
+      
+      const errorResult: LedgersResponse = await response.json();
+      throw new Error(errorResult.message || 'Không thể lấy lịch sử giao dịch');
+    }
+
     const result: LedgersResponse = await response.json();
 
     if (!result.isSuccess) {
-      throw new Error(result.message || 'Failed to get ledgers');
+      throw new Error(result.message || 'Không thể lấy lịch sử giao dịch');
     }
 
     return result.data || [];

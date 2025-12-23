@@ -33,7 +33,7 @@ export default function BuyNowModal({
 
       // Execute buy now - Only call API, no payment
       const result = await executeBuyNow(auction.id);
-      console.log('Buy now result:', result);
+      //console.log('Buy now result:', result);
 
       setLoading(false);
       

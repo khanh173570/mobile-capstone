@@ -1,6 +1,7 @@
 // API địa chỉ Việt Nam mới - sau sáp nhập còn 34 tỉnh thành (2025)
 // Sử dụng API từ esgoo.net cho cơ cấu hành chính mới
 const BASE_URL = 'https://esgoo.net/api-tinhthanh-new';
+const API_TIMEOUT = 5000; // 5 seconds
 
 export interface Province {
   id: string;
@@ -22,53 +23,76 @@ export interface Ward {
   id_district: string;
 }
 
+// Helper function để fetch với timeout
+const fetchWithTimeout = async (url: string, timeout: number = API_TIMEOUT): Promise<Response> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error(`API timeout after ${timeout}ms`);
+    }
+    throw error;
+  }
+};
+
 // Lấy danh sách tỉnh/thành phố (34 tỉnh thành mới)
 export const getProvinces = async (): Promise<Province[]> => {
-  console.log('🔍 [API] Starting getProvinces...');
+  //console.log('🔍 [API] Starting getProvinces...');
   try {
     const url = `${BASE_URL}/1/0.htm`;
-    console.log('🌐 [API] Fetching provinces from:', url);
+    //console.log('🌐 [API] Fetching provinces from:', url);
     
-    const response = await fetch(url);
-    console.log('📡 [API] Response status:', response.status, response.statusText);
+    const response = await fetchWithTimeout(url, API_TIMEOUT);
+    //console.log('📡 [API] Response status:', response.status, response.statusText);
     
     if (!response.ok) {
-      throw new Error('Failed to fetch provinces');
+      throw new Error(`Failed to fetch provinces: ${response.status}`);
     }
     
     const data = await response.json();
-    console.log('📦 [API] Raw data received:', data);
+    //console.log('📦 [API] Raw data received:', data);
     
     if (data.error === 0) {
-      console.log('✅ [API] Success! Found', data.data.length, 'provinces');
-      console.log('📋 [API] First few provinces:', data.data.slice(0, 3));
+      //console.log('✅ [API] Success! Found', data.data.length, 'provinces');
+      //console.log('📋 [API] First few provinces:', data.data.slice(0, 3));
       return data.data;
     } else {
       console.error('❌ [API] API error:', data.error_text);
       throw new Error('API returned error');
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('💥 [API] Error fetching provinces:', error);
+    // Nếu là timeout hoặc network error, trả về empty array để cho phép nhập tay
+    if (error.message?.includes('timeout') || error.message?.includes('Network')) {
+      console.warn('⚠️ [API] API timeout or network error, allowing manual input');
+      return [];
+    }
     throw error;
   }
 };
 
 // Lấy danh sách phường/xã theo tỉnh (API 34 tỉnh thành mới)
 export const getWardsFromProvince = async (provinceId: string): Promise<Ward[]> => {
-  console.log('🔍 [API] Starting getWardsFromProvince for province:', provinceId);
+  //console.log('🔍 [API] Starting getWardsFromProvince for province:', provinceId);
   try {
     const url = `${BASE_URL}/2/${provinceId}.htm`;
-    console.log('🌐 [API] Fetching wards from:', url);
+    //console.log('🌐 [API] Fetching wards from:', url);
     
-    const response = await fetch(url);
-    console.log('📡 [API] Response status:', response.status, response.statusText);
+    const response = await fetchWithTimeout(url, API_TIMEOUT);
+    //console.log('📡 [API] Response status:', response.status, response.statusText);
     
     if (!response.ok) {
-      throw new Error('Failed to fetch wards');
+      throw new Error(`Failed to fetch wards: ${response.status}`);
     }
     
     const data = await response.json();
-    console.log('📦 [API] Raw ward data received:', data);
+    // //console.log('📦 [API] Raw ward data received:', data);
     
     if (data.error === 0) {
       const wards = data.data.map((item: any) => ({
@@ -77,15 +101,20 @@ export const getWardsFromProvince = async (provinceId: string): Promise<Ward[]> 
         full_name: item.full_name,
         id_district: '', // API mới không có cấp quận/huyện
       }));
-      console.log('✅ [API] Success! Found', wards.length, 'wards');
-      console.log('📋 [API] First few wards:', wards.slice(0, 3));
+      //console.log('✅ [API] Success! Found', wards.length, 'wards');
+      //console.log('📋 [API] First few wards:', wards.slice(0, 3));
       return wards;
     } else {
       console.error('❌ [API] API error:', data.error_text);
       throw new Error('API returned error');
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('💥 [API] Error fetching wards:', error);
+    // Nếu là timeout hoặc network error, trả về empty array để cho phép nhập tay
+    if (error.message?.includes('timeout') || error.message?.includes('Network')) {
+      console.warn('⚠️ [API] API timeout or network error, allowing manual input');
+      return [];
+    }
     throw error;
   }
 };
@@ -112,7 +141,7 @@ export interface SelectedAddress {
 
 // Hàm format địa chỉ đầy đủ (cấu trúc 34 tỉnh thành mới)
 export const formatFullAddress = (selectedAddress: SelectedAddress): string => {
-  const parts = [];
+  const parts: string[] = [];
   
   if (selectedAddress.detailAddress.trim()) {
     parts.push(selectedAddress.detailAddress.trim());

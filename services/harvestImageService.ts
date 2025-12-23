@@ -30,9 +30,9 @@ export const uploadHarvestImage = async (harvestId: string, formData: FormData):
       throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
     }
 
-    console.log('=== Uploading harvest image ===');
-    console.log('HarvestId:', harvestId);
-    console.log('API URL:', `${API_URL}/farm-service/harvestimage`);
+    //console.log('=== Uploading harvest image ===');
+    //console.log('HarvestId:', harvestId);
+    //console.log('API URL:', `${API_URL}/farm-service/harvestimage`);
 
     const response = await fetch(`${API_URL}/farm-service/harvestimage`, {
       method: 'POST',
@@ -43,17 +43,17 @@ export const uploadHarvestImage = async (harvestId: string, formData: FormData):
       body: formData,
     });
 
-    console.log('Upload response status:', response.status);
+    //console.log('Upload response status:', response.status);
     
     const data = await response.json();
-    console.log('Upload response data:', JSON.stringify(data, null, 2));
+    //console.log('Upload response data:', JSON.stringify(data, null, 2));
 
     if (!response.ok) {
       console.error('Upload failed:', data.message || data);
       throw new Error(data.message || 'Không thể tải ảnh lên');
     }
 
-    console.log('Upload successful!');
+    //console.log('Upload successful!');
     return data as ApiResponse<HarvestImage>;
   } catch (error) {
     console.error('Upload harvest image error:', error);
@@ -75,10 +75,10 @@ export const getHarvestImages = async (harvestId: string): Promise<HarvestImage[
       throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
     }
 
-    console.log('\n📥 === GET HARVEST IMAGES ===');
-    console.log('HarvestId:', harvestId);
+    //console.log('\n📥 === GET HARVEST IMAGES ===');
+    //console.log('HarvestId:', harvestId);
     const url = `${API_URL}/farm-service/harvestimage/harvest/${harvestId}/images`;
-    console.log('Request URL:', url);
+    //console.log('Request URL:', url);
 
     const response = await fetch(url, {
       method: 'GET',
@@ -88,11 +88,11 @@ export const getHarvestImages = async (harvestId: string): Promise<HarvestImage[
       },
     });
 
-    console.log('Response status:', response.status);
-    console.log('Response ok:', response.ok);
+    //console.log('Response status:', response.status);
+    //console.log('Response ok:', response.ok);
     
     const data = await response.json();
-    console.log('📦 Raw response data:', JSON.stringify(data, null, 2));
+    //console.log('📦 Raw response data:', JSON.stringify(data, null, 2));
 
     if (!response.ok) {
       console.error('❌ API Error:', data.message);
@@ -102,30 +102,30 @@ export const getHarvestImages = async (harvestId: string): Promise<HarvestImage[
     // Check different possible response structures
     let imagesList: HarvestImage[] = [];
     
-    console.log('🔍 Checking response structure...');
-    console.log('Is array?', Array.isArray(data));
-    console.log('Has data property?', 'data' in data);
-    console.log('Has isSuccess?', 'isSuccess' in data);
+    //console.log('🔍 Checking response structure...');
+    //console.log('Is array?', Array.isArray(data));
+    //console.log('Has data property?', 'data' in data);
+    //console.log('Has isSuccess?', 'isSuccess' in data);
     
     if (Array.isArray(data)) {
-      console.log('✅ Response is direct array');
+      //console.log('✅ Response is direct array');
       imagesList = data;
     } else if (data.data && Array.isArray(data.data)) {
-      console.log('✅ Response has data property with array');
+      //console.log('✅ Response has data property with array');
       imagesList = data.data;
     } else if (data.isSuccess && data.data && Array.isArray(data.data)) {
-      console.log('✅ Response has isSuccess and data property');
+      //console.log('✅ Response has isSuccess and data property');
       imagesList = data.data;
     } else {
       console.warn('⚠️ Unexpected response structure:', data);
-      console.log('Response keys:', Object.keys(data));
+      //console.log('Response keys:', Object.keys(data));
     }
 
-    console.log('📊 Parsed images list:', imagesList.length, 'images');
+    //console.log('📊 Parsed images list:', imagesList.length, 'images');
     if (imagesList.length > 0) {
-      console.log('First image:', JSON.stringify(imagesList[0], null, 2));
+      //console.log('First image:', JSON.stringify(imagesList[0], null, 2));
     }
-    console.log('=== END GET HARVEST IMAGES ===\n');
+    //console.log('=== END GET HARVEST IMAGES ===\n');
     
     return imagesList;
   } catch (error) {

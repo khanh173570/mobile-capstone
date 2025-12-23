@@ -120,7 +120,7 @@ const imageURIToBase64 = async (uri: string): Promise<string> => {
       throw new Error('Empty image URI provided');
     }
     
-    console.log('Converting image URI to base64:', uri.substring(0, 50) + '...');
+    //console.log('Converting image URI to base64:', uri.substring(0, 50) + '...');
     
     // For content:// or file:// URIs
     if (uri.startsWith('content://') || uri.startsWith('file://')) {
@@ -133,26 +133,26 @@ const imageURIToBase64 = async (uri: string): Promise<string> => {
         
         // Verify we got proper data
         if (!base64Data || base64Data.length < 100) {
-          console.error('Base64 conversion failed or produced too small output:', base64Data?.length || 0);
+          // console.error('Base64 conversion failed or produced too small output:', base64Data?.length || 0);
           throw new Error('Chuyển đổi ảnh thất bại - dữ liệu không hợp lệ');
         }
         
-        console.log(`Successfully converted image to base64 string (length: ${base64Data.length})`);
+        // //console.log(`Successfully converted image to base64 string (length: ${base64Data.length})`);
         return base64Data;
       } catch (readError) {
-        console.error('Error reading file with legacy API:', readError);
+        // console.error('Error reading file with legacy API:', readError);
         throw new Error(`Không thể đọc file ảnh: ${readError instanceof Error ? readError.message : String(readError)}`);
       }
     } 
     // If it's already a base64 string
     else if (uri.startsWith('data:image')) {
       const base64Data = uri.split(',')[1];
-      console.log(`Image is already in base64 format (length: ${base64Data.length})`);
+      // //console.log(`Image is already in base64 format (length: ${base64Data.length})`);
       return base64Data;
     }
     // Other URI formats - we'll return as is and report a warning
     else {
-      console.warn('Unknown image URI format, will attempt direct base64 conversion:', uri.substring(0, 50) + '...');
+      // console.warn('Unknown image URI format, will attempt direct base64 conversion:', uri.substring(0, 50) + '...');
       // Try to read it anyway
       try {
         const base64Data = await FileSystemLegacy.readAsStringAsync(uri, {
@@ -163,15 +163,15 @@ const imageURIToBase64 = async (uri: string): Promise<string> => {
           throw new Error('Conversion produced invalid data');
         }
         
-        console.log(`Fallback conversion successful (length: ${base64Data.length})`);
+        // //console.log(`Fallback conversion successful (length: ${base64Data.length})`);
         return base64Data;
       } catch (fallbackError) {
-        console.error('Fallback conversion failed:', fallbackError);
+        // console.error('Fallback conversion failed:', fallbackError);
         throw new Error(`Không thể chuyển đổi ảnh từ URI: ${uri}`);
       }
     }
   } catch (error) {
-    console.error('Error converting image to base64:', error);
+    // console.error('Error converting image to base64:', error);
     throw error;
   }
 };
@@ -189,15 +189,15 @@ const validateUserVerifications = (userVerifications: RegisterData['userVerifica
     }
     
     const docTypeName = verification.documentType === 0 ? 'Mặt trước' : 'Mặt sau';
-    console.log(`Validating ${docTypeName} CCCD - URI: ${verification.document.substring(0, 30)}...`);
+    // //console.log(`Validating ${docTypeName} CCCD - URI: ${verification.document.substring(0, 30)}...`);
   });
 };
 
 // Legacy JSON-based registration function (kept as fallback)
 export const registerUserWithJSON = async (userData: RegisterData): Promise<ApiResponse<User>> => {
   try {
-    console.log('Using JSON/Base64 approach for registration (fallback)...');
-    console.log('Registration request URL:', `${API_URL}/Auth/Register`);
+    // //console.log('Using JSON/Base64 approach for registration (fallback)...');
+    // //console.log('Registration request URL:', `${API_URL}/Auth/Register`);
     
     // Validate user verifications
     validateUserVerifications(userData.userVerifications);
@@ -207,7 +207,7 @@ export const registerUserWithJSON = async (userData: RegisterData): Promise<ApiR
       userData.userVerifications.map(async (verification, index) => {
         try {
           const docTypeName = verification.documentType === 0 ? 'Mặt trước' : 'Mặt sau';
-          console.log(`Converting ${docTypeName} CCCD to base64...`);
+          // //console.log(`Converting ${docTypeName} CCCD to base64...`);
           
           const base64Data = await imageURIToBase64(verification.document);
           
@@ -263,13 +263,13 @@ export const registerUserWithJSON = async (userData: RegisterData): Promise<ApiR
 // Register a new user
 export const registerUser = async (userData: RegisterData): Promise<ApiResponse<User>> => {
   try {
-    console.log('Registration request URL:', `${API_URL}/Auth/Register`);
+    //console.log('Registration request URL:', `${API_URL}/Auth/Register`);
     
     // Create a working copy of the user data
     const processedUserData = { ...userData };
     
     // For debugging, let's see if userVerifications array is valid
-    console.log('User verifications array length:', processedUserData.userVerifications?.length || 0);
+    //console.log('User verifications array length:', processedUserData.userVerifications?.length || 0);
     
     // Make sure userVerifications is an array
     if (!Array.isArray(processedUserData.userVerifications)) {
@@ -283,7 +283,7 @@ export const registerUser = async (userData: RegisterData): Promise<ApiResponse<
         // Validate user verifications
         validateUserVerifications(processedUserData.userVerifications);
         
-        console.log('Creating FormData for registration with IFormFile support...');
+        //console.log('Creating FormData for registration with IFormFile support...');
         
         // Create FormData object
         const formData = new FormData();
@@ -302,7 +302,7 @@ export const registerUser = async (userData: RegisterData): Promise<ApiResponse<
         // Add verification documents as IFormFile
         processedUserData.userVerifications.forEach((verification, index) => {
           const docTypeName = verification.documentType === 0 ? 'Mặt trước' : 'Mặt sau';
-          console.log(`Adding ${docTypeName} CCCD to FormData (${index + 1}/${processedUserData.userVerifications.length})...`);
+          // //console.log(`Adding ${docTypeName} CCCD to FormData (${index + 1}/${processedUserData.userVerifications.length})...`);
           
           // Create file object for React Native FormData
           const fileObject = {
@@ -317,7 +317,7 @@ export const registerUser = async (userData: RegisterData): Promise<ApiResponse<
           formData.append(`UserVerifications[${index}].HasDocument`, 'true');
         });
 
-        console.log('Sending FormData to register API (multipart/form-data)');
+        //console.log('Sending FormData to register API (multipart/form-data)');
         
         // Send the API request with FormData (multipart/form-data)
         const response = await fetch(`${API_URL}/Auth/Register`, {
@@ -326,11 +326,11 @@ export const registerUser = async (userData: RegisterData): Promise<ApiResponse<
           body: formData,
         });
         
-        console.log('Registration response status:', response.status);
+        //console.log('Registration response status:', response.status);
         
         // Get response text first for debugging
         const responseText = await response.text();
-        // console.log('Raw response text:', responseText.substring(0, 200) + (responseText.length > 200 ? '...' : ''));
+        // //console.log('Raw response text:', responseText.substring(0, 200) + (responseText.length > 200 ? '...' : ''));
         
         // Try to parse response as JSON
         let data: ApiResponse<User>;
@@ -352,11 +352,11 @@ export const registerUser = async (userData: RegisterData): Promise<ApiResponse<
           }
         }
         
-        console.log('Registration API response:', data);
+        //console.log('Registration API response:', data);
         
         // Log the API response
         if (data.isSuccess) {
-          console.log('Registration successful with FormData!');
+          //console.log('Registration successful with FormData!');
         } else {
           console.error('Registration failed:', data);
           
@@ -395,7 +395,7 @@ export const registerUser = async (userData: RegisterData): Promise<ApiResponse<
 // Get user profile
 export const getUserProfile = async (): Promise<ApiResponse<User>> => {
   try {
-    // console.log('Get user profile request URL:', `${API_URL}/Auth/Me`);
+    // //console.log('Get user profile request URL:', `${API_URL}/Auth/Me`);
     
     const token = await AsyncStorage.getItem('accessToken');
     
@@ -426,7 +426,7 @@ export const getUserProfile = async (): Promise<ApiResponse<User>> => {
       throw new Error('Dữ liệu từ máy chủ không hợp lệ');
     }
     
-    // console.log('Get user profile response:', data);
+    // //console.log('Get user profile response:', data);
     
     if (!response.ok) {
       throw new Error(data.message || 'Không thể lấy thông tin người dùng');
@@ -493,7 +493,7 @@ export const getUserByUsername = async (userId: string): Promise<User | null> =>
       return null;
     }
     
-    console.log('🔍 Fetching user by username:', userId);
+    //console.log('🔍 Fetching user by username:', userId);
     
     const response = await fetch(`${API_URL}/Auth/username?userId=${userId}`, {
       method: 'GET',
@@ -516,7 +516,14 @@ export const getUserByUsername = async (userId: string): Promise<User | null> =>
     const data: ApiResponse<User> = JSON.parse(text);
     
     if (data.isSuccess) {
-      console.log('✅ User fetched:', data.data.firstName, data.data.lastName);
+      //console.log('✅ User fetched:', data.data.firstName, data.data.lastName);
+      // Log to check if email and phoneNumber are returned
+      console.log('User data from API:', {
+        hasEmail: !!data.data.email,
+        hasPhoneNumber: !!data.data.phoneNumber,
+        email: data.data.email ? '***' : null,
+        phoneNumber: data.data.phoneNumber ? '***' : null,
+      });
       return data.data;
     }
     
@@ -852,13 +859,13 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     const refreshToken = await AsyncStorage.getItem('refreshToken');
     
     if (!refreshToken) {
-      console.log('❌ No refresh token available');
+      //console.log('❌ No refresh token available');
       return false;
     }
 
-    console.log('🔄 Attempting to refresh access token...');
-    console.log('🔑 Refresh token length:', refreshToken.length);
-    console.log('🌐 API URL:', `${API_URL}/auth/refresh`);
+    //console.log('🔄 Attempting to refresh access token...');
+    //console.log('🔑 Refresh token length:', refreshToken.length);
+    //console.log('🌐 API URL:', `${API_URL}/auth/refresh`);
     
     // API endpoint: https://gateway.a-379.store/api/auth/refresh
     // Send refresh token in BOTH header AND body (backend may check either)
@@ -873,7 +880,7 @@ export const refreshAccessToken = async (): Promise<boolean> => {
       }),
     });
 
-    console.log('📡 Response status:', response.status);
+    //console.log('📡 Response status:', response.status);
     
     if (!response.ok) {
       const errorText = await response.text();
@@ -888,7 +895,7 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     }
 
     const responseText = await response.text();
-    console.log('📄 Response body:', responseText.substring(0, 200));
+    //console.log('📄 Response body:', responseText.substring(0, 200));
     
     const data: ApiResponse<TokenData> = JSON.parse(responseText);
 
@@ -901,9 +908,9 @@ export const refreshAccessToken = async (): Promise<boolean> => {
         await AsyncStorage.setItem('refreshToken', data.data.refreshToken);
       }
 
-      console.log('✅ Access token refreshed successfully');
-      console.log('📊 New access token length:', data.data.accessToken.length);
-      console.log('📅 Token expires at:', getTokenExpiration(data.data.accessToken));
+      //console.log('✅ Access token refreshed successfully');
+      //console.log('📊 New access token length:', data.data.accessToken.length);
+      //console.log('📅 Token expires at:', getTokenExpiration(data.data.accessToken));
       return true;
     } else {
       console.error('❌ Refresh token response invalid');
@@ -976,7 +983,7 @@ export const isTokenExpired = (token: string): boolean => {
       
       if (isExpired) {
         const expiresIn = Math.round((expirationTime - currentTime) / 1000);
-        console.log(`⏰ Token expires in ${expiresIn} seconds (${new Date(expirationTime).toLocaleString('vi-VN')})`);
+        //console.log(`⏰ Token expires in ${expiresIn} seconds (${new Date(expirationTime).toLocaleString('vi-VN')})`);
       }
       
       return isExpired;
@@ -999,7 +1006,7 @@ export const fetchWithTokenRefresh = async (
     
     // If no access token, return 401-like response
     if (!accessToken) {
-      console.log('❌ No access token available');
+      //console.log('❌ No access token available');
       return new Response(JSON.stringify({ message: 'No access token' }), { 
         status: 401,
         headers: { 'Content-Type': 'application/json' }
@@ -1008,11 +1015,11 @@ export const fetchWithTokenRefresh = async (
     
     // Check if token is expired and refresh if needed
     if (isTokenExpired(accessToken)) {
-      console.log('⏰ Token expired, attempting refresh...');
+      //console.log('⏰ Token expired, attempting refresh...');
       const refreshed = await refreshAccessToken();
       
       if (!refreshed) {
-        console.log('❌ Refresh failed, clearing session...');
+        //console.log('❌ Refresh failed, clearing session...');
         // Clear all auth data
         await logout();
         // Return 401 to trigger login redirect
@@ -1029,8 +1036,12 @@ export const fetchWithTokenRefresh = async (
     const headers: any = {
       ...options.headers,
       'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
     };
+
+    // Only set Content-Type if it's not FormData (FormData needs multipart/form-data which is set automatically)
+    if (!(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     // For web/browser, add CORS headers
     if (typeof window !== 'undefined') {
@@ -1048,7 +1059,7 @@ export const fetchWithTokenRefresh = async (
 
     // If we get 401, try refreshing token once and retry
     if (response.status === 401) {
-      console.log('🔄 Got 401, attempting to refresh token...');
+      //console.log('🔄 Got 401, attempting to refresh token...');
       const refreshed = await refreshAccessToken();
       
       if (refreshed) {
@@ -1057,8 +1068,12 @@ export const fetchWithTokenRefresh = async (
         const retryHeaders: any = {
           ...options.headers,
           'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
         };
+
+        // Only set Content-Type if it's not FormData
+        if (!(options.body instanceof FormData)) {
+          retryHeaders['Content-Type'] = 'application/json';
+        }
 
         if (typeof window !== 'undefined') {
           retryHeaders['Access-Control-Allow-Origin'] = '*';
@@ -1075,12 +1090,12 @@ export const fetchWithTokenRefresh = async (
         
         // If still 401 after refresh, logout
         if (response.status === 401) {
-          console.log('❌ Still 401 after refresh, clearing session...');
+          //console.log('❌ Still 401 after refresh, clearing session...');
           await logout();
         }
       } else {
         // Refresh failed, logout
-        console.log('❌ Refresh failed on 401, clearing session...');
+        //console.log('❌ Refresh failed on 401, clearing session...');
         await logout();
       }
     }

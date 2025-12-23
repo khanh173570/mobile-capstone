@@ -34,13 +34,13 @@ export default function HarvestListPage() {
   // Check if harvest list should be in view-only mode
   const isViewOnly = cropStatus === 2;
 
-  console.log('=== HarvestListPage Loaded ===');
-  console.log('Params:', params);
-  console.log('Crop ID:', cropId);
-  console.log('Crop Name:', cropName);
-  console.log('Crop Planting Date:', cropPlantingDate);
-  console.log('Crop Status:', cropStatus);
-  console.log('Is View Only:', isViewOnly);
+  //console.log('=== HarvestListPage Loaded ===');
+  //console.log('Params:', params);
+  //console.log('Crop ID:', cropId);
+  //console.log('Crop Name:', cropName);
+  //console.log('Crop Planting Date:', cropPlantingDate);
+  //console.log('Crop Status:', cropStatus);
+  //console.log('Is View Only:', isViewOnly);
 
   const [harvests, setHarvests] = useState<Harvest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +50,7 @@ export default function HarvestListPage() {
   const [selectedHarvest, setSelectedHarvest] = useState<Harvest | null>(null);
 
   useEffect(() => {
-    console.log('useEffect triggered, loading harvests...');
+    //console.log('useEffect triggered, loading harvests...');
     loadHarvests();
   }, [cropId]);
 

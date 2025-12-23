@@ -38,11 +38,41 @@ export interface BuyRequestHistoryResponse {
   data: BuyRequest[];
 }
 
-export const getBuyRequestHistory = async (status?: string): Promise<BuyRequest[]> => {
+export interface BuyRequestHistoryFilters {
+  status?: string;
+  district?: string;
+  typeName?: string;
+  fromStartDate?: string;
+  toStartDate?: string;
+  minTotalQuantity?: number;
+  maxTotalQuantity?: number;
+  orderBy?: string;
+  sortType?: string;
+}
+
+export const getBuyRequestHistory = async (filters?: BuyRequestHistoryFilters | string): Promise<BuyRequest[]> => {
   try {
-    const url = status
-      ? `${API_BASE_URL}/buyrequest/my-requests?status=${status}`
-      : `${API_BASE_URL}/buyrequest/my-requests`;
+    let url = `${API_BASE_URL}/buyrequest/my-requests`;
+    
+    // Support backward compatibility with string status parameter
+    if (typeof filters === 'string') {
+      url += `?status=${filters}`;
+    } else if (filters) {
+      const params = new URLSearchParams();
+      if (filters.status) params.append('status', filters.status);
+      if (filters.district) params.append('District', filters.district);
+      if (filters.typeName) params.append('TypeName', filters.typeName);
+      if (filters.fromStartDate) params.append('FromStartDate', filters.fromStartDate);
+      if (filters.toStartDate) params.append('ToStartDate', filters.toStartDate);
+      if (filters.minTotalQuantity) params.append('MinTotalQuantity', filters.minTotalQuantity.toString());
+      if (filters.maxTotalQuantity) params.append('MaxTotalQuantity', filters.maxTotalQuantity.toString());
+      if (filters.orderBy) params.append('OrderBy', filters.orderBy);
+      if (filters.sortType) params.append('SortType', filters.sortType);
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+    }
 
     const response = await fetchWithTokenRefresh(url, {
       method: 'GET',

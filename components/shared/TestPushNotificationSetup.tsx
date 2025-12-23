@@ -4,14 +4,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { printPushNotificationDiagnostics, setupPushNotifications } from '../../services/pushNotificationService';
 
 // Global log interceptor
-const originalLog = console.log;
+const originalLog = //console.log;
 const originalWarn = console.warn;
 const originalError = console.error;
 
 let globalLogs: string[] = [];
 
 const setupLogInterceptor = (setLogs: Function) => {
-  console.log = (...args: any[]) => {
+  //console.log = (...args: any[]) => {
     originalLog(...args);
     const message = args.map(arg => {
       if (typeof arg === 'object') {
@@ -47,7 +47,7 @@ const setupLogInterceptor = (setLogs: Function) => {
 };
 
 const restoreConsole = () => {
-  console.log = originalLog;
+  //console.log = originalLog;
   console.warn = originalWarn;
   console.error = originalError;
 };

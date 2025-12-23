@@ -77,7 +77,7 @@ export const getCustardAppleTypes = async (): Promise<CustardAppleType[]> => {
     const token = await AsyncStorage.getItem('accessToken');
     
     if (!token) {
-      console.log('No access token, returning empty array');
+      //console.log('No access token, returning empty array');
       return [];
     }
 
@@ -92,7 +92,7 @@ export const getCustardAppleTypes = async (): Promise<CustardAppleType[]> => {
     // Check if response is empty or not valid JSON
     const text = await response.text();
     if (!text || text.trim() === '') {
-      console.log('Empty response, returning empty array');
+      //console.log('Empty response, returning empty array');
       return [];
     }
 
@@ -132,7 +132,7 @@ export const getCropById = async (cropId: string): Promise<Crop | null> => {
     }
 
     const url = `${API_URL}/farm-service/crop/${cropId}`;
-    console.log('Fetching crop from URL:', url);
+    //console.log('Fetching crop from URL:', url);
 
     const response = await fetch(url, {
       method: 'GET',
@@ -142,14 +142,14 @@ export const getCropById = async (cropId: string): Promise<Crop | null> => {
       },
     });
 
-    console.log('Response status:', response.status);
-    console.log('Response ok:', response.ok);
+    //console.log('Response status:', response.status);
+    //console.log('Response ok:', response.ok);
 
     const text = await response.text();
-    // console.log('Response text:', text);
+    // //console.log('Response text:', text);
     
     if (!text || text.trim() === '') {
-      console.log('Empty response, returning null');
+      //console.log('Empty response, returning null');
       return null;
     }
 
@@ -189,8 +189,8 @@ export const getCropsByFarmId = async (farmId: string): Promise<Crop[]> => {
     }
 
     const url = `${API_URL}/farm-service/farm/${farmId}/crop`;
-    console.log('Fetching crops from URL:', url);
-    console.log('Using token:', token ? 'Token exists' : 'No token');
+    //console.log('Fetching crops from URL:', url);
+    //console.log('Using token:', token ? 'Token exists' : 'No token');
 
     const response = await fetch(url, {
       method: 'GET',
@@ -200,16 +200,16 @@ export const getCropsByFarmId = async (farmId: string): Promise<Crop[]> => {
       },
     });
 
-    console.log('Response status:', response.status);
-    console.log('Response ok:', response.ok);
+    //console.log('Response status:', response.status);
+    //console.log('Response ok:', response.ok);
 
     // Check if response is empty or not valid JSON
     const text = await response.text();
-    // console.log('Response text:', text);
-    // console.log('Response text length:', text ? text.length : 0);
+    // //console.log('Response text:', text);
+    // //console.log('Response text length:', text ? text.length : 0);
     
     if (!text || text.trim() === '') {
-      console.log('Empty response, returning empty array');
+      //console.log('Empty response, returning empty array');
       return [];
     }
 

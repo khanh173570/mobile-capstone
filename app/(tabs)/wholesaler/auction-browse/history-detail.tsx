@@ -219,18 +219,18 @@ export default function BuyRequestHistoryDetailScreen() {
     try {
       setLoadingUserData(true);
 
-      console.log('=== LOADING USER AND HARVEST DATA ===');
-      console.log('Buy Request:', buyRequest);
-      console.log('Farmer ID:', buyRequest.farmerId);
-      console.log('Wholesaler ID:', buyRequest.wholesalerId);
-      console.log('Harvest ID:', buyRequest.harvestId);
+      //console.log('=== LOADING USER AND HARVEST DATA ===');
+      //console.log('Buy Request:', buyRequest);
+      //console.log('Farmer ID:', buyRequest.farmerId);
+      //console.log('Wholesaler ID:', buyRequest.wholesalerId);
+      //console.log('Harvest ID:', buyRequest.harvestId);
 
       // Load farmer info
       if (buyRequest.farmerId) {
-        console.log('Fetching farmer info for:', buyRequest.farmerId);
+        //console.log('Fetching farmer info for:', buyRequest.farmerId);
         try {
           const farmer = await getUserByUsername(buyRequest.farmerId);
-          console.log('Farmer info received:', farmer);
+          //console.log('Farmer info received:', farmer);
           setFarmerInfo(farmer);
         } catch (err) {
           console.error('Error fetching farmer:', err);
@@ -239,10 +239,10 @@ export default function BuyRequestHistoryDetailScreen() {
 
       // Load wholesaler info
       if (buyRequest.wholesalerId) {
-        console.log('Fetching wholesaler info for:', buyRequest.wholesalerId);
+        //console.log('Fetching wholesaler info for:', buyRequest.wholesalerId);
         try {
           const wholesaler = await getUserByUsername(buyRequest.wholesalerId);
-          console.log('Wholesaler info received:', wholesaler);
+          //console.log('Wholesaler info received:', wholesaler);
           setWholesalerInfo(wholesaler);
         } catch (err) {
           console.error('Error fetching wholesaler:', err);
@@ -251,26 +251,26 @@ export default function BuyRequestHistoryDetailScreen() {
 
       // Load harvest and crop info
       if (buyRequest.harvestId) {
-        console.log('Fetching harvest info for:', buyRequest.harvestId);
+        //console.log('Fetching harvest info for:', buyRequest.harvestId);
         try {
           const harvest = await getHarvestById(buyRequest.harvestId);
-          console.log('Harvest info received:', harvest);
+          //console.log('Harvest info received:', harvest);
           setHarvestInfo(harvest);
 
           if (harvest && harvest.cropID) {
-            console.log('Fetching crop info for:', harvest.cropID);
+            // //console.log('Fetching crop info for:', harvest.cropID);
             const crop = await getCropById(harvest.cropID);
-            console.log('Crop info received:', crop);
+            // //console.log('Crop info received:', crop);
             setCropInfo(crop);
           }
         } catch (err) {
-          console.error('Error fetching harvest/crop:', err);
+          // console.error('Error fetching harvest/crop:', err);
         }
       }
       
-      console.log('=== LOADING COMPLETED ===');
+      // //console.log('=== LOADING COMPLETED ===');
     } catch (error) {
-      console.error('Error loading user and harvest data:', error);
+      // console.error('Error loading user and harvest data:', error);
     } finally {
       setLoadingUserData(false);
     }
@@ -315,14 +315,14 @@ export default function BuyRequestHistoryDetailScreen() {
     escrow.escrowStatus === 3 && // FullyFunded
     !dispute;
   
-  console.log('=== BUTTON VISIBILITY DEBUG ===');
-  console.log('Buy Request Status:', buyRequest?.status);
-  console.log('Escrow Status:', escrow?.escrowStatus);
-  console.log('Should Show Deposit Button:', shouldShowDepositButton);
-  console.log('Should Show Pay Remaining Button:', shouldShowPayRemainingButton);
-  console.log('Should Show Dispute Button:', shouldShowDisputeButton);
-  console.log('Has Dispute:', !!dispute);
-  console.log('==============================');
+  // //console.log('=== BUTTON VISIBILITY DEBUG ===');
+  // //console.log('Buy Request Status:', buyRequest?.status);
+  // //console.log('Escrow Status:', escrow?.escrowStatus);
+  // //console.log('Should Show Deposit Button:', shouldShowDepositButton);
+  // //console.log('Should Show Pay Remaining Button:', shouldShowPayRemainingButton);
+  // //console.log('Should Show Dispute Button:', shouldShowDisputeButton);
+  // //console.log('Has Dispute:', !!dispute);
+  // //console.log('==============================');
 
   return (
     <View style={styles.container}>

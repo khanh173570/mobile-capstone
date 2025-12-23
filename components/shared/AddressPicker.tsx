@@ -41,47 +41,111 @@ const AddressPicker: React.FC<AddressPickerProps> = ({
     wards: false,
   });
 
+  // Manual input mode khi API fail hoặc timeout
+  const [manualProvinceInput, setManualProvinceInput] = useState(false);
+  const [manualWardInput, setManualWardInput] = useState(false);
+  const [provinceInputText, setProvinceInputText] = useState('');
+  const [wardInputText, setWardInputText] = useState('');
+
   // Load provinces khi component mount
   useEffect(() => {
     loadProvinces();
   }, []);
 
   const loadProvinces = async () => {
-    console.log('🚀 [UI] Loading provinces...');
+    //console.log('🚀 [UI] Loading provinces...');
     setLoading(prev => ({ ...prev, provinces: true }));
-    try {
-      console.log('📞 [UI] Calling getProvinces API...');
-      const data = await getProvinces();
-      console.log('📦 [UI] Received provinces data:', data.length, 'items');
-      setProvinces(data);
-    } catch (error) {
-      console.error('❌ [UI] Error loading provinces:', error);
-      Alert.alert('Lỗi', 'Không thể tải danh sách tỉnh/thành phố');
-    } finally {
+    
+    let timeoutTriggered = false;
+    
+    // Timeout sau 5s nếu API không phản hồi
+    const timeoutId = setTimeout(() => {
+      timeoutTriggered = true;
+      console.warn('⚠️ [UI] Province API timeout after 5s, enabling manual input');
+      setManualProvinceInput(true);
       setLoading(prev => ({ ...prev, provinces: false }));
-      console.log('✅ [UI] Provinces loading finished');
+    }, 5000);
+
+    try {
+      //console.log('📞 [UI] Calling getProvinces API...');
+      const data = await getProvinces();
+      
+      if (!timeoutTriggered) {
+        clearTimeout(timeoutId);
+        
+        //console.log('📦 [UI] Received provinces data:', data.length, 'items');
+        if (data.length === 0) {
+          // API trả về empty array (timeout hoặc error đã được xử lý trong service)
+          console.warn('⚠️ [UI] No provinces data, enabling manual input');
+          setManualProvinceInput(true);
+        } else {
+          setProvinces(data);
+          setManualProvinceInput(false);
+        }
+      }
+    } catch (error) {
+      if (!timeoutTriggered) {
+        clearTimeout(timeoutId);
+      }
+      console.error('❌ [UI] Error loading provinces:', error);
+      // Không hiển thị alert, cho phép nhập tay
+      setManualProvinceInput(true);
+    } finally {
+      if (!timeoutTriggered) {
+        setLoading(prev => ({ ...prev, provinces: false }));
+      }
+      //console.log('✅ [UI] Provinces loading finished');
     }
   };
 
   const loadWards = async (provinceId: string) => {
-    console.log('🚀 [UI] Loading wards for province:', provinceId);
+    //console.log('🚀 [UI] Loading wards for province:', provinceId);
     setLoading(prev => ({ ...prev, wards: true }));
-    try {
-      console.log('📞 [UI] Calling getWardsFromProvince API...');
-      const data = await getWardsFromProvince(provinceId);
-      console.log('📦 [UI] Received wards data:', data.length, 'items');
-      setWards(data);
-    } catch (error) {
-      console.error('❌ [UI] Error loading wards:', error);
-      Alert.alert('Lỗi', 'Không thể tải danh sách phường/xã');
-    } finally {
+    
+    let timeoutTriggered = false;
+    
+    // Timeout sau 5s nếu API không phản hồi
+    const timeoutId = setTimeout(() => {
+      timeoutTriggered = true;
+      console.warn('⚠️ [UI] Ward API timeout after 5s, enabling manual input');
+      setManualWardInput(true);
       setLoading(prev => ({ ...prev, wards: false }));
-      console.log('✅ [UI] Wards loading finished');
+    }, 5000);
+
+    try {
+      //console.log('📞 [UI] Calling getWardsFromProvince API...');
+      const data = await getWardsFromProvince(provinceId);
+      
+      if (!timeoutTriggered) {
+        clearTimeout(timeoutId);
+        
+        //console.log('📦 [UI] Received wards data:', data.length, 'items');
+        if (data.length === 0) {
+          // API trả về empty array (timeout hoặc error đã được xử lý trong service)
+          console.warn('⚠️ [UI] No wards data, enabling manual input');
+          setManualWardInput(true);
+        } else {
+          setWards(data);
+          setManualWardInput(false);
+        }
+      }
+    } catch (error) {
+      if (!timeoutTriggered) {
+        clearTimeout(timeoutId);
+      }
+      console.error('❌ [UI] Error loading wards:', error);
+      // Không hiển thị alert, cho phép nhập tay
+      setManualWardInput(true);
+    } finally {
+      if (!timeoutTriggered) {
+        setLoading(prev => ({ ...prev, wards: false }));
+      }
+      //console.log('✅ [UI] Wards loading finished');
     }
   };
 
   const handleProvinceSelect = (province: Province) => {
-    console.log('🎯 [UI] User selected province:', province.name, '(ID:', province.id, ')');
+    //console.log('🎯 [UI] User selected province:', province.name, '(ID:', province.id, ')');
     
     const newAddress: SelectedAddress = {
       ...selectedAddress,
@@ -92,10 +156,29 @@ const AddressPicker: React.FC<AddressPickerProps> = ({
     onAddressChange(newAddress);
     setWards([]);
     setShowProvinceModal(false);
+    setWardInputText(''); // Reset ward input khi chọn tỉnh mới
     
     // Load phường/xã cho tỉnh được chọn
-    console.log('🔄 [UI] Now loading wards for selected province...');
+    //console.log('🔄 [UI] Now loading wards for selected province...');
     loadWards(province.id);
+  };
+
+  const handleProvinceInputChange = (text: string) => {
+    setProvinceInputText(text);
+    // Tạo province object từ text input
+    const manualProvince: Province = {
+      id: 'manual',
+      name: text,
+      full_name: text,
+    };
+    const newAddress: SelectedAddress = {
+      ...selectedAddress,
+      province: text.trim() ? manualProvince : null,
+      district: null,
+      ward: null, // Reset ward khi thay đổi tỉnh
+    };
+    onAddressChange(newAddress);
+    setWardInputText(''); // Reset ward input
   };
 
   const handleWardSelect = (ward: Ward) => {
@@ -105,6 +188,23 @@ const AddressPicker: React.FC<AddressPickerProps> = ({
     };
     onAddressChange(newAddress);
     setShowWardModal(false);
+  };
+
+  const handleWardInputChange = (text: string) => {
+    setWardInputText(text);
+    // Tạo ward object từ text input
+    const manualWard: Ward = {
+      id: 'manual',
+      name: text,
+      full_name: text,
+      id_district: '',
+    };
+    const newAddress: SelectedAddress = {
+      ...selectedAddress,
+      ward: text.trim() ? manualWard : null,
+    };
+    onAddressChange(newAddress);
+    // Không block các field khác nếu phường sai, chỉ cập nhật address
   };
 
   const handleDetailAddressChange = (detailAddress: string) => {
@@ -136,7 +236,7 @@ const AddressPicker: React.FC<AddressPickerProps> = ({
     title: string,
     isLoading: boolean
   ) => {
-    console.log('🎭 [UI] Rendering modal:', { visible, title, dataLength: data.length, isLoading });
+    //console.log('🎭 [UI] Rendering modal:', { visible, title, dataLength: data.length, isLoading });
     
     return (
       <Modal visible={visible} animationType="slide" transparent>
@@ -177,8 +277,8 @@ const AddressPicker: React.FC<AddressPickerProps> = ({
     );
   }, [renderDropdownItem]);
 
-  console.log('🏗️ [UI] AddressPicker rendering, provinces:', provinces.length);
-  console.log('🎭 [UI] Modal states - Province:', showProvinceModal, 'Ward:', showWardModal);
+  //console.log('🏗️ [UI] AddressPicker rendering, provinces:', provinces.length);
+  //console.log('🎭 [UI] Modal states - Province:', showProvinceModal, 'Ward:', showWardModal);
 
   return (
     <View style={styles.container}>
@@ -195,55 +295,82 @@ const AddressPicker: React.FC<AddressPickerProps> = ({
       </View>
 
       {/* Tỉnh/Thành phố */}
-      <TouchableOpacity
-        style={styles.dropdownContainer}
-        onPress={() => {
-          console.log('👆 [UI] User clicked on Province dropdown');
-          console.log('📊 [UI] Current provinces count:', provinces.length);
-          console.log('🎭 [UI] Setting showProvinceModal to true');
-          setShowProvinceModal(true);
-        }}
-        disabled={loading.provinces}
-      >
-        <MapPin size={20} color="#6B7280" style={styles.inputIcon} />
-        <Text
-          style={[
-            styles.dropdownText,
-            !selectedAddress.province && styles.placeholderText,
-          ]}
+      {manualProvinceInput || provinces.length === 0 ? (
+        <View style={styles.inputContainer}>
+          <MapPin size={20} color="#6B7280" style={styles.inputIcon} />
+          <TextInput
+            style={styles.input}
+            placeholder="Nhập Tỉnh/Thành phố"
+            placeholderTextColor="#9CA3AF"
+            value={provinceInputText || selectedAddress.province?.name || ''}
+            onChangeText={handleProvinceInputChange}
+          />
+        </View>
+      ) : (
+        <TouchableOpacity
+          style={styles.dropdownContainer}
+          onPress={() => {
+            //console.log('👆 [UI] User clicked on Province dropdown');
+            //console.log('📊 [UI] Current provinces count:', provinces.length);
+            //console.log('🎭 [UI] Setting showProvinceModal to true');
+            setShowProvinceModal(true);
+          }}
+          disabled={loading.provinces}
         >
-          {selectedAddress.province?.name || 'Chọn Tỉnh/Thành phố'}
-        </Text>
-        <ChevronDown size={20} color="#6B7280" />
-      </TouchableOpacity>
+          <MapPin size={20} color="#6B7280" style={styles.inputIcon} />
+          <Text
+            style={[
+              styles.dropdownText,
+              !selectedAddress.province && styles.placeholderText,
+            ]}
+          >
+            {selectedAddress.province?.name || 'Chọn Tỉnh/Thành phố'}
+          </Text>
+          <ChevronDown size={20} color="#6B7280" />
+        </TouchableOpacity>
+      )}
 
 {/* API 34 tỉnh thành không có cấp quận/huyện */}
 
       {/* Phường/Xã */}
-      <TouchableOpacity
-        style={[
-          styles.dropdownContainer,
-          !selectedAddress.province && styles.disabled,
-        ]}
-        onPress={() => {
-          console.log('👆 [UI] User clicked on Ward dropdown');
-          console.log('📊 [UI] Current wards count:', wards.length);
-          console.log('🏘️ [UI] Selected province:', selectedAddress.province?.name);
-          setShowWardModal(true);
-        }}
-        disabled={!selectedAddress.province || loading.wards}
-      >
-        <MapPin size={20} color="#6B7280" style={styles.inputIcon} />
-        <Text
+      {manualWardInput || (selectedAddress.province && wards.length === 0 && !loading.wards) ? (
+        <View style={styles.inputContainer}>
+          <MapPin size={20} color="#6B7280" style={styles.inputIcon} />
+          <TextInput
+            style={styles.input}
+            placeholder="Nhập Phường/Xã"
+            placeholderTextColor="#9CA3AF"
+            value={wardInputText || selectedAddress.ward?.full_name || ''}
+            onChangeText={handleWardInputChange}
+            editable={!!selectedAddress.province}
+          />
+        </View>
+      ) : (
+        <TouchableOpacity
           style={[
-            styles.dropdownText,
-            !selectedAddress.ward && styles.placeholderText,
+            styles.dropdownContainer,
+            !selectedAddress.province && styles.disabled,
           ]}
+          onPress={() => {
+            //console.log('👆 [UI] User clicked on Ward dropdown');
+            //console.log('📊 [UI] Current wards count:', wards.length);
+            //console.log('🏘️ [UI] Selected province:', selectedAddress.province?.name);
+            setShowWardModal(true);
+          }}
+          disabled={!selectedAddress.province || loading.wards}
         >
-          {selectedAddress.ward?.full_name || 'Chọn Phường/Xã'}
-        </Text>
-        <ChevronDown size={20} color="#6B7280" />
-      </TouchableOpacity>
+          <MapPin size={20} color="#6B7280" style={styles.inputIcon} />
+          <Text
+            style={[
+              styles.dropdownText,
+              !selectedAddress.ward && styles.placeholderText,
+            ]}
+          >
+            {selectedAddress.ward?.full_name || 'Chọn Phường/Xã'}
+          </Text>
+          <ChevronDown size={20} color="#6B7280" />
+        </TouchableOpacity>
+      )}
 
       {/* Hiển thị địa chỉ đầy đủ */}
       {formatFullAddress(selectedAddress) && (

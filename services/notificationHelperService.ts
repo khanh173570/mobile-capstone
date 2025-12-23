@@ -16,7 +16,7 @@ export const getStoredDeviceToken = async (): Promise<string | null> => {
       console.warn('⚠️ No device token found. Please ensure push notifications are set up.');
       return null;
     }
-    console.log('✓ Device token retrieved:', deviceToken.substring(0, 20) + '...');
+    //console.log('✓ Device token retrieved:', deviceToken.substring(0, 20) + '...');
     return deviceToken;
   } catch (error) {
     console.error('❌ Error getting device token:', error);
@@ -43,11 +43,11 @@ export const sendNotificationToCurrentDevice = async (
       return null;
     }
 
-    console.log('📤 Sending notification to current device...');
+    //console.log('📤 Sending notification to current device...');
     const response = await sendSimpleFCMNotification(deviceToken, title, body, data);
 
     if (response.isSuccess) {
-      console.log('✅ Notification sent successfully to device');
+      //console.log('✅ Notification sent successfully to device');
     } else {
       console.error('❌ Failed to send notification:', response.message);
     }
@@ -74,11 +74,11 @@ export const sendNotificationToDevice = async (
   data?: Record<string, any>
 ): Promise<FCMSendNotificationResponse> => {
   try {
-    console.log('📤 Sending notification to device:', deviceToken.substring(0, 20) + '...');
+    //console.log('📤 Sending notification to device:', deviceToken.substring(0, 20) + '...');
     const response = await sendSimpleFCMNotification(deviceToken, title, body, data);
 
     if (response.isSuccess) {
-      console.log('✅ Notification sent successfully');
+      //console.log('✅ Notification sent successfully');
     } else {
       console.error('❌ Failed to send notification:', response.message);
     }

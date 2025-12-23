@@ -54,7 +54,7 @@ export const getWholesalerAuctions = async (): Promise<WholesalerAuction[]> => {
 
     const text = await response.text();
     if (!text || text.trim() === '') {
-      console.log('Empty response, returning empty array');
+      //console.log('Empty response, returning empty array');
       return [];
     }
 

@@ -62,7 +62,7 @@ export default function EscrowPaymentModal({
   const handlePayWithWallet = async () => {
     setLoading(true);
     try {
-      console.log('Paying escrow with wallet, escrowId:', escrowId, 'amount:', amount);
+      //console.log('Paying escrow with wallet, escrowId:', escrowId, 'amount:', amount);
       
       const result = await payEscrowWithWallet(escrowId);
       

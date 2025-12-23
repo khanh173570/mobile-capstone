@@ -56,12 +56,12 @@ export default function PayRemainingModal({
     setSelectedOption('qr');
     setLoading(true);
     try {
-      console.log('Getting QR code for remaining escrow:', escrowId);
+      //console.log('Getting QR code for remaining escrow:', escrowId);
       
       const paymentUrl = await getPayRemainingEscrowUrl(escrowId);
       
       if (paymentUrl) {
-        console.log('Payment URL received:', paymentUrl);
+        //console.log('Payment URL received:', paymentUrl);
         setSelectedOption(null);
         onClose();
         // Navigate to payment page
@@ -103,7 +103,7 @@ export default function PayRemainingModal({
   const handlePayWithWallet = async () => {
     setLoading(true);
     try {
-      console.log('Paying remaining escrow with wallet, escrowId:', escrowId, 'amount:', amount);
+      //console.log('Paying remaining escrow with wallet, escrowId:', escrowId, 'amount:', amount);
       
       const success = await payRemainingEscrowWithWallet(escrowId);
       
@@ -153,12 +153,12 @@ export default function PayRemainingModal({
   const handlePayWithMoMo = async () => {
     setLoading(true);
     try {
-      console.log('Getting MoMo payment URL for remaining escrow:', escrowId);
+      //console.log('Getting MoMo payment URL for remaining escrow:', escrowId);
       
       const paymentUrl = await getPayRemainingEscrowUrl(escrowId);
       
       if (paymentUrl) {
-        console.log('Payment URL received:', paymentUrl);
+        //console.log('Payment URL received:', paymentUrl);
         setSelectedOption(null);
         setShowQRCode(false);
         onClose();

@@ -17,15 +17,15 @@ import {
   ArrowLeft,
   MapPin,
   Package,
-  DollarSign,
   Calendar,
   X,
   Trash2,
   Plus,
+  User as UserIcon,
 } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { createBuyRequest, SearchResult } from '../../../../services/buyRequestService';
-import { getUserProfile } from '../../../../services/authService';
+import { getUserProfile, getUserByUsername, User } from '../../../../services/authService';
 
 interface BuyRequestDetail {
   grade: number;
@@ -38,6 +38,19 @@ interface BuyRequestDetail {
 export default function AuctionDetailScreen() {
   const params = useLocalSearchParams();
   const harvest = params.harvest ? JSON.parse(params.harvest as string) : null;
+  
+  // Log to verify harvestGradeDetailDTOs is present
+  React.useEffect(() => {
+    if (harvest) {
+      console.log('Harvest data in detail page:', {
+        id: harvest.id,
+        cropName: harvest.cropName,
+        hasGradeDetails: !!(harvest.harvestGradeDetailDTOs && harvest.harvestGradeDetailDTOs.length > 0),
+        gradeDetailsCount: harvest.harvestGradeDetailDTOs?.length || 0,
+        gradeDetails: harvest.harvestGradeDetailDTOs,
+      });
+    }
+  }, [harvest]);
   
   const [userId, setUserId] = useState('');
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -58,12 +71,17 @@ export default function AuctionDetailScreen() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [farmerInfo, setFarmerInfo] = useState<User | null>(null);
+  const [loadingFarmer, setLoadingFarmer] = useState(false);
 
   const priceSuggestions = [500000, 1000000, 2000000];
 
   React.useEffect(() => {
     loadUserProfile();
-  }, []);
+    if (harvest?.farmerID) {
+      loadFarmerInfo();
+    }
+  }, [harvest?.farmerID]);
 
   const loadUserProfile = async () => {
     try {
@@ -73,6 +91,31 @@ export default function AuctionDetailScreen() {
       }
     } catch (error) {
       console.error('Error loading user profile:', error);
+    }
+  };
+
+  const loadFarmerInfo = async () => {
+    if (!harvest?.farmerID) return;
+    
+    try {
+      setLoadingFarmer(true);
+      const farmer = await getUserByUsername(harvest.farmerID);
+      if (farmer) {
+        console.log('Farmer info loaded:', {
+          firstName: farmer.firstName,
+          lastName: farmer.lastName,
+          email: farmer.email,
+          phoneNumber: farmer.phoneNumber,
+          userName: farmer.userName,
+        });
+        setFarmerInfo(farmer);
+      } else {
+        console.warn('Farmer info is null or undefined');
+      }
+    } catch (error) {
+      console.error('Error loading farmer info:', error);
+    } finally {
+      setLoadingFarmer(false);
     }
   };
 
@@ -87,7 +130,9 @@ export default function AuctionDetailScreen() {
     if (!expectedPrice.trim()) {
       newErrors.expectedPrice = 'Vui lòng nhập giá dự kiên';
     } else {
-      const price = parseFloat(expectedPrice);
+      // Remove dots before parsing
+      const numericPrice = expectedPrice.replace(/\./g, '');
+      const price = parseFloat(numericPrice);
       if (isNaN(price) || price <= 0) {
         newErrors.expectedPrice = 'Giá phải là số dương';
       }
@@ -181,18 +226,17 @@ export default function AuctionDetailScreen() {
       return;
     }
 
-    // Validate details if not buying bulk
-    if (!isBuyingBulk && details.length === 0) {
-      Alert.alert('Lỗi', 'Vui lòng thêm ít nhất 1 chi tiết loại hàng');
-      return;
-    }
+    // isBuyingBulk is always true, no need to validate details
 
     try {
       setSubmitting(true);
 
+      // Remove dots from expectedPrice before parsing
+      const numericPrice = expectedPrice.replace(/\./g, '');
+      
       const payload = {
         requiredDate: new Date(requiredDate).toISOString(),
-        expectedPrice: parseFloat(expectedPrice),
+        expectedPrice: parseFloat(numericPrice),
         message,
         status: 'Pending',
         isBuyingBulk,
@@ -200,6 +244,7 @@ export default function AuctionDetailScreen() {
         harvestId: harvest.id,
         farmerId: harvest.farmerID,
         details: isBuyingBulk ? [] : details,
+        harvestGradeDetailDTOs: harvest.harvestGradeDetailDTOs || [],
       };
 
       await createBuyRequest(payload);
@@ -212,9 +257,10 @@ export default function AuctionDetailScreen() {
           },
         },
       ]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating request:', error);
-      Alert.alert('Lỗi', 'Không thể tạo yêu cầu mua');
+      const errorMessage = error?.message || error?.toString() || 'Không thể tạo yêu cầu mua';
+      Alert.alert('Lỗi', errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -232,34 +278,14 @@ export default function AuctionDetailScreen() {
         </View>
 
         <ScrollView style={styles.formContent}>
-          <View style={styles.productCard}>
-            <Text style={styles.productCardTitle}>{harvest.cropName}</Text>
-            <View style={styles.productCardDetails}>
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>Số lượng sẵn</Text>
-                <Text style={styles.detailValue}>
-                  {harvest.totalQuantity} {harvest.unit}
-                </Text>
-              </View>
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>Giá hiện tại</Text>
-                <Text style={styles.detailValue}>
-                  {(harvest.salePrice || 0).toLocaleString('vi-VN')} ₫
-                </Text>
-              </View>
-            </View>
-            <View style={styles.addressHighlight}>
-              <MapPin size={16} color="#3B82F6" />
-              <Text style={styles.addressText}>{harvest.address}</Text>
-            </View>
-          </View>
-
           <View style={styles.formSection}>
-            <Text style={styles.formSectionTitle}>Thông tin yêu cầu</Text>
+            {/* <Text style={styles.formSectionTitle}>Thông tin yêu cầu</Text> */}
 
             <View style={styles.formField}>
               <View style={styles.labelContainer}>
-                <Text style={styles.labelText}>Ngày cần thiết</Text>
+                <Text style={styles.formLabelText} numberOfLines={1}>
+                  1. Ngày cần thiết
+                </Text>
                 <Text style={styles.required}>*</Text>
               </View>
               <TouchableOpacity
@@ -317,61 +343,47 @@ export default function AuctionDetailScreen() {
 
             <View style={styles.formField}>
               <View style={styles.labelContainer}>
-                <Text style={styles.labelText}>Giá dự kiến</Text>
+                <Text style={styles.formLabelText} numberOfLines={1}>
+                  2. Giá dự kiến (VND)
+                </Text>
                 <Text style={styles.required}>*</Text>
               </View>
-              <View style={[styles.priceInputContainer, errors.expectedPrice && styles.inputError]}>
-                <View style={styles.inputWrapper}>
-                  <DollarSign size={18} color="#6B7280" />
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Nhập hoặc chọn giá"
-                    value={expectedPrice}
-                    onChangeText={(text) => {
-                      setExpectedPrice(text);
-                      setErrors({ ...errors, expectedPrice: '' });
-                    }}
-                    keyboardType="numeric"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                </View>
-                <TouchableOpacity
-                  style={styles.priceDropdownButton}
-                  onPress={() => setShowPriceSuggestions(!showPriceSuggestions)}
-                >
-                  <Text style={styles.priceDropdownText}>▼</Text>
-                </TouchableOpacity>
-              </View>
+              <TextInput
+                style={[styles.textInput, errors.expectedPrice && styles.inputError]}
+                placeholder="Nhập giá dự kiến yêu cầu"
+                value={expectedPrice}
+                onChangeText={(text) => {
+                  // Remove all non-numeric characters except dots
+                  const numericValue = text.replace(/[^\d]/g, '');
+                  
+                  // Format with dots for thousands separator
+                  let formattedValue = '';
+                  if (numericValue.length > 0) {
+                    // Reverse the string to add dots from right to left
+                    const reversed = numericValue.split('').reverse().join('');
+                    const chunks: string[] = [];
+                    for (let i = 0; i < reversed.length; i += 3) {
+                      chunks.push(reversed.slice(i, i + 3));
+                    }
+                    formattedValue = chunks.join('.').split('').reverse().join('');
+                  }
+                  
+                  setExpectedPrice(formattedValue);
+                  setErrors({ ...errors, expectedPrice: '' });
+                }}
+                keyboardType="numeric"
+                placeholderTextColor="#9CA3AF"
+              />
               {errors.expectedPrice && (
                 <Text style={styles.errorText}>{errors.expectedPrice}</Text>
-              )}
-              
-              {showPriceSuggestions && (
-                <View style={styles.suggestionsBox}>
-                  <View style={styles.suggestionsHeader}>
-                    <Text style={styles.suggestionsTitle}>Gợi ý giá</Text>
-                    <TouchableOpacity onPress={() => setShowPriceSuggestions(false)}>
-                      <X size={18} color="#6B7280" />
-                    </TouchableOpacity>
-                  </View>
-                  {priceSuggestions.map((price) => (
-                    <TouchableOpacity
-                      key={price}
-                      style={styles.suggestionItem}
-                      onPress={() => handlePriceSelect(price)}
-                    >
-                      <Text style={styles.suggestionText}>
-                        {price.toLocaleString('vi-VN')} ₫
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
               )}
             </View>
 
             <View style={styles.formField}>
               <View style={styles.labelContainer}>
-                <Text style={styles.labelText}>Ghi chú / Yêu cầu đặc biệt</Text>
+                <Text style={styles.formLabelText} numberOfLines={1}>
+                  3. Ghi chú cho nông dân
+                </Text>
                 <Text style={styles.required}>*</Text>
               </View>
               <TextInput
@@ -391,124 +403,6 @@ export default function AuctionDetailScreen() {
               )}
             </View>
 
-            {/* isBuyingBulk Toggle */}
-            <View style={styles.toggleContainer}>
-              <View style={styles.toggleLabelContainer}>
-                <Text style={styles.toggleLabel}>Mua hàng loạn</Text>
-                <Text style={styles.toggleDescription}>
-                  {isBuyingBulk ? 'Mua toàn bộ sản phẩm' : 'Chỉ định loại hàng cụ thể'}
-                </Text>
-              </View>
-              <Switch
-                value={isBuyingBulk}
-                onValueChange={setIsBuyingBulk}
-                trackColor={{ false: '#E5E7EB', true: '#A7F3D0' }}
-                thumbColor={isBuyingBulk ? '#059669' : '#6B7280'}
-              />
-            </View>
-
-            {/* Details Form - Only show when not buying bulk */}
-            {!isBuyingBulk && (
-              <View style={styles.detailsSection}>
-                <Text style={styles.formSectionTitle}>Chi tiết loại hàng</Text>
-
-                {/* Current Detail Input */}
-                <View style={styles.detailInputGroup}>
-                  <View style={styles.detailInputRow}>
-                    <View style={styles.detailInput}>
-                      <Text style={styles.detailLabel}>Hạng</Text>
-                      <TextInput
-                        style={styles.detailTextInput}
-                        placeholder="Hạng"
-                        value={currentDetail.grade.toString()}
-                        onChangeText={(text) =>
-                          setCurrentDetail({ ...currentDetail, grade: parseInt(text) || 1 })
-                        }
-                        keyboardType="numeric"
-                        editable={false}
-                      />
-                    </View>
-                    <View style={styles.detailInput}>
-                      <Text style={styles.detailLabel}>SL</Text>
-                      <TextInput
-                        style={styles.detailTextInput}
-                        placeholder="Số lượng"
-                        value={currentDetail.quantity.toString()}
-                        onChangeText={(text) =>
-                          setCurrentDetail({ ...currentDetail, quantity: parseInt(text) || 0 })
-                        }
-                        keyboardType="numeric"
-                      />
-                    </View>
-                  </View>
-
-                  <View style={styles.detailInputRow}>
-                    <View style={styles.detailInput}>
-                      <Text style={styles.detailLabel}>Giá</Text>
-                      <TextInput
-                        style={styles.detailTextInput}
-                        placeholder="Giá"
-                        value={currentDetail.price.toString()}
-                        onChangeText={(text) =>
-                          setCurrentDetail({ ...currentDetail, price: parseInt(text) || 0 })
-                        }
-                        keyboardType="numeric"
-                      />
-                    </View>
-                    <View style={styles.detailInput}>
-                      <Text style={styles.detailLabel}>Độ lệch %</Text>
-                      <TextInput
-                        style={styles.detailTextInput}
-                        placeholder="Độ lệch"
-                        value={currentDetail.allowedDeviationPercent.toString()}
-                        onChangeText={(text) =>
-                          setCurrentDetail({
-                            ...currentDetail,
-                            allowedDeviationPercent: parseInt(text) || 0,
-                          })
-                        }
-                        keyboardType="numeric"
-                      />
-                    </View>
-                  </View>
-                </View>
-
-                <TouchableOpacity
-                  style={styles.addDetailButton}
-                  onPress={handleAddDetail}
-                >
-                  <Plus size={18} color="#FFFFFF" />
-                  <Text style={styles.addDetailButtonText}>Thêm chi tiết</Text>
-                </TouchableOpacity>
-
-                {/* Details List */}
-                {details.length > 0 && (
-                  <View style={styles.detailsList}>
-                    {details.map((detail, index) => (
-                      <View key={index} style={styles.detailCard}>
-                        <View style={styles.detailCardContent}>
-                          <Text style={styles.detailCardTitle}>
-                            Hạng {detail.grade} - {detail.quantity} {detail.unit}
-                          </Text>
-                          <Text style={styles.detailCardPrice}>
-                            Giá: {detail.price.toLocaleString('vi-VN')} ₫
-                          </Text>
-                          <Text style={styles.detailCardDeviation}>
-                            Độ lệch: {detail.allowedDeviationPercent}%
-                          </Text>
-                        </View>
-                        <TouchableOpacity
-                          style={styles.deleteDetailButton}
-                          onPress={() => handleRemoveDetail(index)}
-                        >
-                          <Trash2 size={18} color="#EF4444" />
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </View>
-            )}
 
             <TouchableOpacity
               style={[styles.submitButton, submitting && { opacity: 0.6 }]}
@@ -589,11 +483,62 @@ export default function AuctionDetailScreen() {
             <Text style={styles.labelText}>Loại:</Text>
             <Text style={styles.value}>{harvest.custardAppleTypeName || 'N/A'}</Text>
           </View>
+          {harvest.custardAppleTypeDescription && (
+            <View style={styles.infoRow}>
+              <Text style={styles.labelText}>Mô tả loại:</Text>
+              <Text style={[styles.value, { fontStyle: 'italic', color: '#6B7280' }]}>
+                {harvest.custardAppleTypeDescription}
+              </Text>
+            </View>
+          )}
           <View style={styles.infoRow}>
             <Text style={styles.labelText}>Diện tích:</Text>
-            <Text style={styles.value}>{harvest.cropArea || 'N/A'}</Text>
+            <Text style={styles.value}>{harvest.cropArea ? `${harvest.cropArea} ha` : 'N/A'}</Text>
           </View>
         </View>
+
+        {/* Farmer Information Section */}
+        {harvest.farmerID && (
+          <View style={styles.infoSection}>
+            <Text style={styles.sectionTitle}>Thông tin nông dân</Text>
+            {loadingFarmer ? (
+              <View style={styles.infoRow}>
+                <Text style={styles.value}>Đang tải thông tin...</Text>
+              </View>
+            ) : farmerInfo ? (
+              <>
+                <View style={styles.infoRow}>
+                  <UserIcon size={16} color="#6B7280" />
+                  <Text style={[styles.value, { flex: 1, marginLeft: 8, fontWeight: '600' }]}>
+                    {farmerInfo.firstName} {farmerInfo.lastName}
+                  </Text>
+                </View>
+                {farmerInfo.userName && (
+                  <View style={styles.infoRow}>
+                    <Text style={styles.labelText}>Username:</Text>
+                    <Text style={styles.value}>{farmerInfo.userName}</Text>
+                  </View>
+                )}
+                {farmerInfo.address && (
+                  <View style={styles.infoRow}>
+                    <MapPin size={16} color="#6B7280" />
+                    <Text style={[styles.value, { flex: 1, marginLeft: 8 }]}>
+                      {farmerInfo.address}
+                      {farmerInfo.communes && `, ${farmerInfo.communes}`}
+                      {farmerInfo.province && `, ${farmerInfo.province}`}
+                    </Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <View style={styles.infoRow}>
+                <Text style={[styles.value, { color: '#9CA3AF' }]}>
+                  Không thể tải thông tin nông dân
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         <View style={styles.infoSection}>
           <Text style={styles.sectionTitle}>Địa chỉ</Text>
@@ -616,49 +561,64 @@ export default function AuctionDetailScreen() {
         <View style={styles.infoSection}>
           <Text style={styles.sectionTitle}>Thông tin vụ mùa</Text>
           <View style={styles.infoRow}>
-            <Package size={16} color="#6B7280" />
-            <Text style={[styles.value, { flex: 1, marginLeft: 8 }]}>
+            <Text style={styles.labelText}>Tổng số lượng:</Text>
+            <Text style={styles.value}>
               {harvest.totalQuantity} {harvest.unit}
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
-            <DollarSign size={16} color="#6B7280" />
-            <Text style={[styles.value, { flex: 1, marginLeft: 8, color: '#059669', fontWeight: '700' }]}>
-              {(harvest.salePrice || 0).toLocaleString('vi-VN')} ₫
             </Text>
           </View>
           {harvest.startDate && (
             <View style={styles.infoRow}>
-              <Calendar size={16} color="#6B7280" />
-              <Text style={[styles.value, { flex: 1, marginLeft: 8 }]}>
-                {new Date(harvest.startDate).toLocaleDateString('vi-VN')}
+              <Text style={styles.labelText}>Ngày bắt đầu:</Text>
+              <Text style={styles.value}>
+                {new Date(harvest.startDate).toLocaleDateString('vi-VN', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+              </Text>
+            </View>
+          )}
+          {harvest.harvestDate && (
+            <View style={styles.infoRow}>
+              <Text style={styles.labelText}>Ngày thu hoạch:</Text>
+              <Text style={styles.value}>
+                {new Date(harvest.harvestDate).toLocaleDateString('vi-VN', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })}
               </Text>
             </View>
           )}
           <View style={styles.infoRow}>
-            <Text style={styles.labelText}>Ghi chú:</Text>
-            <Text style={styles.value}>{harvest.note || 'N/A'}</Text>
+            <Text style={styles.labelText}>Giá bán:</Text>
+            <Text style={[styles.value, { color: '#059669', fontWeight: '700' }]}>
+              {harvest.salePrice ? `${harvest.salePrice.toLocaleString('vi-VN')} ₫` : 'Chưa có giá'}
+            </Text>
           </View>
+          {harvest.note && harvest.note.trim() !== '' && (
+            <View style={styles.infoRow}>
+              <Text style={styles.labelText}>Ghi chú:</Text>
+              <Text style={[styles.value, { flex: 1 }]}>{harvest.note}</Text>
+            </View>
+          )}
         </View>
 
         {harvest.harvestGradeDetailDTOs && harvest.harvestGradeDetailDTOs.length > 0 && (
           <View style={styles.infoSection}>
             <Text style={styles.sectionTitle}>Chi tiết loại hàng</Text>
-            {harvest.harvestGradeDetailDTOs.map((grade: any, index: number) => (
-              <View key={index} style={styles.gradeCard}>
-                <Text style={styles.gradeTitle}>Loại {index + 1}</Text>
-                <View style={styles.infoRow}>
-                  <Text style={styles.labelText}>Hạng:</Text>
-                  <Text style={styles.value}>{grade.grade}</Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Text style={styles.labelText}>Số lượng:</Text>
-                  <Text style={styles.value}>
-                    {grade.quantity} {harvest.unit}
-                  </Text>
-                </View>
-              </View>
-            ))}
+            <View style={styles.gradeContainer}>
+              {[...harvest.harvestGradeDetailDTOs]
+                .sort((a: any, b: any) => (a.grade || 0) - (b.grade || 0))
+                .map((grade: any, index: number) => (
+                  <View key={grade.id || index} style={styles.gradeCard}>
+                    <Text style={styles.gradeTitle}>Hạng {grade.grade}</Text>
+                    <Text style={styles.gradeQuantity}>
+                      {grade.quantity} {grade.unit || harvest.unit}
+                    </Text>
+                  </View>
+                ))}
+            </View>
           </View>
         )}
 
@@ -780,19 +740,31 @@ const styles = StyleSheet.create({
     color: '#111827',
     flex: 1,
   },
+  gradeContainer: {
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
   gradeCard: {
     backgroundColor: '#F9FAFB',
     borderRadius: 8,
     padding: 12,
-    marginBottom: 10,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    width: '32%',
+    alignItems: 'center',
   },
   gradeTitle: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
     color: '#111827',
-    marginBottom: 8,
+    marginBottom: 6,
+  },
+  gradeQuantity: {
+    fontSize: 13,
+    color: '#6B7280',
+    textAlign: 'center',
   },
   createButton: {
     backgroundColor: '#10B981',
@@ -881,11 +853,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
+    flexWrap: 'nowrap',
+  },
+  formLabelText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '600',
+    flexShrink: 1,
+    marginRight: 4,
   },
   required: {
     color: '#EF4444',
     fontSize: 14,
-    marginLeft: 4,
+    flexShrink: 0,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -902,7 +882,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#111827',
-    padding: 0,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
   },
   messageInput: {
     paddingHorizontal: 12,

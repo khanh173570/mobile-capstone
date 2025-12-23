@@ -27,11 +27,11 @@ export interface RegisterDeviceTokenRequest {
  */
 export const getExpoPushToken = async (): Promise<string | null> => {
   try {
-    console.log('📱 [Expo] Attempting to get Expo Push Token...');
-    console.log('  Platform:', Platform.OS);
+    //console.log('📱 [Expo] Attempting to get Expo Push Token...');
+    //console.log('  Platform:', Platform.OS);
 
     // Step 1: Request notification permission first
-    console.log('  📍 Requesting notification permission...');
+    //console.log('  📍 Requesting notification permission...');
     try {
       const { status } = await Notifications.requestPermissionsAsync({
         ios: {
@@ -42,12 +42,12 @@ export const getExpoPushToken = async (): Promise<string | null> => {
       });
       
       if (status === 'granted') {
-        console.log('  ✓ Notification permission granted');
+        //console.log('  ✓ Notification permission granted');
       } else if (status === 'denied') {
         console.warn('  ⚠️  [Expo] Notification permission denied by user');
         // Continue anyway - might still get token or it might work with limited notifications
       } else {
-        console.log('  ℹ️  [Expo] Notification permission status:', status);
+        //console.log('  ℹ️  [Expo] Notification permission status:', status);
       }
     } catch (permissionError) {
       console.warn('  ⚠️  [Expo] Could not request notification permission:', permissionError);
@@ -85,17 +85,17 @@ export const getExpoPushToken = async (): Promise<string | null> => {
           continue;
         }
 
-        console.log(`✓ [Expo] Token acquired on attempt ${attempts}`);
-        console.log(`  Token: ${token}`);
-        console.log(`  Length: ${token.length} chars`);
+        // //console.log(`✓ [Expo] Token acquired on attempt ${attempts}`);
+        // //console.log(`  Token: ${token}`);
+        // //console.log(`  Length: ${token.length} chars`);
         return token;
       } catch (attemptError) {
-        console.warn(`  ⚠️  [Expo] Attempt ${attempts}/${maxAttempts} failed:`, attemptError);
+        // console.warn(`  ⚠️  [Expo] Attempt ${attempts}/${maxAttempts} failed:`, attemptError);
         token = null;
 
         if (attempts < maxAttempts) {
           const waitTime = retryDelayMs / 1000;
-          console.log(`  ⏳ Retrying in ${waitTime}s...`);
+          // //console.log(`  ⏳ Retrying in ${waitTime}s...`);
           await new Promise(resolve => setTimeout(resolve, retryDelayMs));
         }
       }
@@ -124,7 +124,7 @@ const setupTopLevelBackgroundHandler = () => {
   try {
     const messagingFn = getFirebaseMessaging();
     if (!messagingFn) {
-      console.warn('⚠️  [Background Handler] Firebase messaging not available (normal for Expo Go)');
+      // console.warn('⚠️  [Background Handler] Firebase messaging not available (normal for Expo Go)');
       return;
     }
     
@@ -136,14 +136,14 @@ const setupTopLevelBackgroundHandler = () => {
 
     // Register at TOP LEVEL - runs immediately when module loads
     messaging.setBackgroundMessageHandler(async (remoteMessage: any) => {
-      console.log('📬 [Background] Message received (app in background/killed)');
-      console.log('  Title:', remoteMessage.notification?.title);
-      console.log('  Body:', remoteMessage.notification?.body);
-      console.log('  Data:', remoteMessage.data);
+      //console.log('📬 [Background] Message received (app in background/killed)');
+      //console.log('  Title:', remoteMessage.notification?.title);
+      //console.log('  Body:', remoteMessage.notification?.body);
+      //console.log('  Data:', remoteMessage.data);
       // Background messages are automatically displayed by FCM
       // This handler runs even if app is terminated
     });
-    console.log('✓ [Background Handler] Registered at TOP LEVEL');
+    //console.log('✓ [Background Handler] Registered at TOP LEVEL');
   } catch (error) {
     console.warn('⚠️  [Background Handler] Could not set up (Firebase not ready):', error);
   }
@@ -167,8 +167,8 @@ setTimeout(() => {
  */
 export const getFirebaseToken = async (): Promise<string | null> => {
   try {
-    console.log('🔥 [FCM] Getting Firebase Cloud Messaging token...');
-    console.log('  Platform:', Platform.OS);
+    //console.log('🔥 [FCM] Getting Firebase Cloud Messaging token...');
+    //console.log('  Platform:', Platform.OS);
 
     // Get Firebase Messaging instance function
     const messagingFn = getFirebaseMessaging();
@@ -178,16 +178,16 @@ export const getFirebaseToken = async (): Promise<string | null> => {
     }
     
     const messaging = messagingFn();
-    console.log('✓ [FCM] Firebase Messaging instance available');
+    //console.log('✓ [FCM] Firebase Messaging instance available');
 
     // STEP 1: Request notification permission
-    console.log('📍 [FCM] Step 1: Requesting notification permission...');
+    //console.log('📍 [FCM] Step 1: Requesting notification permission...');
     try {
       const authStatus = await messaging.requestPermission();
       const enabled = authStatus === 1 || authStatus === 2; // AUTHORIZED or PROVISIONAL
       
       if (enabled) {
-        console.log('✓ [FCM] Notification permission granted');
+        //console.log('✓ [FCM] Notification permission granted');
       } else {
         console.warn('⚠️  [FCM] Notification permission status:', authStatus);
         // Continue anyway - might have permission already
@@ -200,11 +200,11 @@ export const getFirebaseToken = async (): Promise<string | null> => {
     // STEP 2: CRITICAL - Register for remote messages
     // This tells Firebase to prepare the device for receiving messages
     // and triggers auto-registration of FCM token
-    console.log('📍 [FCM] Step 2: Registering device for remote messages...');
+    //console.log('📍 [FCM] Step 2: Registering device for remote messages...');
     try {
       if (typeof messaging.registerDeviceForRemoteMessages === 'function') {
         await messaging.registerDeviceForRemoteMessages();
-        console.log('✓ [FCM] Device registered for remote messages');
+        //console.log('✓ [FCM] Device registered for remote messages');
       } else {
         console.warn('⚠️  [FCM] registerDeviceForRemoteMessages not available');
       }
@@ -216,12 +216,12 @@ export const getFirebaseToken = async (): Promise<string | null> => {
     // STEP 3: CRITICAL - Wait for Firebase to auto-register and prepare token
     // This is the key fix - Firebase needs 1-2 seconds after registerDeviceForRemoteMessages
     // to actually generate and make the token available
-    console.log('📍 [FCM] Step 3: Waiting for Firebase to prepare token...');
+    //console.log('📍 [FCM] Step 3: Waiting for Firebase to prepare token...');
     await new Promise(res => setTimeout(res, 1500));
-    console.log('✓ [FCM] Wait completed');
+    //console.log('✓ [FCM] Wait completed');
 
     // STEP 4: Get the token
-    console.log('📍 [FCM] Step 4: Retrieving token from Firebase...');
+    //console.log('📍 [FCM] Step 4: Retrieving token from Firebase...');
     let token: string | null = null;
     
     try {
@@ -237,9 +237,9 @@ export const getFirebaseToken = async (): Promise<string | null> => {
       return null;
     }
 
-    console.log('✓ [FCM] FCM token acquired successfully');
-    console.log('  Token length:', token.length, 'characters');
-    console.log('  Token:', token);
+    //console.log('✓ [FCM] FCM token acquired successfully');
+    //console.log('  Token length:', token.length, 'characters');
+    //console.log('  Token:', token);
 
     return token;
   } catch (error) {
@@ -289,10 +289,10 @@ export const registerDeviceTokenWithBackend = async (
   expoPushToken?: string
 ): Promise<boolean> => {
   try {
-    console.log('🔍 [Register] Validating device token registration payload...');
-    console.log('  userId:', userId.substring(0, 20) + '...');
-    console.log('  fcmToken length:', fcmToken?.length);
-    console.log('  expoPushToken:', expoPushToken ? `✅ (${expoPushToken.length} chars)` : '❌ (not provided)');
+    //console.log('🔍 [Register] Validating device token registration payload...');
+    //console.log('  userId:', userId.substring(0, 20) + '...');
+    //console.log('  fcmToken length:', fcmToken?.length);
+    //console.log('  expoPushToken:', expoPushToken ? `✅ (${expoPushToken.length} chars)` : '❌ (not provided)');
 
     // Validate at least one token exists
     if (!fcmToken && !expoPushToken) {
@@ -314,15 +314,15 @@ export const registerDeviceTokenWithBackend = async (
 
     const registerUrl = `${API_URL}?${queryParams.toString()}`;
 
-    console.log('✅ [Register] Payload valid');
-    console.log('📤 [Register] Sending tokens to backend...');
-    console.log('  URL:', registerUrl);
-    console.log('  Tokens to send:');
+    //console.log('✅ [Register] Payload valid');
+    //console.log('📤 [Register] Sending tokens to backend...');
+    //console.log('  URL:', registerUrl);
+    //console.log('  Tokens to send:');
     if (fcmToken) {
-      console.log(`    ✓ FCM Token (${fcmToken.length} chars): ${fcmToken.substring(0, 50)}...`);
+      //console.log(`    ✓ FCM Token (${fcmToken.length} chars): ${fcmToken.substring(0, 50)}...`);
     }
     if (expoPushToken) {
-      console.log(`    ✓ Expo Token: ${expoPushToken}`);
+      //console.log(`    ✓ Expo Token: ${expoPushToken}`);
     }
 
     // Prepare headers with auth token
@@ -335,7 +335,7 @@ export const registerDeviceTokenWithBackend = async (
       const token = await AsyncStorage.getItem('accessToken');
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
-        console.log('  ✓ Added Authorization header');
+        //console.log('  ✓ Added Authorization header');
       } else {
         console.warn('  ⚠️  No access token found, registering without auth');
       }
@@ -349,29 +349,29 @@ export const registerDeviceTokenWithBackend = async (
       timeout: 15000,
     });
 
-    console.log('✓ [Register] Tokens registered successfully');
-    console.log('  Status:', response.status);
-    console.log('  Response message:', response.data?.message);
-    console.log('  Device ID:', response.data?.data?.id);
+    //console.log('✓ [Register] Tokens registered successfully');
+    //console.log('  Status:', response.status);
+    //console.log('  Response message:', response.data?.message);
+    //console.log('  Device ID:', response.data?.data?.id);
 
     // Save locally - IMPORTANT: don't lose tokens if save fails
     try {
       if (fcmToken) {
         await AsyncStorage.setItem('fcmToken', fcmToken);
-        console.log('✓ [Register] FCM token saved to AsyncStorage');
+        //console.log('✓ [Register] FCM token saved to AsyncStorage');
       }
       if (expoPushToken) {
         await AsyncStorage.setItem('expoPushToken', expoPushToken);
-        console.log('✓ [Register] Expo token saved to AsyncStorage');
+        //console.log('✓ [Register] Expo token saved to AsyncStorage');
       }
       await AsyncStorage.setItem('deviceTokenRegisteredUserId', userId);
-      console.log('✓ [Register] Device token userId saved to AsyncStorage');
+      //console.log('✓ [Register] Device token userId saved to AsyncStorage');
     } catch (saveError) {
       console.error('❌ [Register] Failed to save to AsyncStorage:', saveError);
       // Still return true because tokens were registered on backend
     }
 
-    console.log('✅ Device token registration complete');
+    //console.log('✅ Device token registration complete');
     return true;
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -419,34 +419,34 @@ export const setupPushNotifications = async (userId: string): Promise<boolean> =
       return false;
     }
 
-    console.log('🚀 [Setup] Setting up push notifications...');
-    console.log('  User:', userId.substring(0, 20) + '...');
+    //console.log('🚀 [Setup] Setting up push notifications...');
+    //console.log('  User:', userId.substring(0, 20) + '...');
 
     // STEP 0: Initialize Firebase (required before getFirebaseToken can work)
-    console.log('📍 [Setup] Step 0: Initializing Firebase...');
+    //console.log('📍 [Setup] Step 0: Initializing Firebase...');
     const firebaseInitResult = await initializeFirebase();
-    console.log('  Firebase init result:', firebaseInitResult);
+    //console.log('  Firebase init result:', firebaseInitResult);
 
     // STEP 1: Get FCM Token
-    console.log('📍 [Setup] Step 1: Getting Firebase Cloud Messaging token...');
+    //console.log('📍 [Setup] Step 1: Getting Firebase Cloud Messaging token...');
     let fcmToken: string | null = null;
     try {
       fcmToken = await getFirebaseToken();
       if (fcmToken) {
-        console.log('✓ [Setup] FCM token acquired');
-        console.log('  Length:', fcmToken.length, 'chars');
+        //console.log('✓ [Setup] FCM token acquired');
+        //console.log('  Length:', fcmToken.length, 'chars');
       } else {
-        console.warn('⚠️  [Setup] Could not get FCM token (expected on Expo Go)');
+        // console.warn('⚠️  [Setup] Could not get FCM token (expected on Expo Go)');
       }
     } catch (fcmError) {
       console.warn('⚠️  [Setup] Error getting FCM token:', fcmError);
     }
 
     // STEP 2: Get Expo Push Token (fallback)
-    console.log('📍 [Setup] Step 2: Getting Expo Push Token...');
+    //console.log('📍 [Setup] Step 2: Getting Expo Push Token...');
     const expoPushToken = await getExpoPushToken();
     if (expoPushToken) {
-      console.log('✓ [Setup] Expo token acquired');
+      //console.log('✓ [Setup] Expo token acquired');
     } else {
       console.warn('⚠️  [Setup] Could not get Expo token');
     }
@@ -457,12 +457,16 @@ export const setupPushNotifications = async (userId: string): Promise<boolean> =
       return false;
     }
 
-    console.log('📋 [Setup] Tokens ready to register:');
-    if (fcmToken) console.log(`  ✓ FCM: ${fcmToken.length} chars`);
-    if (expoPushToken) console.log(`  ✓ Expo: ${expoPushToken}`);
+    //console.log('📋 [Setup] Tokens ready to register:');
+    if (fcmToken) {
+      //console.log(`  ✓ FCM: ${fcmToken.length} chars`);
+    }
+    if (expoPushToken) {
+      //console.log(`  ✓ Expo: ${expoPushToken}`);
+    }
 
     // STEP 4: Register with backend
-    console.log('📍 [Setup] Step 3: Registering with backend...');
+    //console.log('📍 [Setup] Step 3: Registering with backend...');
     const registered = await registerDeviceTokenWithBackend(userId, fcmToken || undefined, expoPushToken || undefined);
 
     if (!registered) {
@@ -470,7 +474,7 @@ export const setupPushNotifications = async (userId: string): Promise<boolean> =
       return false;
     }
 
-    console.log('✅ [Setup] Push notifications setup complete');
+    //console.log('✅ [Setup] Push notifications setup complete');
     return true;
   } catch (error) {
     console.error('❌ Setup error:', error);
@@ -497,7 +501,7 @@ export const clearStoredDeviceToken = async (): Promise<void> => {
   try {
     await AsyncStorage.removeItem('deviceToken');
     await AsyncStorage.removeItem('deviceTokenRegisteredUserId');
-    console.log('✓ Device token cleared');
+    //console.log('✓ Device token cleared');
   } catch (error) {
     console.error('Error clearing device token:', error);
   }
@@ -511,34 +515,34 @@ export const clearStoredDeviceToken = async (): Promise<void> => {
  */
 export const initializeNotifications = async () => {
   try {
-    console.log('🔥 Initializing Firebase notifications...');
+    //console.log('🔥 Initializing Firebase notifications...');
     
     // Check if Firebase is initialized
     if (!isFirebaseInitialized()) {
-      console.warn('⚠️  Firebase not yet initialized');
+      // console.warn('⚠️  Firebase not yet initialized');
       return () => {};
     }
     
     // Get Firebase Messaging instance function
     const messagingFn = getFirebaseMessaging();
     if (!messagingFn) {
-      console.error('❌ Firebase Messaging not available');
+      // console.error('❌ Firebase Messaging not available');
       return () => {};
     }
     
     const messaging = messagingFn();
-    console.log('✓ Firebase Messaging loaded');
-    console.log('✓ Background handler already registered at TOP LEVEL');
+    //console.log('✓ Firebase Messaging loaded');
+    //console.log('✓ Background handler already registered at TOP LEVEL');
 
     let unsubscribe = () => {};
 
     // Handle foreground messages (when app is open) - use optional chaining
     if (messaging.onMessage) {
       const unsubscribeOnMessage = messaging.onMessage(async (remoteMessage: any) => {
-        console.log('📬 Foreground message received:', remoteMessage);
-        console.log('  Title:', remoteMessage.notification?.title);
-        console.log('  Body:', remoteMessage.notification?.body);
-        console.log('  Data:', remoteMessage.data);
+        //console.log('📬 Foreground message received:', remoteMessage);
+        //console.log('  Title:', remoteMessage.notification?.title);
+        //console.log('  Body:', remoteMessage.notification?.body);
+        //console.log('  Data:', remoteMessage.data);
 
         // Display in-app notification
         // You can integrate with your NotificationToast component here
@@ -559,24 +563,24 @@ export const initializeNotifications = async () => {
       });
       unsubscribe = unsubscribeOnMessage;
     } else {
-      console.warn('⚠️  messaging.onMessage not available');
+      // console.warn('⚠️  messaging.onMessage not available');
     }
 
     // Handle notification tap (when user taps notification)
     if (messaging.onNotificationOpenedApp) {
       messaging.onNotificationOpenedApp((remoteMessage: any) => {
-        console.log('👆 Notification opened app from background:', remoteMessage);
-        console.log('  Data:', remoteMessage.data);
+        //console.log('👆 Notification opened app from background:', remoteMessage);
+        //console.log('  Data:', remoteMessage.data);
         
         // Handle navigation based on notification data
         if (remoteMessage.data?.screen) {
-          console.log('  Navigate to:', remoteMessage.data.screen);
+          //console.log('  Navigate to:', remoteMessage.data.screen);
           // Navigation will be handled by app after mount
           // Store the navigation intent if needed
         }
       });
     } else {
-      console.warn('⚠️  messaging.onNotificationOpenedApp not available');
+      // console.warn('⚠️  messaging.onNotificationOpenedApp not available');
     }
 
     // Check if app was opened by tapping a notification (from quit state)
@@ -585,23 +589,23 @@ export const initializeNotifications = async () => {
         .getInitialNotification()
         .then((remoteMessage: any) => {
           if (remoteMessage) {
-            console.log('🚀 App opened from quit state by notification:', remoteMessage);
-            console.log('  Data:', remoteMessage.data);
+            //console.log('🚀 App opened from quit state by notification:', remoteMessage);
+            //console.log('  Data:', remoteMessage.data);
             
             if (remoteMessage.data?.screen) {
-              console.log('  Navigate to:', remoteMessage.data.screen);
+              //console.log('  Navigate to:', remoteMessage.data.screen);
               // Handle deep linking here
             }
           }
         });
     } else {
-      console.warn('⚠️  messaging.getInitialNotification not available');
+      // console.warn('⚠️  messaging.getInitialNotification not available');
     }
 
-    console.log('✓ Firebase notifications initialized');
+    //console.log('✓ Firebase notifications initialized');
     return unsubscribe;
   } catch (error) {
-    console.error('❌ Failed to initialize Firebase notifications:', error);
+    // console.error('❌ Failed to initialize Firebase notifications:', error);
     return () => {};
   }
 };
@@ -615,72 +619,72 @@ export const initializeNotifications = async () => {
  */
 export const printPushNotificationDiagnostics = async (): Promise<void> => {
   try {
-    console.log('\n🔍 [Diagnostics] Push Notification Setup Status');
-    console.log('═'.repeat(60));
+    //console.log('\n🔍 [Diagnostics] Push Notification Setup Status');
+    //console.log('═'.repeat(60));
     
     // Check Firebase availability
     const { messaging: firebaseMessagingAvailable } = checkFirebaseAvailability();
-    console.log('🔥 Firebase Status:');
-    console.log(`  Firebase Available: ${firebaseMessagingAvailable ? '✅ YES' : '❌ NO (Expo Go)'}`);
+    //console.log('🔥 Firebase Status:');
+    //console.log(`  Firebase Available: ${firebaseMessagingAvailable ? '✅ YES' : '❌ NO (Expo Go)'}`);
     
     // Check stored tokens
-    console.log('\n📱 Stored Tokens:');
+    //console.log('\n📱 Stored Tokens:');
     try {
       const fcmToken = await AsyncStorage.getItem('fcmToken');
       const expoPushToken = await AsyncStorage.getItem('expoPushToken');
       const userId = await AsyncStorage.getItem('deviceTokenRegisteredUserId');
       
       if (fcmToken) {
-        console.log(`  ✅ FCM Token: Present (${fcmToken.length} chars)`);
-        console.log(`     Preview: ${fcmToken.substring(0, 50)}...`);
+        // //console.log(`  ✅ FCM Token: Present (${fcmToken.length} chars)`);
+        // //console.log(`     Preview: ${fcmToken.substring(0, 50)}...`);
       } else {
-        console.log(`  ❌ FCM Token: NOT FOUND`);
+        // //console.log(`  ❌ FCM Token: NOT FOUND`);
       }
       
       if (expoPushToken) {
-        console.log(`  ✅ Expo Token: Present (${expoPushToken.length} chars)`);
-        console.log(`     Full: ${expoPushToken}`);
+        // //console.log(`  ✅ Expo Token: Present (${expoPushToken.length} chars)`);
+        // //console.log(`     Full: ${expoPushToken}`);
       } else {
-        console.log(`  ❌ Expo Token: NOT FOUND`);
+        //console.log(`  ❌ Expo Token: NOT FOUND`);
       }
       
       if (userId) {
-        console.log(`  ✅ User ID: ${userId.substring(0, 20)}...`);
+        //console.log(`  ✅ User ID: ${userId.substring(0, 20)}...`);
       } else {
-        console.log(`  ❌ User ID: NOT FOUND`);
+        //console.log(`  ❌ User ID: NOT FOUND`);
       }
     } catch (error) {
       console.error('  Error reading stored tokens:', error);
     }
     
     // Summary
-    console.log('\n📊 Summary:');
+    //console.log('\n📊 Summary:');
     try {
       const fcmToken = await AsyncStorage.getItem('fcmToken');
       const expoPushToken = await AsyncStorage.getItem('expoPushToken');
       const totalTokens = (fcmToken ? 1 : 0) + (expoPushToken ? 1 : 0);
       
       if (totalTokens === 2) {
-        console.log('  ✅ PERFECT: Both FCM + Expo tokens present (APK Build)');
-        console.log('     → Ready to receive notifications from both channels');
+        //console.log('  ✅ PERFECT: Both FCM + Expo tokens present (APK Build)');
+        //console.log('     → Ready to receive notifications from both channels');
       } else if (totalTokens === 1) {
         if (expoPushToken) {
-          console.log('  ✅ EXPO GO: Expo token only (normal for Expo Go)');
-          console.log('     → Ready to receive Expo notifications');
+          //console.log('  ✅ EXPO GO: Expo token only (normal for Expo Go)');
+          //console.log('     → Ready to receive Expo notifications');
         } else if (fcmToken) {
-          console.log('  ✅ APK BUILD: FCM token only');
-          console.log('     ⚠️  Missing Expo token - should have both');
+          //console.log('  ✅ APK BUILD: FCM token only');
+          //console.log('     ⚠️  Missing Expo token - should have both');
         }
       } else {
-        console.log('  ❌ ERROR: No tokens found!');
-        console.log('     → Device will NOT receive notifications');
-        console.log('     → Call setupPushNotifications(userId) to initialize');
+        //console.log('  ❌ ERROR: No tokens found!');
+        //console.log('     → Device will NOT receive notifications');
+        //console.log('     → Call setupPushNotifications(userId) to initialize');
       }
     } catch (error) {
       console.error('  Error analyzing tokens:', error);
     }
     
-    console.log('═'.repeat(60) + '\n');
+    //console.log('═'.repeat(60) + '\n');
   } catch (error) {
     console.error('❌ Error in printPushNotificationDiagnostics:', error);
   }

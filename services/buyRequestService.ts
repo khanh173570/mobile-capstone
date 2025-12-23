@@ -118,6 +118,7 @@ export interface CreateBuyRequestPayload {
   harvestId: string;
   farmerId: string;
   details: BuyRequestDetail[];
+  harvestGradeDetailDTOs?: HarvestGradeDetail[]; // Optional: available grade details from harvest
 }
 
 export interface BuyRequest {
@@ -151,6 +152,8 @@ export interface BuyRequestResponse {
 export const searchHarvests = async (filters?: {
   District?: string;
   TypeName?: string;
+  FromStartDate?: string; // ISO date string
+  ToStartDate?: string; // ISO date string
   MinTotalQuantity?: number;
   MaxTotalQuantity?: number;
 }): Promise<SearchResult[]> => {
@@ -161,6 +164,8 @@ export const searchHarvests = async (filters?: {
       const params = new URLSearchParams();
       if (filters.District) params.append('District', filters.District);
       if (filters.TypeName) params.append('TypeName', filters.TypeName);
+      if (filters.FromStartDate) params.append('FromStartDate', filters.FromStartDate);
+      if (filters.ToStartDate) params.append('ToStartDate', filters.ToStartDate);
       if (filters.MinTotalQuantity) params.append('MinTotalQuantity', filters.MinTotalQuantity.toString());
       if (filters.MaxTotalQuantity) params.append('MaxTotalQuantity', filters.MaxTotalQuantity.toString());
       
@@ -329,13 +334,19 @@ export const createBuyRequest = async (
     const result: BuyRequestResponse = await response.json();
 
     if (!response.ok) {
-      throw new Error(result.message || 'Failed to create buy request');
+      // Extract error message from response
+      const errorMessage = result.message || result.errors?.message || 'Failed to create buy request';
+      throw new Error(errorMessage);
     }
 
     return result.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating buy request:', error);
-    throw error;
+    // Re-throw with a more descriptive message if needed
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error(error?.message || 'Failed to create buy request');
   }
 };
 

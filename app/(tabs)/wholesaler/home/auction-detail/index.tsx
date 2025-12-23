@@ -12,18 +12,18 @@ import {
   Modal,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { 
-  ArrowLeft, 
-  Calendar, 
-  DollarSign, 
-  Package, 
+import {
+  ArrowLeft,
+  Calendar,
+  DollarSign,
+  Package,
   Clock,
   MapPin,
   Leaf,
   Bell,
 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { 
+import {
   getAuctionStatusInfo,
   getAuctionSessionHarvests,
   getCurrentHarvest,
@@ -63,6 +63,7 @@ interface Auction {
   updatedAt: string;
   enableBuyNow: boolean;
   buyNowPrice: number | null;
+  enableReserveProxy?: boolean;
   harvests?: Array<{
     id: string;
     harvestDate: string | null;
@@ -93,6 +94,7 @@ export default function WholesalerAuctionDetailScreen() {
   const [bids, setBids] = useState<BidResponse[]>([]);
   const [loadingBids, setLoadingBids] = useState(false);
   const [selectedBidForEdit, setSelectedBidForEdit] = useState<BidResponse | undefined>(undefined);
+  const [forceAutoBidOnly, setForceAutoBidOnly] = useState(false);
   const [allBidLogs, setAllBidLogs] = useState<BidLog[]>([]);
   const [loadingAllBids, setLoadingAllBids] = useState(false);
   const [countdown, setCountdown] = useState<any>(null);
@@ -108,34 +110,31 @@ export default function WholesalerAuctionDetailScreen() {
 
   // Debug: Log state changes
   useEffect(() => {
-    console.log('📊 State allBidLogs changed, count:', allBidLogs.length);
+    //console.log('📊 State allBidLogs changed, count:', allBidLogs.length);
     if (allBidLogs.length > 0) {
-      console.log('📊 First bid:', allBidLogs[0].userName, '-', allBidLogs[0].type);
+      //console.log('📊 First bid:', allBidLogs[0].userName, '-', allBidLogs[0].type);
       const firstBidData = JSON.parse(allBidLogs[0].newEntity).Bid;
-      console.log('📊 First bid amount:', firstBidData?.BidAmount || 'N/A');
-      console.log('📊 First bid time:', allBidLogs[0].dateTimeUpdate);
+      //console.log('📊 First bid amount:', firstBidData?.BidAmount || 'N/A');
+      //console.log('📊 First bid time:', allBidLogs[0].dateTimeUpdate);
     }
   }, [allBidLogs]);
 
   // When bids modal opens, ensure UI has latest data
   useEffect(() => {
     if (showBidsModal && allBidLogs.length > 0) {
-      console.log('📂 Modal opened, current bid logs:', allBidLogs.length);
-      const latestBid = allBidLogs.sort((a, b) => 
+      //console.log('📂 Modal opened, current bid logs:', allBidLogs.length);
+      const latestBid = allBidLogs.sort((a, b) =>
         new Date(b.dateTimeUpdate).getTime() - new Date(a.dateTimeUpdate).getTime()
       )[0];
-      console.log('📂 Latest bid amount:', JSON.parse(latestBid.newEntity).Bid?.BidAmount);
+      //console.log('📂 Latest bid amount:', JSON.parse(latestBid.newEntity).Bid?.BidAmount);
     }
   }, [showBidsModal]);
 
-  // Update display price when auction changes (for instant UI update)
+  // Update display price when auction changes (prefer highest seen to avoid regress)
   useEffect(() => {
     if (auction) {
-      const newPrice = auction.currentPrice || auction.startingPrice;
-      if (newPrice !== displayPrice) {
-        console.log('💰 Display price updated:', displayPrice, '→', newPrice);
-        setDisplayPrice(newPrice);
-      }
+      const newPrice = auction.currentPrice || auction.startingPrice || 0;
+      setDisplayPrice(prev => Math.max(prev ?? 0, newPrice));
     }
   }, [auction?.currentPrice, auction?.startingPrice]);
 
@@ -158,12 +157,12 @@ export default function WholesalerAuctionDetailScreen() {
   // SignalR setup for real-time updates
   useEffect(() => {
     if (auctionId) {
-      console.log('');
-      console.log('═══════════════════════════════════════════════════');
-      console.log('🎯 AuctionDetail: useEffect triggered');
-      console.log('   auctionId:', auctionId);
-      console.log('═══════════════════════════════════════════════════');
-      
+      //console.log('');
+      //console.log('═══════════════════════════════════════════════════');
+      //console.log('🎯 AuctionDetail: useEffect triggered');
+      //console.log('   auctionId:', auctionId);
+      //console.log('═══════════════════════════════════════════════════');
+
       // Set current auction ID for global polling
       setCurrentAuctionId(auctionId as string);
       loadAuctionDetail();
@@ -171,14 +170,14 @@ export default function WholesalerAuctionDetailScreen() {
       // Connect to SignalR and join auction group
       const setupSignalR = async () => {
         try {
-          console.log('📡 SignalR: Starting connection setup...');
+          //console.log('📡 SignalR: Starting connection setup...');
           await signalRService.connect();
-          console.log('✅ SignalR: Connected to hub');
-          
+          //console.log('✅ SignalR: Connected to hub');
+
           const auctionIdStr = Array.isArray(auctionId) ? auctionId[0] : auctionId;
           await signalRService.joinAuctionGroup(auctionIdStr);
-          console.log('✅ SignalR: Joined auction group:', auctionIdStr);
-          
+          //console.log('✅ SignalR: Joined auction group:', auctionIdStr);
+
           return auctionIdStr;
         } catch (error) {
           console.error('❌ SignalR: Setup failed', error);
@@ -187,87 +186,63 @@ export default function WholesalerAuctionDetailScreen() {
       };
 
       // Subscribe to BidPlaced events FIRST, then connect
-      console.log('🔔 SignalR: Registering BidPlaced subscriber BEFORE connection...');
+      //console.log('🔔 SignalR: Registering BidPlaced subscriber BEFORE connection...');
       const unsubscribeBidPlaced = signalRService.onBidPlaced((event: BidPlacedEvent) => {
-        console.log('');
-        console.log('════════════════════════════════════════════════');
-        console.log('🔔🔔🔔 BidPlaced event received 🔔🔔🔔');
-        console.log('════════════════════════════════════════════════');
-        console.log('   ✅ LISTENER TRIGGERED - BidPlaced event received!');
-        console.log('   Event Details:');
-        console.log('     - Auction ID (event):', event.auctionId);
-        console.log('     - Bidder:', event.userName, `(ID: ${event.userId.substring(0, 8)}...)`);
-        console.log('     - Bid Amount:', event.bidAmount);
-        console.log('     - Price:', event.previousPrice, '→', event.newPrice);
-        console.log('     - Timestamp:', event.placedAt);
-        
+        //console.log('');
+        //console.log('════════════════════════════════════════════════');
+        //console.log('🔔🔔🔔 BidPlaced event received 🔔🔔🔔');
+        //console.log('════════════════════════════════════════════════');
+        //console.log('   ✅ LISTENER TRIGGERED - BidPlaced event received!');
+        //console.log('   Event Details:');
+        //console.log('     - Auction ID (event):', event.auctionId);
+        //console.log('     - Bidder:', event.userName, `(ID: ${event.userId.substring(0, 8)}...)`);
+        //console.log('     - Bid Amount:', event.bidAmount);
+        //console.log('     - Price:', event.previousPrice, '→', event.newPrice);
+        //console.log('     - Timestamp:', event.placedAt);
+
         // Convert auctionId to string for comparison (in case it's array)
         const currentAuctionId = Array.isArray(auctionId) ? auctionId[0] : auctionId;
-        
-        console.log('   Comparison:');
-        console.log('     - Current Auction ID (page):', currentAuctionId);
-        console.log('     - Match?:', event.auctionId === currentAuctionId);
-        
-        // Only refresh if event is for this auction
+
         if (event.auctionId === currentAuctionId) {
-          console.log('     ✅ MATCH - This is for current auction');
-          console.log('✅✅✅ Updating UI now! ✅✅✅');
-          console.log(`💰 Price updated: ${event.previousPrice} → ${event.newPrice}`);
-          console.log(`👤 Bidder: ${event.userName}`);
-          
-          // Update auction current price immediately
-          setAuction(prev => {
-            console.log('   💰 Updating auction object price:', prev?.currentPrice, '→', event.newPrice);
-            return prev ? { ...prev, currentPrice: event.newPrice } : prev;
-          });
-          
-          // Also update display price directly for instant UI render
-          setDisplayPrice(event.newPrice);
-          console.log('   🎨 UI display price updated');
-          
-          // Create optimistic bid log for instant UI update
-          const optimisticBidLog: BidLog = {
-            id: `${event.bidId}-optimistic`,
-            bidId: event.bidId,
-            userId: event.userId,
-            userName: event.userName,
-            type: 'Updated',
-            isAutoBidding: false,
-            dateTimeUpdate: event.placedAt,
-            oldEntity: JSON.stringify({
-              Auction: { Price: event.previousPrice },
-              Bid: { BidAmount: event.previousPrice }
-            }),
-            newEntity: JSON.stringify({
-              Auction: { Price: event.newPrice },
-              Bid: {
-                UserId: event.userId,
-                UserName: event.userName,
-                BidAmount: event.bidAmount,
-                IsAutoBid: false,
-                IsWinning: true,
-              }
-            }),
-            createdAt: event.placedAt,
-            updatedAt: null,
-          };
-          
-          // Add optimistic bid immediately for instant UX
-          console.log('   ⚡ Adding optimistic bid to list:', event.bidAmount);
+          // Always update price/display to the latest SignalR value (fallback to bidAmount)
+          const nextPrice = event.newPrice || event.bidAmount || auction?.currentPrice || auction?.startingPrice || 0;
+          setAuction(prev => (prev ? { ...prev, currentPrice: nextPrice } : prev));
+          setDisplayPrice(nextPrice);
+
+          // Add optimistic bid log (keeps log in sync)
+          // Build and insert optimistic bid log (include IsAutoBid)
           setAllBidLogs(prev => {
-            // Check if this exact timestamp already exists (avoid duplicate optimistic)
-            const exists = prev.some(log => 
-              log.dateTimeUpdate === event.placedAt
-            );
-            if (exists) {
-              console.log('   ✓ Bid with same timestamp exists, skipping optimistic');
-              return prev;
-            }
-            console.log('   ✓ Optimistic bid added, new count:', prev.length + 1);
+            const exists = prev.some(log => log.dateTimeUpdate === event.placedAt && log.bidId === event.bidId);
+            if (exists) return prev;
+            const optimisticBidLog: BidLog = {
+              id: `${event.bidId}-optimistic`,
+              bidId: event.bidId,
+              userId: event.userId,
+              userName: event.userName,
+              type: 'Updated',
+              isAutoBidding: event.isAutoBid ?? false,
+              dateTimeUpdate: event.placedAt,
+              oldEntity: JSON.stringify({
+                Auction: { Price: event.previousPrice },
+                Bid: { BidAmount: event.previousPrice }
+              }),
+              newEntity: JSON.stringify({
+                Auction: { Price: event.newPrice },
+                Bid: {
+                  UserId: event.userId,
+                  UserName: event.userName,
+                  BidAmount: event.bidAmount,
+                  IsAutoBid: event.isAutoBid ?? false,
+                  IsWinning: true,
+                }
+              }),
+              createdAt: event.placedAt,
+              updatedAt: null,
+            };
             return [optimisticBidLog, ...prev];
           });
-          
-          // Update notification count if modal is not open
+
+          // Update notification badge
           if (!showBidsModal && lastViewedBidTime) {
             const bidTime = new Date(event.placedAt).getTime();
             const lastViewed = new Date(lastViewedBidTime).getTime();
@@ -275,93 +250,91 @@ export default function WholesalerAuctionDetailScreen() {
               setNewBidCount(prev => prev + 1);
             }
           }
-          
-          // ❌ DO NOT fetch API - Use SignalR data directly for instant UI update
-          // API will update later when DB is ready, but we show SignalR data now
-          console.log('✅ Using SignalR event data directly - NOT waiting for API');
-          console.log('   UI updated instantly with price and bid log');
-          
-          // Optional: Fetch API in background AFTER a delay (e.g., 5 seconds)
-          // This ensures DB is updated before we fetch
-          // setTimeout(() => {
-          //   console.log('🔄 Background: Fetching API data after DB sync delay...');
-          //   loadAllBidsQuietly(currentAuctionId as string);
-          // }, 5000);
-        } else {
-          console.log('     ❌ NO MATCH - Event is for different auction');
-          console.log('     Event auctionId:', event.auctionId);
-          console.log('     Current auctionId:', currentAuctionId);
-          console.log('     Ignoring event');
+
+          // Refresh bids/logs from API shortly after SignalR to catch auto-bid jumps
+          setTimeout(() => {
+            loadAllBidsQuietly(currentAuctionId as string);
+            loadBidsQuietly(currentAuctionId as string);
+          }, 200);
+          // Extra safety refresh to capture cascading auto-bid steps
+          setTimeout(() => {
+            loadAllBidsQuietly(currentAuctionId as string);
+            loadBidsQuietly(currentAuctionId as string);
+          }, 700);
         }
-        console.log('════════════════════════════════════════════════');
-        console.log('');
+        //console.log('════════════════════════════════════════════════');
+        //console.log('');
       });
 
       // Subscribe to BuyNow events
       const unsubscribeBuyNow = signalRService.onBuyNow((event: BuyNowEvent) => {
-        console.log('');
-        console.log('════════════════════════════════════════════════');
-        console.log('🔔🔔🔔 BuyNow event received 🔔🔔🔔');
-        console.log('════════════════════════════════════════════════');
-        console.log('   Event Details:');
-        console.log('     - Auction ID:', event.auctionId);
-        console.log('     - Buyer:', event.userName);
-        console.log('     - Buy Now Price:', event.buyNowPrice);
-        console.log('     - Purchased At:', event.purchasedAt);
-        
+        //console.log('');
+        //console.log('════════════════════════════════════════════════');
+        //console.log('🔔🔔🔔 BuyNow event received 🔔🔔🔔');
+        //console.log('════════════════════════════════════════════════');
+        //console.log('   Event Details:');
+        //console.log('     - Auction ID:', event.auctionId);
+        //console.log('     - Buyer:', event.userName);
+        //console.log('     - Buy Now Price:', event.buyNowPrice);
+        //console.log('     - Purchased At:', event.purchasedAt);
+
         const currentAuctionId = Array.isArray(auctionId) ? auctionId[0] : auctionId;
         if (event.auctionId === currentAuctionId) {
-          console.log('     ✅ MATCH - This is for current auction');
-          console.log('✅✅✅ Reloading auction detail now! ✅✅✅');
+          //console.log('     ✅ MATCH - This is for current auction');
+          //console.log('✅✅✅ Reloading auction detail now! ✅✅✅');
           // Reload auction detail to get updated status
           loadAuctionDetail();
         } else {
-          console.log('     ❌ NO MATCH - Event is for different auction');
-          console.log('     Ignoring event');
+          //console.log('     ❌ NO MATCH - Event is for different auction');
+          //console.log('     Ignoring event');
         }
-        console.log('════════════════════════════════════════════════');
-        console.log('');
+        //console.log('════════════════════════════════════════════════');
+        //console.log('');
       });
 
       // NOW connect and join group (after subscriptions are registered)
-      console.log('🚀 SignalR: Now connecting to hub and joining auction group...');
+      //console.log('🚀 SignalR: Now connecting to hub and joining auction group...');
       setupSignalR().then((joinedAuctionId) => {
-        console.log('🔔 SignalR: Ready! Connection established and handlers are active');
-        console.log('🔔 SignalR: Successfully joined auction group:', joinedAuctionId);
-        console.log('🔔 SignalR: Waiting for BidPlaced and BuyNow events...');
+        //console.log('🔔 SignalR: Ready! Connection established and handlers are active');
+        //console.log('🔔 SignalR: Successfully joined auction group:', joinedAuctionId);
+        //console.log('🔔 SignalR: Waiting for BidPlaced and BuyNow events...');
       }).catch((error) => {
         console.error('❌ SignalR: Failed to setup after registering handlers:', error);
       });
 
       // Cleanup: Leave auction group and unsubscribe
       return () => {
-        console.log('🧹 Cleanup: Auction detail effect cleaning up');
+        //console.log('🧹 Cleanup: Auction detail effect cleaning up');
         setCurrentAuctionId(null);
         const currentAuctionId = Array.isArray(auctionId) ? auctionId[0] : auctionId;
         signalRService.leaveAuctionGroup(currentAuctionId as string);
         unsubscribeBidPlaced();
         unsubscribeBuyNow();
-        console.log('🧹 Cleanup: Unsubscribed from all SignalR events');
+        //console.log('🧹 Cleanup: Unsubscribed from all SignalR events');
       };
     }
   }, [auctionId, setCurrentAuctionId]);
 
   const loadAuctionDetail = async () => {
     try {
-      setLoading(true);
-      
+      // Only show loading if we don't have auction data yet
+      // This prevents flashing loading screen when navigating from notification
+      if (!auction) {
+        setLoading(true);
+      }
+
       // Get full auction detail including harvests
       const auctionDetailData = await getAuctionDetail(auctionId as string);
-      console.log('Auction detail:', auctionDetailData);
-      
+      //console.log('Auction detail:', auctionDetailData);
+
       if (auctionDetailData) {
         setAuction(auctionDetailData);
         // Calculate countdown immediately
-        setCountdown(calculateCountdown(auctionDetailData.endDate));
+        setCountdown(calculateCountdownForAuction(auctionDetailData));
 
         // Get farm and crop info from harvests
         const harvests = auctionDetailData.harvests || [];
-        
+
         if (harvests.length > 0) {
           const farmsMap = new Map<string, Farm>();
           const cropsArray: Crop[] = [];
@@ -371,15 +344,15 @@ export default function WholesalerAuctionDetailScreen() {
             try {
               // Try to get harvest details by ID which should have cropID
               const harvestDetail = await getHarvestById(harvest.id);
-              console.log('Harvest detail:', harvestDetail);
-              
+              //console.log('Harvest detail:', harvestDetail);
+
               if (harvestDetail && harvestDetail.cropID) {
                 // Get crop info
                 try {
                   const cropData = await getCropById(harvestDetail.cropID);
                   if (cropData) {
                     cropsArray.push(cropData);
-                    
+
                     // Get farm info from crop
                     if (cropData.farmID) {
                       try {
@@ -388,16 +361,16 @@ export default function WholesalerAuctionDetailScreen() {
                           farmsMap.set(farmData.data.id, farmData.data);
                         }
                       } catch (error) {
-                        console.log('Error getting farm:', error);
+                        //console.log('Error getting farm:', error);
                       }
                     }
                   }
                 } catch (error) {
-                  console.log('Error getting crop:', error);
+                  //console.log('Error getting crop:', error);
                 }
               }
             } catch (error) {
-              console.log('Error getting harvest detail:', error);
+              //console.log('Error getting harvest detail:', error);
             }
           }
 
@@ -410,7 +383,7 @@ export default function WholesalerAuctionDetailScreen() {
         }
       } else {
         // No data returned - silently go back
-        console.log('No auction data found, redirecting back');
+        //console.log('No auction data found, redirecting back');
         router.back();
         return;
       }
@@ -418,7 +391,7 @@ export default function WholesalerAuctionDetailScreen() {
       console.error('Error loading auction detail:', error);
       // Silent error handling - just go back without showing alert
       if (error?.message?.includes('404') || error?.message?.includes('Failed')) {
-        console.log('Auction not found or deleted, redirecting back');
+        //console.log('Auction not found or deleted, redirecting back');
         router.back();
         return;
       }
@@ -440,7 +413,7 @@ export default function WholesalerAuctionDetailScreen() {
   useEffect(() => {
     const loadFarmer = async () => {
       if (!auction?.farmerId) return;
-      
+
       try {
         setLoadingFarmer(true);
         const farmerUser = await getUserByUsername(auction.farmerId);
@@ -462,11 +435,11 @@ export default function WholesalerAuctionDetailScreen() {
     if (!auction) return;
 
     // Set initial countdown
-    setCountdown(calculateCountdown(auction.endDate));
+    setCountdown(calculateCountdownForAuction(auction));
 
     // Update every second
     const interval = setInterval(() => {
-      setCountdown(calculateCountdown(auction.endDate));
+      setCountdown(calculateCountdownForAuction(auction));
     }, 1000);
 
     return () => clearInterval(interval);
@@ -476,7 +449,7 @@ export default function WholesalerAuctionDetailScreen() {
     try {
       setLoadingBids(true);
       const bidsList = await getBidsForAuction(auctionSessionId);
-      console.log('✅ Fetched user bids:', bidsList.length);
+      //console.log('✅ Fetched user bids:', bidsList.length);
       setBids(bidsList);
     } catch (error) {
       console.error('❌ Error loading bids:', error);
@@ -490,7 +463,7 @@ export default function WholesalerAuctionDetailScreen() {
   const loadBidsQuietly = useCallback(async (auctionSessionId: string) => {
     try {
       const bidsList = await getBidsForAuction(auctionSessionId);
-      console.log('✅ Quiet: Fetched user bids:', bidsList.length);
+      //console.log('✅ Quiet: Fetched user bids:', bidsList.length);
       setBids(bidsList);
     } catch (error) {
       console.error('❌ Quiet reload bids error:', error);
@@ -499,32 +472,32 @@ export default function WholesalerAuctionDetailScreen() {
 
   // Quiet reload for all bids (no loading indicator)
   const loadAllBidsQuietly = useCallback(async (
-    auctionSessionId: string, 
-    retryCount = 0, 
+    auctionSessionId: string,
+    retryCount = 0,
     previousCount?: number,
     previousLatestTime?: string
   ) => {
     try {
-      console.log('🔄 Quiet: loadAllBids, retry:', retryCount);
+      //console.log('🔄 Quiet: loadAllBids, retry:', retryCount);
       // NO setLoadingAllBids(true)!
-      
+
       if (retryCount > 0) {
         const delay = 300 * retryCount;
         await new Promise(resolve => setTimeout(resolve, delay));
       }
-      
+
       const bidLogsList = await getAllBidsForAuction(auctionSessionId);
-      console.log('✅ Quiet API: Fetched', bidLogsList.length, 'bid logs');
-      
+      //console.log('✅ Quiet API: Fetched', bidLogsList.length, 'bid logs');
+
       let currentCount = previousCount;
       let latestTimestamp = previousLatestTime;
-      
+
       if (currentCount === undefined || latestTimestamp === undefined) {
         await new Promise<void>((resolve) => {
           setAllBidLogs(prev => {
             currentCount = prev.length;
             if (prev.length > 0) {
-              const sorted = [...prev].sort((a, b) => 
+              const sorted = [...prev].sort((a, b) =>
                 new Date(b.dateTimeUpdate).getTime() - new Date(a.dateTimeUpdate).getTime()
               );
               latestTimestamp = sorted[0].dateTimeUpdate;
@@ -534,7 +507,7 @@ export default function WholesalerAuctionDetailScreen() {
           });
         });
       }
-      
+
       let hasNewerData = false;
       if (bidLogsList.length > 0 && latestTimestamp) {
         const apiLatestTime = new Date(bidLogsList[0].dateTimeUpdate).getTime();
@@ -543,33 +516,33 @@ export default function WholesalerAuctionDetailScreen() {
       } else if (bidLogsList.length > (currentCount || 0)) {
         hasNewerData = true;
       }
-      
+
       if (retryCount < 2 && !hasNewerData) {
         return loadAllBidsQuietly(auctionSessionId, retryCount + 1, currentCount, latestTimestamp);
       }
-      
+
       if (!hasNewerData && retryCount >= 2) {
-        console.log('⏭️ Quiet: Max retries, keeping optimistic');
+        //console.log('⏭️ Quiet: Max retries, keeping optimistic');
         return;
       }
-      
+
       setAllBidLogs(bidLogsList);
-      console.log('✅ Quiet: State updated');
-      
+      //console.log('✅ Quiet: State updated');
+
       // Extract and update auction current price from latest bid
       if (bidLogsList.length > 0) {
         try {
           const latestBid = bidLogsList[0];
           const newEntityData = JSON.parse(latestBid.newEntity);
           const newPrice = newEntityData?.Auction?.Price;
-          
+
           if (newPrice && newPrice !== auction?.currentPrice) {
-            console.log('💰 Quiet: Updating auction price:', auction?.currentPrice, '→', newPrice);
+            //console.log('💰 Quiet: Updating auction price:', auction?.currentPrice, '→', newPrice);
             setAuction(prev => prev ? { ...prev, currentPrice: newPrice } : prev);
-            setDisplayPrice(newPrice);
+            setDisplayPrice(prev => Math.max(prev ?? 0, newPrice));
           }
         } catch (e) {
-          console.log('⚠️ Could not extract price from bid');
+          //console.log('⚠️ Could not extract price from bid');
         }
       }
     } catch (error) {
@@ -578,37 +551,37 @@ export default function WholesalerAuctionDetailScreen() {
   }, []);
 
   const loadAllBids = useCallback(async (
-    auctionSessionId: string, 
-    retryCount = 0, 
+    auctionSessionId: string,
+    retryCount = 0,
     previousCount?: number,
     previousLatestTime?: string
   ) => {
     try {
-      console.log('🔄 START: loadAllBids called for auction:', auctionSessionId, 'retry:', retryCount);
+      //console.log('🔄 START: loadAllBids called for auction:', auctionSessionId, 'retry:', retryCount);
       setLoadingAllBids(true);
-      
+
       // Add small delay to let backend sync
       if (retryCount > 0) {
         const delay = 300 * retryCount; // 300ms, 600ms, 900ms
-        console.log(`⏳ Waiting ${delay}ms for backend to sync...`);
+        // //console.log(`⏳ Waiting ${delay}ms for backend to sync...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
-      
+
       const bidLogsList = await getAllBidsForAuction(auctionSessionId);
-      console.log('✅ API Response: Fetched', bidLogsList.length, 'bid logs');
-      
+      //console.log('✅ API Response: Fetched', bidLogsList.length, 'bid logs');
+
       // Debug: Log first 3 bids
       if (bidLogsList.length > 0) {
-        console.log('📋 First 3 bids from API:');
+        //console.log('📋 First 3 bids from API:');
         bidLogsList.slice(0, 3).forEach((bid, idx) => {
-          console.log(`  ${idx + 1}. ${bid.userName} - ${bid.type} - Amount: ${JSON.parse(bid.newEntity).Bid?.BidAmount || 'N/A'} - Time: ${bid.dateTimeUpdate}`);
+          // //console.log(`  ${idx + 1}. ${bid.userName} - ${bid.type} - Amount: ${JSON.parse(bid.newEntity).Bid?.BidAmount || 'N/A'} - Time: ${bid.dateTimeUpdate}`);
         });
       }
-      
+
       // Get current count and latest timestamp from state
       let currentCount = previousCount;
       let latestTimestamp = previousLatestTime;
-      
+
       if (currentCount === undefined || latestTimestamp === undefined) {
         // First call, read from current state
         await new Promise<void>((resolve) => {
@@ -616,20 +589,20 @@ export default function WholesalerAuctionDetailScreen() {
             currentCount = prev.length;
             // Get the latest timestamp (newest bid)
             if (prev.length > 0) {
-              const sorted = [...prev].sort((a, b) => 
+              const sorted = [...prev].sort((a, b) =>
                 new Date(b.dateTimeUpdate).getTime() - new Date(a.dateTimeUpdate).getTime()
               );
               latestTimestamp = sorted[0].dateTimeUpdate;
-              console.log('📊 Current state count:', currentCount, '| Latest bid time:', latestTimestamp);
+              //console.log('📊 Current state count:', currentCount, '| Latest bid time:', latestTimestamp);
             } else {
-              console.log('📊 Current state count:', currentCount);
+              //console.log('📊 Current state count:', currentCount);
             }
             resolve();
             return prev; // Don't update yet
           });
         });
       }
-      
+
       // Check if API has newer data by comparing timestamps
       let hasNewerData = false;
       if (bidLogsList.length > 0 && latestTimestamp) {
@@ -638,67 +611,67 @@ export default function WholesalerAuctionDetailScreen() {
         // Use >= instead of > because we want to update if data is same or newer
         // This ensures we replace optimistic bids with real data from backend
         hasNewerData = apiLatestTime >= stateLatestTime;
-        console.log('🔍 API latest:', bidLogsList[0].dateTimeUpdate, '| State latest:', latestTimestamp, '| Newer?', hasNewerData);
+        //console.log('🔍 API latest:', bidLogsList[0].dateTimeUpdate, '| State latest:', latestTimestamp, '| Newer?', hasNewerData);
       } else if (bidLogsList.length > (currentCount || 0)) {
         hasNewerData = true; // Count increased
-        console.log('🔍 Count increased:', bidLogsList.length, '>', currentCount, '| Newer? true');
+        //console.log('🔍 Count increased:', bidLogsList.length, '>', currentCount, '| Newer? true');
       } else if (bidLogsList.length > 0 && !latestTimestamp) {
         // First time loading bids
         hasNewerData = true;
-        console.log('🔍 First load: API has', bidLogsList.length, 'bids | Newer? true');
+        //console.log('🔍 First load: API has', bidLogsList.length, 'bids | Newer? true');
       }
-      
+
       // Always update state with API data (don't keep optimistic bids)
       // API data is the source of truth from backend
       if (bidLogsList.length > 0) {
-        console.log('✅ Using API data (', bidLogsList.length, 'bids) as source of truth');
+        //console.log('✅ Using API data (', bidLogsList.length, 'bids) as source of truth');
         setLoadingAllBids(false);
         setAllBidLogs(bidLogsList);
-        console.log('📝 Setting state with', bidLogsList.length, 'bids from API');
-        
+        //console.log('📝 Setting state with', bidLogsList.length, 'bids from API');
+
         // Extract and update auction current price from latest bid
         try {
           const latestBid = bidLogsList[0];
           const newEntityData = JSON.parse(latestBid.newEntity);
           const newPrice = newEntityData?.Auction?.Price;
-          
+
           if (newPrice && newPrice !== auction?.currentPrice) {
-            console.log('💰 Updating auction price:', auction?.currentPrice, '→', newPrice);
+            //console.log('💰 Updating auction price:', auction?.currentPrice, '→', newPrice);
             setAuction(prev => prev ? { ...prev, currentPrice: newPrice } : prev);
-            setDisplayPrice(newPrice);
-            console.log('🎨 Display price updated to:', newPrice);
+            setDisplayPrice(prev => Math.max(prev ?? 0, newPrice));
+            //console.log('🎨 Display price updated to:', newPrice);
           }
         } catch (e) {
-          console.log('⚠️ Could not extract price from bid');
+          // //console.log('⚠️ Could not extract price from bid');
         }
-        
+
         return;
       }
-      
+
       // Check if we need to retry
       if (retryCount < 2 && !hasNewerData) {
-        console.log(`⚠️ No newer data yet, retrying...`);
+        // //console.log(`⚠️ No newer data yet, retrying...`);
         setLoadingAllBids(false);
         return loadAllBids(auctionSessionId, retryCount + 1, currentCount, latestTimestamp);
       }
-      
+
       // If still no newer data after retries, keep optimistic updates
       if (!hasNewerData && retryCount >= 2) {
-        console.log('⏭️ Max retries reached, keeping optimistic data');
+        //console.log('⏭️ Max retries reached, keeping optimistic data');
         setLoadingAllBids(false);
         return; // Don't update state, keep optimistic bids
       }
-      
-      console.log('📝 Setting state with new data...');
+
+      //console.log('📝 Setting state with new data...');
       // Remove optimistic bids and replace with real data
       setAllBidLogs(bidLogsList);
-      console.log('✅ State setAllBidLogs called successfully');
+      //console.log('✅ State setAllBidLogs called successfully');
     } catch (error) {
       console.error('❌ Error loading all bids:', error);
       // Silently fail - all bids not loading shouldn't block UI
     } finally {
       setLoadingAllBids(false);
-      console.log('🏁 END: loadAllBids completed');
+      //console.log('🏁 END: loadAllBids completed');
     }
   }, []);
 
@@ -756,9 +729,37 @@ export default function WholesalerAuctionDetailScreen() {
     });
   };
 
-  const calculateCountdown = (endDate: string) => {
-    const end = new Date(endDate).getTime();
+  const calculateCountdownForAuction = (auction: Auction) => {
     const now = new Date().getTime();
+
+    // If auction is Approved: countdown to publicDate (or startDate fallback).
+    if (auction.status === 'Approved') {
+      const publicTs = auction.publishDate ? new Date(auction.publishDate).getTime() : undefined;
+      const startTs = auction.harvests && auction.harvests[0]?.startDate
+        ? new Date(auction.harvests[0].startDate).getTime()
+        : undefined;
+      const target = publicTs || startTs || new Date(auction.endDate).getTime();
+      const diffToPublic = target - now;
+
+      if (diffToPublic > 0) {
+        const days = Math.floor(diffToPublic / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diffToPublic % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diffToPublic % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diffToPublic % (1000 * 60)) / 1000);
+
+        return {
+          days: String(days).padStart(2, '0'),
+          hours: String(hours).padStart(2, '0'),
+          minutes: String(minutes).padStart(2, '0'),
+          seconds: String(seconds).padStart(2, '0'),
+          isEnded: false,
+          phase: 'upcoming',
+        };
+      }
+      // Past public/start -> fall through to normal countdown to end
+    }
+
+    const end = new Date(auction.endDate).getTime();
     const diff = end - now;
 
     if (diff <= 0) {
@@ -768,6 +769,7 @@ export default function WholesalerAuctionDetailScreen() {
         minutes: '00',
         seconds: '00',
         isEnded: true,
+        phase: 'ended',
       };
     }
 
@@ -782,6 +784,7 @@ export default function WholesalerAuctionDetailScreen() {
       minutes: String(minutes).padStart(2, '0'),
       seconds: String(seconds).padStart(2, '0'),
       isEnded: false,
+      phase: 'running',
     };
   };
 
@@ -808,7 +811,7 @@ export default function WholesalerAuctionDetailScreen() {
   };
 
   const statusInfo = auction ? getAuctionStatusInfo(auction.status) : null;
-  const currentPrice = displayPrice || (auction ? (auction.currentPrice || auction.startingPrice) : 0);
+  const currentPrice = displayPrice ?? (auction ? (auction.currentPrice ?? auction.startingPrice) : 0);
 
   return (
     <View style={styles.container}>
@@ -854,123 +857,123 @@ export default function WholesalerAuctionDetailScreen() {
             />
           }
         >
-        {/* Status Section */}
-        <View style={styles.section}>
-          <View style={styles.auctionHeader}>
-            {statusInfo && (
-              <View
-                style={[
-                  styles.statusBadge,
-                  { backgroundColor: statusInfo.backgroundColor }
-                ]}
-              >
-                <Text style={[styles.statusText, { color: statusInfo.color }]}>
-                  {statusInfo.name}
-                </Text>
-              </View>
-            )}
-            <Text style={styles.sessionCode}>{auction.sessionCode}</Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          {/* Price Information */}
-          <View style={styles.subsectionContainer}>
-            <Text style={styles.subsectionTitle}>Thông tin giá</Text>
-            <View style={styles.subsectionContent}>
-              <View style={styles.infoRow}>
-                {/* <DollarSign size={20} color="#059669" /> */}
-                <Text style={styles.infoLabel}>Giá khởi điểm</Text>
-                <Text style={styles.infoValue}>{formatCurrency(auction.startingPrice)}</Text>
-              </View>
-
-              {currentPrice > 0 && (
-                <View style={styles.infoRow}>
-                  {/* <DollarSign size={20} color="#DC2626" /> */}
-                  <Text style={styles.infoLabel}>Giá hiện tại</Text>
-                  <Text style={[styles.infoValue, { color: '#DC2626', fontWeight: 'bold' }]}>
-                    {formatCurrency(currentPrice)}
+          {/* Status Section */}
+          <View style={styles.section}>
+            <View style={styles.auctionHeader}>
+              {statusInfo && (
+                <View
+                  style={[
+                    styles.statusBadge,
+                    { backgroundColor: statusInfo.backgroundColor }
+                  ]}
+                >
+                  <Text style={[styles.statusText, { color: statusInfo.color }]}>
+                    {statusInfo.name}
                   </Text>
                 </View>
               )}
+              <Text style={styles.sessionCode}>{auction.sessionCode}</Text>
+            </View>
 
-              {auction.enableBuyNow && auction.buyNowPrice && (
+            <View style={styles.divider} />
+
+            {/* Price Information */}
+            <View style={styles.subsectionContainer}>
+              <Text style={styles.subsectionTitle}>Thông tin giá</Text>
+              <View style={styles.subsectionContent}>
                 <View style={styles.infoRow}>
-                  {/* <ShoppingCart size={20} color="#8B5CF6" /> */}
-                  <Text style={styles.infoLabel}>Giá mua ngay</Text>
-                  <Text style={[styles.infoValue, { color: '#8B5CF6', fontWeight: 'bold' }]}>
-                    {formatCurrency(auction.buyNowPrice)}
-                  </Text>
+                  {/* <DollarSign size={20} color="#059669" /> */}
+                  <Text style={styles.infoLabel}>Giá khởi điểm</Text>
+                  <Text style={styles.infoValue}>{formatCurrency(auction.startingPrice)}</Text>
                 </View>
-              )}
 
-              <View style={styles.infoRow}>
-                <Text style={styles.bidIncrementText}>
-                  Bước giá tối thiểu: {formatCurrency(auction.minBidIncrement)}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.miniDivider} />
-
-          {/* Time Information */}
-          <View style={styles.subsectionContainer}>
-            <Text style={styles.subsectionTitle}>Thời gian</Text>
-            
-            {/* Countdown Flip Clock */}
-            {countdown && (
-              <View style={styles.countdownContainer}>
-                <FlipClockDigit value={countdown.days} label="Ngày" />
-                <FlipClockDigit value={countdown.hours} label="Giờ" />
-                <FlipClockDigit value={countdown.minutes} label="Phút" />
-                <FlipClockDigit value={countdown.seconds} label="Giây" />
-              </View>
-            )}
-
-            <View style={styles.subsectionContent}>
-              <View style={styles.infoRow}>
-                {/* <Calendar size={20} color="#16A34A" /> */}
-                <Text style={[styles.infoLabel, { color: '#16A34A', fontWeight: '600' }]}>Bắt đầu</Text>
-                <Text style={styles.infoValue}>
-                  {formatDateTime(auction.publishDate)}
-                </Text>
-              </View>
-
-              <View style={styles.infoRow}>
-                {/* <Calendar size={20} color="#16A34A" /> */}
-                <Text style={[styles.infoLabel, { color: '#16A34A', fontWeight: '600' }]}>Kết thúc</Text>
-                <Text style={styles.infoValue}>
-                  {formatDateTime(auction.endDate)}
-                </Text>
-              </View>
-
-              <View style={styles.infoRow}>
-                {/* <Calendar size={20} color="#16A34A" /> */}
-                <Text style={[styles.infoLabel, { color: '#16A34A', fontWeight: '600' }]}>Thu hoạch dự kiến</Text>
-                <Text style={styles.infoValue}>
-                  {formatDate(auction.expectedHarvestDate)}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Farmer Information */}
-          {farmerData && (
-            <>
-              <View style={styles.miniDivider} />
-              <View style={styles.subsectionContainer}>
-                <Text style={styles.subsectionTitle}>Thông tin nông dân</Text>
-                <View style={styles.subsectionContent}>
+                {currentPrice > 0 && (
                   <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Họ tên</Text>
-                    <Text style={styles.infoValue}>
-                      {farmerData.firstName && farmerData.lastName 
-                        ? `${farmerData.firstName} ${farmerData.lastName}` 
-                        : 'Chưa cập nhật'}
+                    {/* <DollarSign size={20} color="#DC2626" /> */}
+                    <Text style={styles.infoLabel}>Giá hiện tại</Text>
+                    <Text style={[styles.infoValue, { color: '#DC2626', fontWeight: 'bold' }]}>
+                      {formatCurrency(currentPrice)}
                     </Text>
                   </View>
-                  {/* <View style={styles.infoRow}>
+                )}
+
+                {auction.enableBuyNow && auction.buyNowPrice && (
+                  <View style={styles.infoRow}>
+                    {/* <ShoppingCart size={20} color="#8B5CF6" /> */}
+                    <Text style={styles.infoLabel}>Giá mua ngay</Text>
+                    <Text style={[styles.infoValue, { color: '#8B5CF6', fontWeight: 'bold' }]}>
+                      {formatCurrency(auction.buyNowPrice)}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.infoRow}>
+                  <Text style={styles.bidIncrementText}>
+                    Bước giá tối thiểu: {formatCurrency(auction.minBidIncrement)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.miniDivider} />
+
+            {/* Time Information */}
+            <View style={styles.subsectionContainer}>
+              <Text style={styles.subsectionTitle}>Thời gian</Text>
+
+              {/* Countdown Flip Clock */}
+              {countdown && (
+                <View style={styles.countdownContainer}>
+                  <FlipClockDigit value={countdown.days} label="Ngày" />
+                  <FlipClockDigit value={countdown.hours} label="Giờ" />
+                  <FlipClockDigit value={countdown.minutes} label="Phút" />
+                  <FlipClockDigit value={countdown.seconds} label="Giây" />
+                </View>
+              )}
+
+              <View style={styles.subsectionContent}>
+                <View style={styles.infoRow}>
+                  {/* <Calendar size={20} color="#16A34A" /> */}
+                  <Text style={[styles.infoLabel, { color: '#16A34A', fontWeight: '600' }]}>Bắt đầu</Text>
+                  <Text style={styles.infoValue}>
+                    {formatDateTime(auction.publishDate)}
+                  </Text>
+                </View>
+
+                <View style={styles.infoRow}>
+                  {/* <Calendar size={20} color="#16A34A" /> */}
+                  <Text style={[styles.infoLabel, { color: '#16A34A', fontWeight: '600' }]}>Kết thúc</Text>
+                  <Text style={styles.infoValue}>
+                    {formatDateTime(auction.endDate)}
+                  </Text>
+                </View>
+
+                <View style={styles.infoRow}>
+                  {/* <Calendar size={20} color="#16A34A" /> */}
+                  <Text style={[styles.infoLabel, { color: '#16A34A', fontWeight: '600' }]}>Thu hoạch dự kiến</Text>
+                  <Text style={styles.infoValue}>
+                    {formatDate(auction.expectedHarvestDate)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Farmer Information */}
+            {farmerData && (
+              <>
+                <View style={styles.miniDivider} />
+                <View style={styles.subsectionContainer}>
+                  <Text style={styles.subsectionTitle}>Thông tin nông dân</Text>
+                  <View style={styles.subsectionContent}>
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Họ tên</Text>
+                      <Text style={styles.infoValue}>
+                        {farmerData.firstName && farmerData.lastName
+                          ? `${farmerData.firstName} ${farmerData.lastName}`
+                          : 'Chưa cập nhật'}
+                      </Text>
+                    </View>
+                    {/* <View style={styles.infoRow}>
                     <Text style={styles.infoLabel}>Số điện thoại</Text>
                     <Text style={styles.infoValue}>{farmerData.phoneNumber || 'Chưa cập nhật'}</Text>
                   </View>
@@ -978,225 +981,100 @@ export default function WholesalerAuctionDetailScreen() {
                     <Text style={styles.infoLabel}>Email</Text>
                     <Text style={styles.infoValue}>{farmerData.email || 'Chưa cập nhật'}</Text>
                   </View> */}
-                 
-                  {farmerData.communes && (
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Phường/Xã</Text>
-                      <Text style={styles.infoValue}>{farmerData.communes}</Text>
-                    </View>
-                  )}
-                  {farmerData.province && (
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Tỉnh/Thành phố</Text>
-                      <Text style={styles.infoValue}>{farmerData.province}</Text>
-                    </View>
-                  )}
-                   {farmerData.address && (
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Địa chỉ chi tiết</Text>
-                      <Text style={styles.infoValue}>{farmerData.address}</Text>
-                    </View>
-                  )}
+
+                    {farmerData.communes && (
+                      <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Phường/Xã</Text>
+                        <Text style={styles.infoValue}>{farmerData.communes}</Text>
+                      </View>
+                    )}
+                    {farmerData.province && (
+                      <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Tỉnh/Thành phố</Text>
+                        <Text style={styles.infoValue}>{farmerData.province}</Text>
+                      </View>
+                    )}
+                    {farmerData.address && (
+                      <View style={styles.infoRow}>
+                        {/* <Text style={styles.infoLabel}>Địa chỉ chi tiết</Text> */}
+                        <Text style={styles.infoValue}>{farmerData.address}</Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
-              </View>
-            </>
-          )}
+              </>
+            )}
 
-        </View>
+          </View>
 
-        {/* Harvest Information */}
-        {auction.harvests && auction.harvests.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Thông tin vụ thu hoạch</Text>
-            {auction.harvests.map((harvest, index) => (
-              <View key={harvest.id} style={styles.harvestCard}>
-                {/* <View style={styles.harvestHeader}>
+          {/* Harvest Information */}
+          {auction.harvests && auction.harvests.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Thông tin vụ thu hoạch</Text>
+              {auction.harvests.map((harvest, index) => (
+                <View key={harvest.id} style={styles.harvestCard}>
+                  {/* <View style={styles.harvestHeader}>
                   <Text style={styles.harvestTitle}>Vụ {index + 1}</Text>
                 </View> */}
 
-                <View style={styles.currentHarvestDetails}>
-                  {harvest.harvestDate ? (
-                    <View style={styles.harvestDetailRow}>
-                      {/* <Calendar size={16} color="#059669" /> */}
-                      <Text style={styles.harvestDetailLabel}>Ngày thu hoạch:</Text>
-                      <Text style={styles.harvestDetailValue}>
-                        {formatDate(harvest.harvestDate)}
-                      </Text>
-                    </View>
-                  ) : (
-                    <View style={styles.harvestDetailRow}>
-                      {/* <Calendar size={16} color="#F59E0B" /> */}
-                      <Text style={styles.harvestDetailLabel}>Bắt đầu:</Text>
-                      <Text style={styles.harvestDetailValue}>
-                        {formatDate(harvest.startDate)}
-                      </Text>
-                    </View>
-                  )}
-
-                  {harvest.salePrice > 0 && (
-                    <View style={styles.harvestDetailRow}>
-                      {/* <DollarSign size={16} color="#059669" /> */}
-                      <Text style={styles.harvestDetailLabel}>Giá bán:</Text>
-                      <Text style={styles.harvestDetailValue}>
-                        {formatCurrency(harvest.salePrice)}
-                      </Text>
-                    </View>
-                  )}
-
-                  {harvest.note && harvest.note !== 'Không có' && (
-                    <View style={styles.harvestDetailRow}>
-                      <Text style={styles.harvestNote}>Ghi chú: {harvest.note}</Text>
-                    </View>
-                  )}
-                </View>
-
-                {/* Harvest Images Gallery */}
-                <HarvestImagesGallery harvestId={harvest.id} />
-
-                {/* Harvest Grade Details */}
-                {harvest.harvestGradeDetails && harvest.harvestGradeDetails.length > 0 && (
-                  <View style={styles.gradeDetailsSection}>
-                    <Text style={styles.gradeDetailsSectionTitle}>
-                      Chi tiết phân loại chất lượng:
-                    </Text>
-                    {harvest.harvestGradeDetails.map((gradeDetail) => {
-                      const gradeMap: { [key: string]: { name: string; color: string } } = {
-                        'Grade1': { name: 'Hàng Loại 1', color: '#10B981' },
-                        'Grade2': { name: 'Hàng Loại 2', color: '#F59E0B' },
-                        'Grade3': { name: 'Hàng Loại 3', color: '#EF4444' },
-                      };
-                      const gradeInfo = gradeMap[gradeDetail.grade] || { name: gradeDetail.grade, color: '#6B7280' };
-                      
-                      return (
-                        <View key={gradeDetail.id} style={styles.gradeDetailRow}>
-                          <Text style={styles.gradeName}>
-                            {gradeInfo.name}
-                          </Text>
-                          <Text style={styles.gradeQuantity}>
-                            {gradeDetail.quantity} {gradeDetail.unit || 'kg'}
-                          </Text>
-                        </View>
-                      );
-                    })}
-
-                    {/* Total calculation */}
-                    <View style={styles.gradeTotalRow}>
-                      <Text style={styles.gradeTotalLabel}>Tổng cộng:</Text>
-                      <Text style={styles.gradeTotalValue}>
-                        {harvest.harvestGradeDetails.reduce((sum, grade) => sum + grade.quantity, 0)} kg
-                      </Text>
-                    </View>
-                  </View>
-                )}
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Crop Information */}
-        {crops.length > 0 && crops.map((crop, cropIndex) => {
-          const farm = crop.farmID ? farms.get(crop.farmID) : null;
-          const currentHarvest = currentHarvests[crop.id];
-          
-          return (
-            <View key={crop.id} style={styles.section}>
-              {/* Crop Details with Farm Name */}
-              <View style={styles.miniDivider} />
-              <View style={styles.subsectionHeader}>
-                <Text style={styles.subsectionTitle}>
-                  Thông tin vườn{farm ? ` - ${farm.name}` : ''}
-                </Text>
-              </View>
-              <View style={styles.cropCard}>
-                <View style={styles.cropHeader}>
-                  <View style={styles.cropInfo}>
-                    <Text style={styles.cropTitle}>{crop.name}</Text>
-                    <Text style={styles.cropSubtitle}>
-                      {crop.custardAppleType} • {crop.area} m²
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.cropDetails}>
-                  <View style={styles.cropDetailRow}>
-                    <Text style={styles.cropDetailLabel}>Số cây:</Text>
-                    <Text style={styles.cropDetailValue}>{crop.treeCount} cây</Text>
-                  </View>
-                  <View style={styles.cropDetailRow}>
-                    <Text style={styles.cropDetailLabel}>Thời gian canh tác:</Text>
-                    <Text style={styles.cropDetailValue}>{crop.farmingDuration} năm</Text>
-                  </View>
-                  {crop.nearestHarvestDate && (
-                    <View style={styles.cropDetailRow}>
-                      <Text style={styles.cropDetailLabel}>Thu hoạch gần nhất:</Text>
-                      <Text style={styles.cropDetailValue}>{formatDate(crop.nearestHarvestDate)}</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-
-              {/* Current Harvest Section */}
-              {currentHarvest && (
-                <>
-                  <Text style={styles.subsectionTitle}>Vụ thu hoạch hiện tại</Text>
-                  <View style={styles.harvestCard}>
-                    <View style={styles.currentHarvestDetails}>
-                      {currentHarvest.harvestDate ? (
-                        <View style={styles.harvestDetailRow}>
-                          <Calendar size={16} color="#059669" />
-                          <Text style={styles.harvestDetailLabel}>Ngày thu hoạch:</Text>
-                          <Text style={styles.harvestDetailValue}>
-                            {formatDate(currentHarvest.harvestDate)}
-                          </Text>
-                        </View>
-                      ) : (
-                        <View style={styles.harvestDetailRow}>
-                          <Calendar size={16} color="#F59E0B" />
-                          <Text style={styles.harvestDetailLabel}>Bắt đầu:</Text>
-                          <Text style={styles.harvestDetailValue}>
-                            {formatDate(currentHarvest.startDate)}
-                          </Text>
-                        </View>
-                      )}
-
-                      {currentHarvest.salePrice > 0 && (
-                        <View style={styles.harvestDetailRow}>
-                          {/* <DollarSign size={16} color="#059669" /> */}
-                          <Text style={styles.harvestDetailLabel}>Giá bán:</Text>
-                          <Text style={styles.harvestDetailValue}>
-                            {formatCurrency(currentHarvest.salePrice)}
-                          </Text>
-                        </View>
-                      )}
-
-                      {currentHarvest.note && currentHarvest.note !== 'không có' && (
-                        <View style={styles.harvestDetailRow}>
-                          <Text style={styles.harvestNote}>Ghi chú: {currentHarvest.note}</Text>
-                        </View>
-                      )}
-                    </View>
-
-                    {/* Harvest Grade Details */}
-                    {currentHarvest.harvestGradeDetailDTOs && currentHarvest.harvestGradeDetailDTOs.length > 0 && (
-                      <View style={styles.gradeDetailsSection}>
-                        <Text style={styles.gradeDetailsSectionTitle}>
-                          Chi tiết phân loại chất lượng:
+                  <View style={styles.currentHarvestDetails}>
+                    {harvest.harvestDate ? (
+                      <View style={styles.harvestDetailRow}>
+                        {/* <Calendar size={16} color="#059669" /> */}
+                        <Text style={styles.harvestDetailLabel}>Ngày thu hoạch:</Text>
+                        <Text style={styles.harvestDetailValue}>
+                          {formatDate(harvest.harvestDate)}
                         </Text>
-                        {currentHarvest.harvestGradeDetailDTOs.map((gradeDetail) => {
-                          const gradeNames: { [key: number]: string } = {
-                            1: 'Hàng Loại 1',
-                            2: 'Hàng Loại 2',
-                            3: 'Hàng Loại 3',
+                      </View>
+                    ) : (
+                      <View style={styles.harvestDetailRow}>
+                        {/* <Calendar size={16} color="#F59E0B" /> */}
+                        <Text style={styles.harvestDetailLabel}>Bắt đầu:</Text>
+                        <Text style={styles.harvestDetailValue}>
+                          {formatDate(harvest.startDate)}
+                        </Text>
+                      </View>
+                    )}
+
+                    {harvest.salePrice > 0 && (
+                      <View style={styles.harvestDetailRow}>
+                        {/* <DollarSign size={16} color="#059669" /> */}
+                        <Text style={styles.harvestDetailLabel}>Giá bán:</Text>
+                        <Text style={styles.harvestDetailValue}>
+                          {formatCurrency(harvest.salePrice)}
+                        </Text>
+                      </View>
+                    )}
+
+                    {harvest.note && harvest.note !== 'Không có' && (
+                      <View style={styles.harvestDetailRow}>
+                        <Text style={styles.harvestNote}>Ghi chú: {harvest.note}</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Harvest Images Gallery */}
+                  <HarvestImagesGallery harvestId={harvest.id} />
+
+                  {/* Harvest Grade Details */}
+                  {harvest.harvestGradeDetails && harvest.harvestGradeDetails.length > 0 && (
+                    <View style={styles.gradeDetailsSection}>
+                      <Text style={styles.gradeDetailsSectionTitle}>
+                        Chi tiết phân loại chất lượng:
+                      </Text>
+                      <View style={styles.gradeGrid}>
+                        {harvest.harvestGradeDetails.map((gradeDetail) => {
+                          const gradeMap: { [key: string]: { name: string; color: string } } = {
+                            'Grade1': { name: 'Hàng Loại 1', color: '#10B981' },
+                            'Grade2': { name: 'Hàng Loại 2', color: '#F59E0B' },
+                            'Grade3': { name: 'Hàng Loại 3', color: '#EF4444' },
                           };
-                          const gradeColors: { [key: number]: string } = {
-                            1: '#10B981', // Green
-                            2: '#F59E0B', // Yellow
-                            3: '#EF4444', // Red
-                          };
+                          const gradeInfo = gradeMap[gradeDetail.grade] || { name: gradeDetail.grade, color: '#6B7280' };
+
                           return (
                             <View key={gradeDetail.id} style={styles.gradeDetailRow}>
                               <Text style={styles.gradeName}>
-                                {gradeNames[gradeDetail.grade] || `Hạng ${gradeDetail.grade}`}
+                                {gradeInfo.name}
                               </Text>
                               <Text style={styles.gradeQuantity}>
                                 {gradeDetail.quantity} {gradeDetail.unit || 'kg'}
@@ -1204,156 +1082,294 @@ export default function WholesalerAuctionDetailScreen() {
                             </View>
                           );
                         })}
+                      </View>
 
-                        {/* Total calculation */}
-                        <View style={styles.gradeTotalRow}>
-                          <Text style={styles.gradeTotalLabel}>Tổng cộng:</Text>
-                          <Text style={styles.gradeTotalValue}>
-                            {currentHarvest.harvestGradeDetailDTOs.reduce((sum, grade) => sum + grade.quantity, 0)} kg
-                          </Text>
-                        </View>
+                      {/* Total calculation */}
+                      <View style={styles.gradeTotalRow}>
+                        <Text style={styles.gradeTotalLabel}>Tổng cộng:</Text>
+                        <Text style={styles.gradeTotalValue}>
+                          {harvest.harvestGradeDetails.reduce((sum, grade) => sum + grade.quantity, 0)} kg
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Crop Information */}
+          {crops.length > 0 && crops.map((crop, cropIndex) => {
+            const farm = crop.farmID ? farms.get(crop.farmID) : null;
+            const currentHarvest = currentHarvests[crop.id];
+
+            return (
+              <View key={crop.id} style={styles.section}>
+                {/* Crop Details with Farm Name */}
+                <View style={styles.miniDivider} />
+                <View style={styles.subsectionHeader}>
+                  <Text style={styles.subsectionTitle}>
+                    Thông tin vườn{farm ? ` - ${farm.name}` : ''}
+                  </Text>
+                </View>
+                <View style={styles.cropCard}>
+                  <View style={styles.cropHeader}>
+                    <View style={styles.cropInfo}>
+                      <Text style={styles.cropTitle}>{crop.name}</Text>
+                      <Text style={styles.cropSubtitle}>
+                        {crop.custardAppleType} • {crop.area} ha
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.cropDetails}>
+                    <View style={styles.cropDetailRow}>
+                      <Text style={styles.cropDetailLabel}>Số cây:</Text>
+                      <Text style={styles.cropDetailValue}>{crop.treeCount} cây</Text>
+                    </View>
+                    <View style={styles.cropDetailRow}>
+                      <Text style={styles.cropDetailLabel}>Thời gian canh tác:</Text>
+                      <Text style={styles.cropDetailValue}>{crop.farmingDuration} năm</Text>
+                    </View>
+                    {crop.nearestHarvestDate && (
+                      <View style={styles.cropDetailRow}>
+                        <Text style={styles.cropDetailLabel}>Thu hoạch gần nhất:</Text>
+                        <Text style={styles.cropDetailValue}>{formatDate(crop.nearestHarvestDate)}</Text>
                       </View>
                     )}
                   </View>
-                </>
-              )}
-            </View>
-          );
-        })}
+                </View>
 
-        {/* Bid List Display - Show first if user has bids */}
-        <BidListDisplay
-          bids={bids}
-          loading={loadingBids}
-          minBidIncrement={auction?.minBidIncrement || 0}
-          auctionStatus={auction?.status}
-          onEditBid={(bid) => {
-            setSelectedBidForEdit(bid);
-            setShowBidModal(true);
-          }}
-        />
+                {/* Current Harvest Section */}
+                {currentHarvest && (
+                  <>
+                    <Text style={styles.subsectionTitle}>Vụ thu hoạch hiện tại</Text>
+                    <View style={styles.harvestCard}>
+                      <View style={styles.currentHarvestDetails}>
+                        {currentHarvest.harvestDate ? (
+                          <View style={styles.harvestDetailRow}>
+                            <Calendar size={16} color="#059669" />
+                            <Text style={styles.harvestDetailLabel}>Ngày thu hoạch:</Text>
+                            <Text style={styles.harvestDetailValue}>
+                              {formatDate(currentHarvest.harvestDate)}
+                            </Text>
+                          </View>
+                        ) : (
+                          <View style={styles.harvestDetailRow}>
+                            <Calendar size={16} color="#F59E0B" />
+                            <Text style={styles.harvestDetailLabel}>Bắt đầu:</Text>
+                            <Text style={styles.harvestDetailValue}>
+                              {formatDate(currentHarvest.startDate)}
+                            </Text>
+                          </View>
+                        )}
 
-        {/* Action Buttons */}
-        <View style={styles.actionButtonsContainer}>
-          {/* Buy Now button - Only show when user has already placed a bid */}
-          {auction?.enableBuyNow && auction?.buyNowPrice && bids.length > 0 && (
-            <TouchableOpacity 
-              style={[styles.buyNowButton, { flex: 1 }]}
-              onPress={() => setBuyNowModalVisible(true)}
-              disabled={!auction || auction.status !== 'OnGoing' || countdown?.isEnded}
-            >
-              <Text style={[styles.buyNowButtonText, (!auction || auction.status !== 'OnGoing' || countdown?.isEnded) && { color: '#9CA3AF' }]}>
-                Mua ngay
-              </Text>
-            </TouchableOpacity>
-          )}
-          {/* Bid button - Only show when user hasn't placed a bid yet */}
-          {bids.length === 0 && (
-            <TouchableOpacity 
-              style={[
-                styles.bidButton,
-                (!auction || auction.status !== 'OnGoing' || countdown?.isEnded) && styles.bidButtonDisabled,
-                auction?.enableBuyNow && auction?.buyNowPrice ? { flex: 1, marginLeft: 8 } : {}
-              ]}
-              onPress={() => {
-                if (auction?.status !== 'OnGoing' || countdown?.isEnded) {
-                  Alert.alert(
-                    'Không thể đấu giá',
-                    'Phiên đấu giá này không còn hoạt động. Chỉ có thể xem thông tin.',
-                    [{ text: 'OK' }]
-                  );
-                  return;
-                }
-                console.log('Bid button pressed, current auction status:', auction?.status);
-                setSelectedBidForEdit(undefined);
-                setShowBidModal(true);
-              }}
-              disabled={!auction || auction.status !== 'OnGoing' || countdown?.isEnded}
-            >
-              <Text style={[styles.bidButtonText, auction?.status !== 'OnGoing' && { color: '#9CA3AF' }]}>
-                {auction?.status === 'OnGoing' ? 'Đặt giá' : 'Chỉ xem'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
+                        {currentHarvest.salePrice > 0 && (
+                          <View style={styles.harvestDetailRow}>
+                            {/* <DollarSign size={16} color="#059669" /> */}
+                            <Text style={styles.harvestDetailLabel}>Giá bán:</Text>
+                            <Text style={styles.harvestDetailValue}>
+                              {formatCurrency(currentHarvest.salePrice)}
+                            </Text>
+                          </View>
+                        )}
+
+                        {currentHarvest.note && currentHarvest.note !== 'không có' && (
+                          <View style={styles.harvestDetailRow}>
+                            <Text style={styles.harvestNote}>Ghi chú: {currentHarvest.note}</Text>
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Harvest Grade Details */}
+                      {currentHarvest.harvestGradeDetailDTOs && currentHarvest.harvestGradeDetailDTOs.length > 0 && (
+                        <View style={styles.gradeDetailsSection}>
+                          <Text style={styles.gradeDetailsSectionTitle}>
+                            Chi tiết phân loại chất lượng:
+                          </Text>
+                          <View style={styles.gradeGrid}>
+                            {currentHarvest.harvestGradeDetailDTOs.map((gradeDetail) => {
+                              const gradeNames: { [key: number]: string } = {
+                                1: 'Hàng Loại 1',
+                                2: 'Hàng Loại 2',
+                                3: 'Hàng Loại 3',
+                              };
+                              const gradeColors: { [key: number]: string } = {
+                                1: '#10B981', // Green
+                                2: '#F59E0B', // Yellow
+                                3: '#EF4444', // Red
+                              };
+                              return (
+                                <View key={gradeDetail.id} style={styles.gradeDetailRow}>
+                                  <Text style={styles.gradeName}>
+                                    {gradeNames[gradeDetail.grade] || `Hạng ${gradeDetail.grade}`}
+                                  </Text>
+                                  <Text style={styles.gradeQuantity}>
+                                    {gradeDetail.quantity} {gradeDetail.unit || 'kg'}
+                                  </Text>
+                                </View>
+                              );
+                            })}
+                          </View>
+
+                          {/* Total calculation */}
+                          <View style={styles.gradeTotalRow}>
+                            <Text style={styles.gradeTotalLabel}>Tổng cộng:</Text>
+                            <Text style={styles.gradeTotalValue}>
+                              {currentHarvest.harvestGradeDetailDTOs.reduce((sum, grade) => sum + grade.quantity, 0)} kg
+                            </Text>
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  </>
+                )}
+              </View>
+            );
+          })}
+
+          {/* Bid List Display - Show first if user has bids */}
+          <BidListDisplay
+            bids={bids}
+            loading={loadingBids}
+            minBidIncrement={auction?.minBidIncrement || 0}
+            auctionStatus={auction?.status}
+            onEditBid={(bid) => {
+              setForceAutoBidOnly(false);
+              setSelectedBidForEdit(bid);
+              setShowBidModal(true);
+            }}
+            onEditAutoBid={(bid) => {
+              setForceAutoBidOnly(true);
+              setSelectedBidForEdit(bid);
+              setShowBidModal(true);
+            }}
+          />
+
+          {/* Action Buttons */}
+          <View style={styles.actionButtonsContainer}>
+            {/* Buy Now button - Only show when user has already placed a bid */}
+            {auction?.enableBuyNow && auction?.buyNowPrice && bids.length > 0 && (
+              <TouchableOpacity
+                style={[styles.buyNowButton, { flex: 1 }]}
+                onPress={() => setBuyNowModalVisible(true)}
+                disabled={!auction || auction.status !== 'OnGoing' || countdown?.isEnded}
+              >
+                <Text style={[styles.buyNowButtonText, (!auction || auction.status !== 'OnGoing' || countdown?.isEnded) && { color: '#9CA3AF' }]}>
+                  Mua ngay
+                </Text>
+              </TouchableOpacity>
+            )}
+            {/* Bid button - Only show when user hasn't placed a bid yet */}
+            {bids.length === 0 && (
+              <TouchableOpacity
+                style={[
+                  styles.bidButton,
+                  (!auction || auction.status !== 'OnGoing' || countdown?.isEnded) && styles.bidButtonDisabled,
+                  auction?.enableBuyNow && auction?.buyNowPrice ? { flex: 1, marginLeft: 8 } : {}
+                ]}
+                onPress={() => {
+                  if (auction?.status !== 'OnGoing' || countdown?.isEnded) {
+                    Alert.alert(
+                      'Không thể đấu giá',
+                      'Phiên đấu giá này không còn hoạt động. Chỉ có thể xem thông tin.',
+                      [{ text: 'OK' }]
+                    );
+                    return;
+                  }
+                  //console.log('Bid button pressed, current auction status:', auction?.status);
+                  setSelectedBidForEdit(undefined);
+                  setShowBidModal(true);
+                }}
+                disabled={!auction || auction.status !== 'OnGoing' || countdown?.isEnded}
+              >
+                <Text style={[styles.bidButtonText, auction?.status !== 'OnGoing' && { color: '#9CA3AF' }]}>
+                  {auction?.status === 'OnGoing' ? 'Đặt giá' : 'Chỉ xem'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </ScrollView>
       )}
 
       {/* Create Bid Modal */}
       {auction && (
-            <CreateBidModal
-              visible={showBidModal}
-              onClose={() => {
-                console.log('Closing bid modal');
-                setShowBidModal(false);
-                setSelectedBidForEdit(undefined);
-              }}
-              onBidCreated={async () => {
-                console.log('✅ Bid created! Reloading user bids...');
-                setShowBidModal(false);
-                // Reload user's bids to update UI
-                if (auction?.id) {
-                  await loadBidsQuietly(auction.id);
-                }
-                console.log('   SignalR will update price and all bids list');
-              }}
-              currentPrice={auction.currentPrice || auction.startingPrice}
-              minBidIncrement={auction.minBidIncrement}
-              auctionSessionId={auction.id}
-              sessionCode={auction.sessionCode}
-              existingBid={selectedBidForEdit}
-              auctionStatus={auction.status}
-              userProfile={userProfile}
-              startingPrice={auction.startingPrice}
-              buyNowPrice={auction.buyNowPrice ?? undefined}
+        <CreateBidModal
+          visible={showBidModal}
+          onClose={() => {
+            //console.log('Closing bid modal');
+            setShowBidModal(false);
+            setSelectedBidForEdit(undefined);
+            setForceAutoBidOnly(false);
+          }}
+          onBidCreated={async () => {
+            //console.log('✅ Bid created! Reloading user bids...');
+            setShowBidModal(false);
+            // Reload user's bids to update UI
+            if (auction?.id) {
+              await loadBidsQuietly(auction.id);
+            }
+            //console.log('   SignalR will update price and all bids list');
+          }}
+          currentPrice={auction.currentPrice || auction.startingPrice}
+          minBidIncrement={auction.minBidIncrement}
+          auctionSessionId={auction.id}
+          sessionCode={auction.sessionCode}
+          existingBid={selectedBidForEdit}
+          auctionStatus={auction.status}
+          userProfile={userProfile}
+          startingPrice={auction.startingPrice}
+          buyNowPrice={auction.buyNowPrice ?? undefined}
+          enableReserveProxy={auction.enableReserveProxy ?? true}
+          isAutoBidUpdate={forceAutoBidOnly}
+        />
+      )}
+
+      {/* Buy Now Modal */}
+      {auction && (
+        <BuyNowModal
+          visible={buyNowModalVisible}
+          auction={auction}
+          onClose={() => setBuyNowModalVisible(false)}
+          onSuccess={() => {
+            setBuyNowModalVisible(false);
+            Alert.alert(
+              'Thành công',
+              'Mua ngay thành công!',
+              [{ text: 'OK', onPress: () => loadAuctionDetail() }]
+            );
+          }}
+        />
+      )}
+
+
+
+      {/* All Bids Modal */}
+      <Modal
+        visible={showBidsModal}
+        animationType="slide"
+        onRequestClose={() => setShowBidsModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              style={styles.modalBackButton}
+              onPress={() => setShowBidsModal(false)}
+            >
+              <ArrowLeft size={20} color="#374151" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Tất cả lượt đấu giá</Text>
+            <View style={{ width: 40 }} />
+          </View>
+          <ScrollView style={styles.modalContent}>
+            <AllBidsDisplay
+              key={`bids-${allBidLogs.length}-${allBidLogs[0]?.id || 'empty'}`}
+              bidLogs={allBidLogs}
+              loading={loadingAllBids}
             />
-          )}
-
-          {/* Buy Now Modal */}
-          {auction && (
-            <BuyNowModal
-              visible={buyNowModalVisible}
-              auction={auction}
-              onClose={() => setBuyNowModalVisible(false)}
-              onSuccess={() => {
-                setBuyNowModalVisible(false);
-                Alert.alert(
-                  'Thành công',
-                  'Mua ngay thành công!',
-                  [{ text: 'OK', onPress: () => loadAuctionDetail() }]
-                );
-              }}
-            />
-          )}
-
-
-
-          {/* All Bids Modal */}
-          <Modal
-            visible={showBidsModal}
-            animationType="slide"
-            onRequestClose={() => setShowBidsModal(false)}
-          >
-            <View style={styles.modalContainer}>
-              <View style={styles.modalHeader}>
-                <TouchableOpacity
-                  style={styles.modalBackButton}
-                  onPress={() => setShowBidsModal(false)}
-                >
-                  <ArrowLeft size={20} color="#374151" />
-                </TouchableOpacity>
-                <Text style={styles.modalTitle}>Tất cả lượt đấu giá</Text>
-                <View style={{ width: 40 }} />
-              </View>
-              <ScrollView style={styles.modalContent}>
-                <AllBidsDisplay
-                  key={`bids-${allBidLogs.length}-${allBidLogs[0]?.id || 'empty'}`}
-                  bidLogs={allBidLogs}
-                  loading={loadingAllBids}
-                />
-              </ScrollView>
-            </View>
-          </Modal>
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1660,27 +1676,35 @@ const styles = StyleSheet.create({
     color: '#374151',
     marginBottom: 10,
   },
-  gradeDetailRow: {
+  gradeGrid: {
     flexDirection: 'row',
+    flexWrap: 'nowrap',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    gap: 8,
+  },
+  gradeDetailRow: {
+    width: '32%',
+    paddingVertical: 12,
+    paddingHorizontal: 10,
     backgroundColor: '#F3F4F6',
     borderRadius: 8,
     marginBottom: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   gradeDetailContent: {
     flex: 1,
   },
   gradeName: {
     fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 2,
+    fontWeight: '700',
+    marginBottom: 4,
+    textAlign: 'center',
   },
   gradeQuantity: {
     fontSize: 12,
     color: '#6B7280',
+    textAlign: 'center',
   },
   gradeBadge: {
     marginLeft: 12,

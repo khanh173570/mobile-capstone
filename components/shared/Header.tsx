@@ -7,15 +7,16 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
-import { Bell } from 'lucide-react-native';
+import { NotificationBell } from './NotificationBell';
 
 interface HeaderProps {
   title?: string;
   subtitle?: string;
   userName?: string;
   showNotification?: boolean;
+  role?: 'farmer' | 'wholesaler';
   onNotificationPress?: () => void;
-  unreadNotificationCount?: number;
+  unreadNotificationCount?: number; // Deprecated - use NotificationBell instead
 }
 
 export default function Header({
@@ -23,17 +24,10 @@ export default function Header({
   subtitle,
   userName,
   showNotification = true,
+  role = 'farmer',
   onNotificationPress,
-  unreadNotificationCount = 0,
+  unreadNotificationCount = 0, // Deprecated
 }: HeaderProps) {
-  const handleNotificationPress = () => {
-    if (onNotificationPress) {
-      onNotificationPress();
-    } else {
-      // Default notification handler
-      console.log('Notification pressed');
-    }
-  };
 
   return (
     <View style={styles.container}>
@@ -59,19 +53,7 @@ export default function Header({
         </View>
         
         {showNotification && (
-          <TouchableOpacity
-            style={styles.notificationButton}
-            onPress={handleNotificationPress}
-          >
-            <Bell size={24} color="#111827" />
-            {unreadNotificationCount > 0 && (
-              <View style={styles.notificationBadgeContainer}>
-                <Text style={styles.notificationBadgeText}>
-                  {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
+          <NotificationBell role={role} />
         )}
       </View>
     </View>

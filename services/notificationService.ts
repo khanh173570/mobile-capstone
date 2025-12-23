@@ -41,7 +41,7 @@ export const sendLocalNotification = async (
       listener(message);
     });
 
-    console.log('Local notification sent:', message);
+    //console.log('Local notification sent:', message);
   } catch (error) {
     console.error('Error sending local notification:', error);
   }
@@ -147,17 +147,17 @@ export const getUnreadNotificationCount = async (): Promise<number> => {
       return 0;
     }
 
-    console.log('🔄 Fetching unread notification count for authenticated user...');
+    // //console.log('🔄 Fetching unread notification count for authenticated user...');
     const count = await signalRService.invoke<number>('GetUnreadNotificationCount');
-    console.log('📊 Unread notifications count:', count, '(for current user from JWT token)');
+    // //console.log('📊 Unread notifications count:', count, '(for current user from JWT token)');
     return count || 0;
   } catch (error) {
-    console.error('❌ Error getting unread count via SignalR:', error);
+    // console.error('❌ Error getting unread count via SignalR:', error);
     const errorMsg = String(error);
     if (errorMsg.includes('Method does not exist')) {
-      console.warn('⚠️ GetUnreadNotificationCount method not implemented on backend');
+      // console.warn('⚠️ GetUnreadNotificationCount method not implemented on backend');
     } else if (errorMsg.includes('401') || errorMsg.includes('Unauthorized')) {
-      console.error('❌ 401 Unauthorized - token might be invalid or expired');
+      // console.error('❌ 401 Unauthorized - token might be invalid or expired');
     }
     return 0;
   }
@@ -172,14 +172,14 @@ export const getMyNotifications = async (): Promise<BackendNotification[]> => {
   try {
     // First try SignalR if connected
     if (signalRService.isConnected()) {
-      console.log('🔍 Fetching notifications from backend (user identified via JWT token)...');
+      //console.log('🔍 Fetching notifications from backend (user identified via JWT token)...');
       
       // Try GetMyNotifications first
       try {
         const notifications = await signalRService.invoke<BackendNotification[]>('GetMyNotifications');
         if (notifications) {
-          console.log('📋 Fetched', notifications.length || 0, 'notifications from SignalR (GetMyNotifications)');
-          console.log('✅ Notifications are for the current logged-in user (from JWT token)');
+          //console.log('📋 Fetched', notifications.length || 0, 'notifications from SignalR (GetMyNotifications)');
+          //console.log('✅ Notifications are for the current logged-in user (from JWT token)');
           return notifications;
         }
       } catch (error1) {
@@ -189,8 +189,8 @@ export const getMyNotifications = async (): Promise<BackendNotification[]> => {
         try {
           const notifications = await signalRService.invoke<BackendNotification[]>('GetAllNotifications');
           if (notifications) {
-            console.log('📋 Fetched', notifications.length || 0, 'notifications from SignalR (GetAllNotifications)');
-            console.log('✅ Notifications are for the current logged-in user (from JWT token)');
+            //console.log('📋 Fetched', notifications.length || 0, 'notifications from SignalR (GetAllNotifications)');
+            //console.log('✅ Notifications are for the current logged-in user (from JWT token)');
             return notifications;
           }
         } catch (error2) {
@@ -203,7 +203,7 @@ export const getMyNotifications = async (): Promise<BackendNotification[]> => {
       }
     }
 
-    console.log('📋 No notifications available from backend');
+    //console.log('📋 No notifications available from backend');
     return [];
   } catch (error) {
     console.error('❌ Unexpected error in getMyNotifications:', error);
@@ -260,22 +260,26 @@ export const deleteNotification = async (notificationId: string): Promise<boolea
  */
 export const getNotificationTypeName = (type: number): string => {
   const typeNames: { [key: number]: string } = {
-    1: 'Bị vượt giá',
-    2: 'Đấu giá kết thúc',
-    3: 'Thắng đấu giá',
-    4: 'Đấu giá được phê duyệt',
-    5: 'Đấu giá bị tạm dừng',
-    6: 'Đấu giá đã bắt đầu',
-    7: 'Thông báo hệ thống',
-    8: 'Cập nhật cọc',
-    9: 'Thanh toán phần còn lại',
-    10: 'Cọc được phát hành',
-    11: 'Thêm tiền vào ví',
-    12: 'Nhắc nhở: 7 ngày',
-    13: 'Nhắc nhở: 3 ngày',
-    14: 'Nhắc nhở: 1 ngày',
-    15: 'Nhắc nhở: Hôm nay',
-    16: 'Nhắc nhở: Quá hạn',
+    1: 'Bị vượt giá',                    // Outbid
+    2: 'Đấu giá kết thúc',              // AuctionEnded
+    3: 'Thắng đấu giá',                 // AuctionWon
+    4: 'Đấu giá được phê duyệt',        // AuctionApproved
+    5: 'Đấu giá bị tạm dừng',           // AuctionPaused
+    6: 'Đấu giá đã bắt đầu',            // AuctionStarted
+    7: 'Thông báo hệ thống',             // System
+    8: 'Thanh toán cọc thành công',       // EscrowDepositSuccess
+    9: 'Thanh toán còn lại thành công',  // EscrowRemainingPaymentSuccess
+    10: 'Nhận tiền từ escrow',           // EscrowReleaseReceived
+    11: 'Nạp tiền vào ví',               // WalletFundsAdded
+    12: 'Tham gia đấu giá thành công',   // AuctionJoinSuccess
+    13: 'Hủy hợp đồng đấu giá',          // EscrowCancelled
+    14: 'Tranh chấp được mở',            // DistupeOpened
+    15: 'Đấu giá được tạo',              // AuctionCreated
+    16: 'Đấu giá bị từ chối',            // AuctionRejected
+    17: 'Yêu cầu rút tiền đã tạo',       // WithdrawalRequested
+    18: 'Rút tiền hoàn thành',           // WithdrawalCompleted
+    19: 'Rút tiền bị từ chối',           // WithdrawalRejected
+    20: 'Đấu giá được gia hạn',          // AuctionExtended
   };
   return typeNames[type] || 'Thông báo';
 };
@@ -296,11 +300,15 @@ export const getNotificationTypeColor = (type: number): string => {
     9: '#10B981',   // Payment - Green
     10: '#10B981',  // Released - Green
     11: '#10B981',  // Funds - Green
-    12: '#3B82F6',  // Reminder -7 - Blue
-    13: '#F59E0B',  // Reminder -3 - Yellow
-    14: '#F59E0B',  // Reminder -1 - Yellow
-    15: '#EF4444',  // Reminder 0 - Red
-    16: '#EF4444',  // Reminder +1 - Red
+    12: '#3B82F6',  // AuctionJoinSuccess - Blue
+    13: '#F59E0B',  // EscrowCancelled - Yellow
+    14: '#EF4444',  // DistupeOpened - Red
+    15: '#3B82F6',  // AuctionCreated - Blue
+    16: '#EF4444',  // AuctionRejected - Red
+    17: '#F59E0B',  // WithdrawalRequested - Yellow
+    18: '#10B981',  // WithdrawalCompleted - Green
+    19: '#EF4444',  // WithdrawalRejected - Red
+    20: '#3B82F6',  // AuctionExtended - Blue
   };
   return colors[type] || '#6B7280';
 };
@@ -321,11 +329,15 @@ export const getNotificationIcon = (type: number): string => {
     9: '💳',    // Payment
     10: '💸',   // Released
     11: '🏧',   // Funds
-    12: '📅',   // Reminder
-    13: '⏰',   // Reminder
-    14: '⚠️',    // Reminder
-    15: '🔴',   // Reminder
-    16: '🆘',   // Reminder
+    12: '🎯',   // AuctionJoinSuccess
+    13: '❌',   // EscrowCancelled
+    14: '⚖️',   // DistupeOpened
+    15: '✨',   // AuctionCreated
+    16: '🚫',   // AuctionRejected
+    17: '📤',   // WithdrawalRequested
+    18: '✅',   // WithdrawalCompleted
+    19: '❌',   // WithdrawalRejected
+    20: '⏰',   // AuctionExtended
   };
   return icons[type] || '📢';
 };
@@ -355,22 +367,21 @@ export const filterNotificationsByRole = (notifications: BackendNotification[], 
     const filtered = notifications.filter(n => {
       const type = n.type;
       const shouldInclude = type === 4 || type === 10 || type === 11 || (type >= 12 && type <= 16) || type === 8;
-      console.log(`  [Filter] Type ${type} (${getNotificationTypeName(type)}) - Include: ${shouldInclude}`);
+      // //console.log(`  [Filter] Type ${type} (${getNotificationTypeName(type)}) - Include: ${shouldInclude}`);
       return shouldInclude;
     });
-    console.log(`[Filter] Farmer: ${notifications.length} → ${filtered.length} notifications`);
-    return filtered;
-  } else {
-    // Wholesaler
-    const filtered = notifications.filter(n => {
-      const type = n.type;
-      const shouldInclude = (type >= 1 && type <= 6) || type === 8 || type === 9 || type === 11;
-      console.log(`  [Filter] Type ${type} (${getNotificationTypeName(type)}) - Include: ${shouldInclude}`);
-      return shouldInclude;
-    });
-    console.log(`[Filter] Wholesaler: ${notifications.length} → ${filtered.length} notifications`);
+    // //console.log(`[Filter] Farmer: ${notifications.length} → ${filtered.length} notifications`);
     return filtered;
   }
+  // Wholesaler
+  const filtered = notifications.filter(n => {
+    const type = n.type;
+    const shouldInclude = (type >= 1 && type <= 6) || type === 8 || type === 9 || type === 11;
+    // //console.log(`  [Filter] Type ${type} (${getNotificationTypeName(type)}) - Include: ${shouldInclude}`);
+    return shouldInclude;
+  });
+  // //console.log(`[Filter] Wholesaler: ${notifications.length} → ${filtered.length} notifications`);
+  return filtered;
 };
 
 /**
@@ -379,16 +390,16 @@ export const filterNotificationsByRole = (notifications: BackendNotification[], 
  * Caches received notifications to AsyncStorage for offline access
  */
 export const setupSignalRNotificationListeners = (onNewNotification: (notification: NewNotificationEvent) => void): (() => void) => {
-  console.log('🔔 Setting up SignalR notification listener...');
+  //console.log('🔔 Setting up SignalR notification listener...');
   
   // Listen to ReceiveNotification events from SignalR
   const unsubscribe = signalRService.onNewNotification((event: NewNotificationEvent) => {
-    console.log('📨 Real-time notification received via SignalR:', event);
-    console.log('  - ID:', event.id);
-    console.log('  - Type:', event.type);
-    console.log('  - Title:', event.title);
-    console.log('  - Message:', event.message);
-    console.log('  - Severity:', event.severity);
+    //console.log('📨 Real-time notification received via SignalR:', event);
+    //console.log('  - ID:', event.id);
+    //console.log('  - Type:', event.type);
+    //console.log('  - Title:', event.title);
+    //console.log('  - Message:', event.message);
+    //console.log('  - Severity:', event.severity);
     
     // If title or message is missing, generate from type
     let title = event.title || getNotificationTypeName(event.type);
@@ -430,7 +441,7 @@ export const setupSignalRNotificationListeners = (onNewNotification: (notificati
     onNewNotification(enrichedEvent);
   });
   
-  console.log('✅ SignalR notification listener registered');
+  //console.log('✅ SignalR notification listener registered');
   
   return unsubscribe;
 };
@@ -441,11 +452,11 @@ export const setupSignalRNotificationListeners = (onNewNotification: (notificati
 export const initializeSignalRConnection = async (): Promise<void> => {
   try {
     if (!signalRService.isConnected()) {
-      console.log('🔌 Initializing SignalR connection for notifications...');
+      //console.log('🔌 Initializing SignalR connection for notifications...');
       await signalRService.connect();
-      console.log('✅ SignalR connection established');
+      //console.log('✅ SignalR connection established');
     } else {
-      console.log('✅ SignalR already connected');
+      //console.log('✅ SignalR already connected');
     }
   } catch (error) {
     console.error('❌ Failed to initialize SignalR connection:', error);

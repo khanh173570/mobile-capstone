@@ -38,11 +38,11 @@ export const getHarvestGradeDetails = async (harvestId: string): Promise<Harvest
   try {
     const token = await AsyncStorage.getItem('accessToken');
     if (!token) {
-      console.log('No access token found');
+      //console.log('No access token found');
       throw new Error('No authentication token found');
     }
 
-    console.log('Fetching grade details for harvest:', harvestId);
+    //console.log('Fetching grade details for harvest:', harvestId);
     const response = await fetch(`${API_URL}/farm-service/harvest/${harvestId}/gradedetail`, {
       method: 'GET',
       headers: {
@@ -65,7 +65,7 @@ export const getHarvestGradeDetails = async (harvestId: string): Promise<Harvest
       throw new Error(data.message || 'Failed to fetch grade details');
     }
 
-    console.log('Grade details fetched successfully:', data.data?.length || 0);
+    //console.log('Grade details fetched successfully:', data.data?.length || 0);
     return data.data || [];
   } catch (error) {
     console.error('Error fetching grade details:', error);
@@ -81,7 +81,7 @@ export const createHarvestGradeDetail = async (gradeData: CreateHarvestGradeDeta
       throw new Error('No authentication token found');
     }
 
-    console.log('Creating grade detail:', gradeData);
+    //console.log('Creating grade detail:', gradeData);
     const response = await fetch(`${API_URL}/farm-service/harvestgradedetail`, {
       method: 'POST',
       headers: {
@@ -105,7 +105,7 @@ export const createHarvestGradeDetail = async (gradeData: CreateHarvestGradeDeta
       throw new Error(data.message || 'Failed to create grade detail');
     }
 
-    console.log('Grade detail created successfully');
+    //console.log('Grade detail created successfully');
     return data.data;
   } catch (error) {
     console.error('Error creating grade detail:', error);
@@ -158,7 +158,7 @@ export const updateHarvestGradeDetail = async (gradeDetailId: string, gradeData:
       throw new Error('No authentication token found');
     }
 
-    console.log('Updating grade detail:', gradeDetailId, gradeData);
+    //console.log('Updating grade detail:', gradeDetailId, gradeData);
     const response = await fetch(`${API_URL}/farm-service/harvestgradedetail/${gradeDetailId}`, {
       method: 'PUT',
       headers: {
@@ -182,7 +182,7 @@ export const updateHarvestGradeDetail = async (gradeDetailId: string, gradeData:
       throw new Error(data.message || 'Failed to update grade detail');
     }
 
-    console.log('Grade detail updated successfully');
+    //console.log('Grade detail updated successfully');
     return data.data;
   } catch (error) {
     console.error('Error updating grade detail:', error);
@@ -198,7 +198,7 @@ export const deleteHarvestGradeDetail = async (gradeDetailId: string): Promise<v
       throw new Error('No authentication token found');
     }
 
-    console.log('Deleting grade detail:', gradeDetailId);
+    //console.log('Deleting grade detail:', gradeDetailId);
     const response = await fetch(`${API_URL}/farm-service/harvestgradedetail/${gradeDetailId}`, {
       method: 'DELETE',
       headers: {
@@ -221,7 +221,7 @@ export const deleteHarvestGradeDetail = async (gradeDetailId: string): Promise<v
       throw new Error(data.message || 'Failed to delete grade detail');
     }
 
-    console.log('Grade detail deleted successfully');
+    //console.log('Grade detail deleted successfully');
   } catch (error) {
     console.error('Error deleting grade detail:', error);
     throw error;

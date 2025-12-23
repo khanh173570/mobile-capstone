@@ -37,10 +37,10 @@ export const SignalRProvider: React.FC<SignalRProviderProps> = ({ children }) =>
         const token = await AsyncStorage.getItem('accessToken');
         setIsAuthenticated(!!token);
         if (token) {
-          console.log('SignalR Provider: User authenticated, connecting...');
+          //console.log('SignalR Provider: User authenticated, connecting...');
           await connectSignalR();
         } else {
-          console.log('SignalR Provider: User not authenticated, skipping connection');
+          //console.log('SignalR Provider: User not authenticated, skipping connection');
         }
       } catch (error) {
         console.error('SignalR Provider: Error checking authentication', error);
@@ -51,7 +51,7 @@ export const SignalRProvider: React.FC<SignalRProviderProps> = ({ children }) =>
 
     // Subscribe to connection state changes
     const unsubscribe = signalRService.onConnectionStateChange((connected) => {
-      console.log('SignalR Provider: Connection state changed:', connected);
+      //console.log('SignalR Provider: Connection state changed:', connected);
       setIsConnected(connected);
     });
 
@@ -71,11 +71,11 @@ export const SignalRProvider: React.FC<SignalRProviderProps> = ({ children }) =>
       // Double-check token exists before connecting
       const token = await AsyncStorage.getItem('accessToken');
       if (!token) {
-        console.log('SignalR Provider: No token, skipping connection');
+        //console.log('SignalR Provider: No token, skipping connection');
         return;
       }
 
-      console.log('SignalR Provider: Connecting...');
+      //console.log('SignalR Provider: Connecting...');
       await signalRService.connect();
     } catch (error) {
       console.error('SignalR Provider: Connection failed', error);
@@ -83,24 +83,24 @@ export const SignalRProvider: React.FC<SignalRProviderProps> = ({ children }) =>
   };
 
   const handleAppStateChange = (nextAppState: AppStateStatus) => {
-    console.log('SignalR Provider: App state changed:', nextAppState);
+    //console.log('SignalR Provider: App state changed:', nextAppState);
     
     if (nextAppState === 'active') {
       // App came to foreground - reconnect if disconnected
       if (!signalRService.isConnected()) {
-        console.log('SignalR Provider: Reconnecting (app foreground)...');
+        //console.log('SignalR Provider: Reconnecting (app foreground)...');
         connectSignalR();
       }
     } else if (nextAppState === 'background' || nextAppState === 'inactive') {
       // App went to background - optionally disconnect to save resources
       // Comment out if you want to maintain connection in background
-      console.log('SignalR Provider: Disconnecting (app background)...');
+      //console.log('SignalR Provider: Disconnecting (app background)...');
       signalRService.disconnect();
     }
   };
 
   const reconnect = async () => {
-    console.log('SignalR Provider: Manual reconnect requested');
+    //console.log('SignalR Provider: Manual reconnect requested');
     await signalRService.disconnect();
     await connectSignalR();
   };

@@ -75,7 +75,7 @@ export interface PaymentUrlResponse {
  */
 export const payEscrowWithWallet = async (escrowId: string): Promise<boolean> => {
   try {
-    console.log('Paying escrow with wallet, escrowId:', escrowId);
+    //console.log('Paying escrow with wallet, escrowId:', escrowId);
     
     const response = await fetchWithTokenRefresh(
       `${API_URL}/escrow/payescrow?escrowId=${escrowId}`,
@@ -88,7 +88,7 @@ export const payEscrowWithWallet = async (escrowId: string): Promise<boolean> =>
     );
 
     const result: EscrowPaymentResponse = await response.json();
-    console.log('Escrow payment response:', result);
+    //console.log('Escrow payment response:', result);
 
     if (!result.isSuccess) {
       throw new Error(result.message || 'Failed to pay escrow');

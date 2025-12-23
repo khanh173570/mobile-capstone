@@ -13,6 +13,12 @@ export interface UpdateBidRequest {
   bidAmount: number;
 }
 
+export interface UpdateAutoBidRequest {
+  auctionSessionId: string;
+  autoBidMaxLimit: number;
+  isAutoBid: boolean; // true = enable/update auto-bid, false = tắt auto-bid
+}
+
 export interface BidResponse {
   userId: string;
   bidAmount: number;
@@ -216,16 +222,16 @@ export const createBid = async (request: CreateBidRequest): Promise<BidApiRespon
     }
     // Manual bid: no additional fields needed
 
-    console.log('📤 bidService: Sending createBid request to', `${API_BASE_URL}/auction-service/bid`);
-    console.log('   Request type:', request.isAutoBid ? 'AUTO BID' : 'MANUAL BID');
-    console.log('   Body:', JSON.stringify(body, null, 2));
-    console.log('   Body types:', {
-      isAutoBid: typeof body.isAutoBid,
-      auctionSessionId: typeof body.auctionSessionId,
-      autoBidMaxLimit: typeof body.autoBidMaxLimit,
-      autoBidMaxLimitValue: body.autoBidMaxLimit,
-      isAutoBidMaxLimitNumber: typeof body.autoBidMaxLimit === 'number',
-    });
+    // console.log('📤 bidService: Sending createBid request to', `${API_BASE_URL}/auction-service/bid`);
+    // console.log('   Request type:', request.isAutoBid ? 'AUTO BID' : 'MANUAL BID');
+    // console.log('   Body:', JSON.stringify(body, null, 2));
+    // console.log('   Body types:', {
+    //   isAutoBid: typeof body.isAutoBid,
+    //   auctionSessionId: typeof body.auctionSessionId,
+    //   autoBidMaxLimit: typeof body.autoBidMaxLimit,
+    //   autoBidMaxLimitValue: body.autoBidMaxLimit,
+    //   isAutoBidMaxLimitNumber: typeof body.autoBidMaxLimit === 'number',
+    // });
 
     const response = await fetchWithTokenRefresh(
       `${API_BASE_URL}/auction-service/bid`,
@@ -240,12 +246,12 @@ export const createBid = async (request: CreateBidRequest): Promise<BidApiRespon
 
     const data = await response.json();
 
-    console.log('📥 bidService: createBid response received');
-    console.log('   Status:', response.status);
-    console.log('   isSuccess:', data.isSuccess);
-    console.log('   Message:', data.message);
-    console.log('   Errors:', data.errors);
-    console.log('   Data:', data.data);
+    //console.log('📥 bidService: createBid response received');
+    //console.log('   Status:', response.status);
+    //console.log('   isSuccess:', data.isSuccess);
+    //console.log('   Message:', data.message);
+    //console.log('   Errors:', data.errors);
+    //console.log('   Data:', data.data);
 
     if (!response.ok) {
       console.error('❌ createBid failed:', data.message);
@@ -260,7 +266,7 @@ export const createBid = async (request: CreateBidRequest): Promise<BidApiRespon
       throw error;
     }
 
-    console.log('✅ createBid succeeded!');
+    //console.log('✅ createBid succeeded!');
     return data;
   } catch (error) {
     // console.error('❌ Error creating bid:', error);
@@ -293,6 +299,39 @@ export const updateBid = async (request: UpdateBidRequest): Promise<BidApiRespon
     return data;
   } catch (error) {
     console.error('Error updating bid:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update auto-bid max limit for current user
+ */
+export const updateAutoBid = async (request: UpdateAutoBidRequest): Promise<BidApiResponse> => {
+  try {
+    const response = await fetchWithTokenRefresh(
+      `${API_BASE_URL}/auction-service/bid/auto-bid`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          auctionSessionId: request.auctionSessionId,
+          autoBidMaxLimit: request.autoBidMaxLimit,
+          isAutoBid: request.isAutoBid,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to update auto bid');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error updating auto bid:', error);
     throw error;
   }
 };

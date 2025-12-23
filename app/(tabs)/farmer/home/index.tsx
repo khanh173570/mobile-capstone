@@ -145,14 +145,14 @@ export default function HomeScreen() {
 
   const loadUnreadCount = async () => {
     try {
-      console.log('📞 [API Call] Fetching unread notification count from API...');
+      // //console.log('📞 [API Call] Fetching unread notification count from API...');
       const count = await getUnreadNotificationCount();
-      console.log('✅ [API Response] Got count:', count);
-      console.log('🔔 [Bell Badge] Setting unreadCount state to:', count);
+      // //console.log('✅ [API Response] Got count:', count);
+      // //console.log('🔔 [Bell Badge] Setting unreadCount state to:', count);
       setUnreadCount(count);
-      console.log('✨ [UI Update] Bell icon should update now');
+      // //console.log('✨ [UI Update] Bell icon should update now');
     } catch (error) {
-      console.error('❌ [API Error] Error loading unread count:', error);
+      // console.error('❌ [API Error] Error loading unread count:', error);
     }
   };
 
@@ -161,25 +161,25 @@ export default function HomeScreen() {
       setLoading(true);
       
       // Initialize SignalR connection
-      console.log('🔌 [Farmer] Initializing SignalR...');
+      // //console.log('🔌 [Farmer] Initializing SignalR...');
       try {
         await signalRService.connect();
-        console.log('✅ [Farmer] SignalR connected');
+        //console.log('✅ [Farmer] SignalR connected');
       } catch (error) {
-        console.error('❌ [Farmer] SignalR connection failed:', error);
+        // console.error('❌ [Farmer] SignalR connection failed:', error);
       }
       
       // Setup real-time notification listener
-      console.log('📡 [Farmer] Setting up notification listener...');
+      // //console.log('📡 [Farmer] Setting up notification listener...');
       const unsubscribeNotifications = signalRService.onNewNotification((event: NewNotificationEvent) => {
-        console.log('🔔 [SIGNALR LISTENER TRIGGERED] New notification received!');
-        console.log('   📩 From SignalR (REAL-TIME):', {
-          id: event.id,
-          type: event.type,
-          title: event.title,
-          message: event.message,
-          severity: event.severity,
-        });
+        // //console.log('🔔 [SIGNALR LISTENER TRIGGERED] New notification received!');
+        // //console.log('   📩 From SignalR (REAL-TIME):', {
+        //   id: event.id,
+        //   type: event.type,
+        //   title: event.title,
+        //   message: event.message,
+        //   severity: event.severity,
+        // });
         
         // Convert SignalR event to UserNotification format
         const userNotification: UserNotification = {
@@ -201,15 +201,15 @@ export default function HomeScreen() {
         // Add new notification to the list at the top
         setNotifications(prev => {
           const updated = [userNotification, ...prev];
-          console.log('📝 [State Update] Notifications list updated, total:', updated.length);
+          //console.log('📝 [State Update] Notifications list updated, total:', updated.length);
           return updated;
         });
         
         // IMPORTANT: Refresh unread count after new notification
-        console.log('🔄 [Bell Update] Calling loadUnreadCount to refresh badge...');
+        //console.log('🔄 [Bell Update] Calling loadUnreadCount to refresh badge...');
         loadUnreadCount();
       });
-      console.log('✅ [Farmer] Notification listener registered');
+      //console.log('✅ [Farmer] Notification listener registered');
       
       await loadData();
       await loadUnreadCount();
@@ -217,7 +217,7 @@ export default function HomeScreen() {
       
       // Cleanup
       return () => {
-        console.log('🧹 [Farmer] Cleaning up notification listener');
+        //console.log('🧹 [Farmer] Cleaning up notification listener');
         unsubscribeNotifications();
       };
     };
@@ -650,7 +650,7 @@ export default function HomeScreen() {
       <NotificationModal
         visible={showNotificationModal}
         onClose={() => {
-          console.log('Closing notification modal, current notifications count:', notifications.length);
+          //console.log('Closing notification modal, current notifications count:', notifications.length);
           setShowNotificationModal(false);
           loadUnreadCount(); // Refresh count when closing
         }}
@@ -658,7 +658,7 @@ export default function HomeScreen() {
         onRefresh={loadUnreadCount}
         notifications={notifications}
         onNotificationsChange={(updated) => {
-          console.log('Notifications changed from modal, new count:', updated.length);
+          //console.log('Notifications changed from modal, new count:', updated.length);
           setNotifications(updated);
         }}
       />

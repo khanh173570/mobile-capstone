@@ -41,7 +41,7 @@ export default function PaymentRemainingScreen() {
 
   const handleShouldStartLoad = (request: any): boolean => {
     const url = request.url;
-    console.log('Payment navigation URL:', url);
+    //console.log('Payment navigation URL:', url);
 
     // Check for PayOS success/failure and prevent loading callback website
     if (url.includes('keychain-teal.vercel.app//payment-success')) {

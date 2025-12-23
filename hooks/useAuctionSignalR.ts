@@ -16,7 +16,7 @@ interface UseAuctionSignalROptions {
  * useAuctionSignalR({
  *   auctionId: auction.id,
  *   onBidPlaced: (event) => {
- *     console.log('New bid:', event.bidAmount);
+ *     //console.log('New bid:', event.bidAmount);
  *     setCurrentPrice(event.newPrice);
  *     loadBids();
  *   },
@@ -44,7 +44,7 @@ export const useAuctionSignalR = ({
           await signalRService.connect();
           await signalRService.joinAuctionGroup(auctionId);
           isJoinedRef.current = true;
-          console.log('useAuctionSignalR: Joined auction group', auctionId);
+          //console.log('useAuctionSignalR: Joined auction group', auctionId);
         } catch (error) {
           console.error('useAuctionSignalR: Failed to join auction group', error);
         }
@@ -77,7 +77,7 @@ export const useAuctionSignalR = ({
       if (autoJoin && isJoinedRef.current) {
         signalRService.leaveAuctionGroup(auctionId);
         isJoinedRef.current = false;
-        console.log('useAuctionSignalR: Left auction group', auctionId);
+        //console.log('useAuctionSignalR: Left auction group', auctionId);
       }
     };
   }, [auctionId, onBidPlaced, onBuyNow, autoJoin]);

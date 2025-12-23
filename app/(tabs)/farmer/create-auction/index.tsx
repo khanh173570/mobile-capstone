@@ -60,6 +60,7 @@ export default function CreateAuctionScreen() {
   const [buyNowPrice, setBuyNowPrice] = useState('');
   const [enableAntiSniping, setEnableAntiSniping] = useState(false);
   const [antiSnipingMinutes, setAntiSnipingMinutes] = useState('2'); // UI displays minutes, send as seconds
+const [enableReserveProxy, setEnableReserveProxy] = useState(false);
   const [expectedHarvestDate, setExpectedHarvestDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [showLoadingModal, setShowLoadingModal] = useState(false);
@@ -505,14 +506,14 @@ export default function CreateAuctionScreen() {
         buyNowPrice: enableBuyNow ? parseFloat(buyNowPrice) : null,
         enableAntiSniping,
         antiSnipingExtensionSeconds: enableAntiSniping ? parseInt(antiSnipingMinutes) * 60 : null, // Convert minutes to seconds
-        enableReserveProxy: true,
+        enableReserveProxy,
         status: status === 'Draft' ? 0 : 1, // 0 = Draft, 1 = Pending
         note: auctionData.note,
         expectedHarvestDate: new Date(expectedHarvestDate).toISOString(),
         expectedTotalQuantity: getTotalExpectedQuantity(),
       };
 
-      console.log('Creating auction with data:', JSON.stringify(auctionSessionData, null, 2));
+      //console.log('Creating auction with data:', JSON.stringify(auctionSessionData, null, 2));
 
       const auctionSession = await createAuctionSession(auctionSessionData);
 
@@ -561,9 +562,9 @@ export default function CreateAuctionScreen() {
       
       let displayMessage = errorMessage;
       
-      console.log('Full error:', error);
-      console.log('Error.response:', error?.response);
-      console.log('Error.response.data:', error?.response?.data);
+      //console.log('Full error:', error);
+      //console.log('Error.response:', error?.response);
+      //console.log('Error.response.data:', error?.response?.data);
       
       // Check if error has response data (from auctionService)
       if (error?.response?.data?.errors && Array.isArray(error.response.data.errors)) {
@@ -582,7 +583,7 @@ export default function CreateAuctionScreen() {
         displayMessage = translateErrorMessage(error.message);
       }
       
-      console.log('Final display message:', displayMessage);
+      //console.log('Final display message:', displayMessage);
       
       Alert.alert('Lỗi', displayMessage);
       // console.error('Error creating auction:', error);
@@ -948,6 +949,20 @@ export default function CreateAuctionScreen() {
             />
           </View>
 
+          {/* Enable Reserve Proxy (Auto-bid) */}
+          <View style={styles.toggleContainer}>
+            <View>
+              <Text style={styles.fieldLabel}>Cho phép tạo giá tự động</Text>
+              <Text style={styles.toggleDescription}>Bật để thương lái được đặt giá tự động</Text>
+            </View>
+            <Switch
+              value={enableReserveProxy}
+              onValueChange={setEnableReserveProxy}
+              trackColor={{ false: '#D1D5DB', true: '#86EFAC' }}
+              thumbColor={enableReserveProxy ? '#22C55E' : '#fff'}
+            />
+          </View>
+
           {/* Buy Now Price (conditional) */}
           {enableBuyNow && (
             <View style={styles.fieldContainer}>
@@ -1199,9 +1214,9 @@ export default function CreateAuctionScreen() {
                     key={auction.id} 
                     auction={auction}
                     onPress={() => {
-                      console.log('Clicking auction:', auction.id);
-                      console.log('Full auction data:', JSON.stringify(auction));
-                      console.log('Navigating to: /pages/farmer/auction-detail');
+                      //console.log('Clicking auction:', auction.id);
+                      //console.log('Full auction data:', JSON.stringify(auction));
+                      //console.log('Navigating to: /pages/farmer/auction-detail');
                       router.push({
                         pathname: '/pages/farmer/auction-detail',
                         params: { auctionData: JSON.stringify(auction) },

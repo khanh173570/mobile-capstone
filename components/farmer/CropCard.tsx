@@ -28,7 +28,7 @@ export default function CropCard({ crop, cropIndex, onPress, onEdit, onDelete, o
   const [showDropdown, setShowDropdown] = useState(false);
   
   // Debug props
-  console.log('CropCard props:', { onEdit: !!onEdit, onDelete: !!onDelete, shouldShowMenu: !!(onEdit || onDelete) });
+  //console.log('CropCard props:', { onEdit: !!onEdit, onDelete: !!onDelete, shouldShowMenu: !!(onEdit || onDelete) });
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN');
   };
@@ -72,7 +72,7 @@ export default function CropCard({ crop, cropIndex, onPress, onEdit, onDelete, o
             <TouchableOpacity 
               style={styles.menuButton}
               onPress={() => {
-                console.log('Menu button clicked');
+                //console.log('Menu button clicked');
                 setShowDropdown(!showDropdown);
               }}
             >
@@ -85,7 +85,7 @@ export default function CropCard({ crop, cropIndex, onPress, onEdit, onDelete, o
                   <TouchableOpacity 
                     style={styles.dropdownItem}
                     onPress={() => {
-                      console.log('Edit/View clicked');
+                      //console.log('Edit/View clicked');
                       setShowDropdown(false);
                       onEdit();
                     }}
@@ -108,7 +108,7 @@ export default function CropCard({ crop, cropIndex, onPress, onEdit, onDelete, o
                   <TouchableOpacity 
                     style={[styles.dropdownItem, styles.deleteItem]}
                     onPress={() => {
-                      console.log('Delete clicked');
+                      //console.log('Delete clicked');
                       setShowDropdown(false);
                       onDelete();
                     }}
@@ -130,7 +130,7 @@ export default function CropCard({ crop, cropIndex, onPress, onEdit, onDelete, o
               <MapPin size={16} color="#6B7280" />
               <Text style={styles.infoLabel}>Diện tích</Text>
             </View>
-            <Text style={styles.infoValue}>{crop.area} m²</Text>
+            <Text style={styles.infoValue}>{crop.area} ha</Text>
           </View>
           
           <View style={styles.infoItem}>
@@ -183,17 +183,17 @@ export default function CropCard({ crop, cropIndex, onPress, onEdit, onDelete, o
             crop.status === 2 && styles.createHarvestButtonViewOnly
           ]}
           onPress={(e) => {
-            console.log('=== CropCard: Create Harvest Button Pressed ===');
-            console.log('onCreateHarvest callback exists?', !!onCreateHarvest);
+            //console.log('=== CropCard: Create Harvest Button Pressed ===');
+            //console.log('onCreateHarvest callback exists?', !!onCreateHarvest);
             e.stopPropagation();
             
             // Allow navigation even if crop has auction (status 2)
             // The harvest list page will handle view-only mode
             if (onCreateHarvest) {
-              console.log('Calling onCreateHarvest...');
+              //console.log('Calling onCreateHarvest...');
               onCreateHarvest();
             } else {
-              console.log('onCreateHarvest is undefined!');
+              //console.log('onCreateHarvest is undefined!');
             }
           }}
         >

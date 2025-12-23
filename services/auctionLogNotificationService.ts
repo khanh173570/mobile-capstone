@@ -11,7 +11,7 @@ export const registerGlobalNotificationSetter = (
   setNotification: (notification: NotificationMessage | null) => void
 ) => {
   globalSetNotification = setNotification;
-  console.log('Global notification setter registered');
+  //console.log('Global notification setter registered');
 };
 
 /**
@@ -92,7 +92,7 @@ export const checkForNewAuctionLogs = async (auctionId: string): Promise<boolean
       };
 
       // Send notification through multiple channels
-      console.log('New auction log detected, sending notification:', notification);
+      //console.log('New auction log detected, sending notification:', notification);
       
       // Try global setter first (most reliable for React state)
       if (globalSetNotification) {
@@ -137,14 +137,14 @@ export const setupAuctionLogPolling = (
       }
     }, intervalSeconds * 1000);
 
-    console.log(`Polling for auction logs started: ${auctionId} (interval: ${intervalSeconds}s)`);
+    // //console.log(`Polling for auction logs started: ${auctionId} (interval: ${intervalSeconds}s)`);
   };
 
   const stopPolling = () => {
     if (pollInterval) {
       clearInterval(pollInterval);
       pollInterval = null;
-      console.log(`Polling for auction logs stopped: ${auctionId}`);
+      // //console.log(`Polling for auction logs stopped: ${auctionId}`);
     }
   };
 
@@ -187,7 +187,7 @@ export const clearAllLogIds = async (): Promise<void> => {
     const allKeys = await AsyncStorage.getAllKeys();
     const logIdKeys = allKeys.filter((key) => key.startsWith(LAST_LOG_ID_KEY_PREFIX));
     await AsyncStorage.multiRemove(logIdKeys);
-    console.log(`Cleared ${logIdKeys.length} auction log IDs`);
+    //console.log(`Cleared ${logIdKeys.length} auction log IDs`);
   } catch (error) {
     console.error('Error clearing log IDs:', error);
   }

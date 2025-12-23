@@ -39,7 +39,7 @@ export const setupNotificationChannels = async () => {
       sound: 'default',
     });
 
-    console.log('✓ Android notification channels configured');
+    //console.log('✓ Android notification channels configured');
   }
 };
 
@@ -49,20 +49,20 @@ export const setupNotificationChannels = async () => {
 export const setupNotificationListeners = () => {
   // Handle notification received while app is in foreground
   const notificationListener = Notifications.addNotificationReceivedListener(notification => {
-    console.log('📬 Notification received:', notification);
-    console.log('  Title:', notification.request.content.title);
-    console.log('  Body:', notification.request.content.body);
-    console.log('  Data:', notification.request.content.data);
+    //console.log('📬 Notification received:', notification);
+    //console.log('  Title:', notification.request.content.title);
+    //console.log('  Body:', notification.request.content.body);
+    //console.log('  Data:', notification.request.content.data);
   });
 
   // Handle notification tap
   const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-    console.log('👆 Notification tapped:', response);
+    //console.log('👆 Notification tapped:', response);
     const data = response.notification.request.content.data;
     
     // Handle navigation based on notification data
     if (data?.screen) {
-      console.log('  Navigate to:', data.screen);
+      //console.log('  Navigate to:', data.screen);
       // Add your navigation logic here
     }
   });

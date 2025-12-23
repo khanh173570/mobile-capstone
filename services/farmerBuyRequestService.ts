@@ -55,7 +55,7 @@ export async function getFarmerBuyRequests(
 ): Promise<BuyRequest[]> {
   try {
     const url = `${API_URL}/auction-service/buyrequest/farmer/${farmerId}?pageNumber=${pageNumber}&pageSize=${pageSize}&sortBy=${sortBy}`;
-    console.log('📡 Fetching farmer buy requests from:', url);
+    //console.log('📡 Fetching farmer buy requests from:', url);
     
     const response = await fetchWithTokenRefresh(url, {
       method: 'GET',
@@ -64,7 +64,7 @@ export async function getFarmerBuyRequests(
       },
     });
 
-    console.log('📡 Response status:', response.status, response.statusText);
+    //console.log('📡 Response status:', response.status, response.statusText);
 
     if (!response.ok) {
       console.error(`❌ Error: ${response.status} - ${response.statusText}`);
@@ -74,10 +74,10 @@ export async function getFarmerBuyRequests(
     }
 
     const data: BuyRequestListResponse = await response.json();
-    console.log('✅ Buy requests response:', data);
+    //console.log('✅ Buy requests response:', data);
     
     if (data.isSuccess && data.data) {
-      console.log(`✅ Loaded ${data.data.items.length} buy requests`);
+      // //console.log(`✅ Loaded ${data.data.items.length} buy requests`);
       return data.data.items;
     }
     

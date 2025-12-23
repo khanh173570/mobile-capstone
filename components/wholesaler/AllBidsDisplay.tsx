@@ -20,14 +20,14 @@ export default function AllBidsDisplay({
 }: AllBidsDisplayProps) {
   // Debug: Log when component receives new props
   React.useEffect(() => {
-    console.log('🎨 AllBidsDisplay re-rendered with', bidLogs.length, 'bid logs');
+    //console.log('🎨 AllBidsDisplay re-rendered with', bidLogs.length, 'bid logs');
     if (bidLogs.length > 0) {
       const sorted = [...bidLogs].sort((a, b) => 
         new Date(b.dateTimeUpdate).getTime() - new Date(a.dateTimeUpdate).getTime()
       );
-      console.log('🎨 After sorting, first bid:', sorted[0].userName, '-', sorted[0].type);
+      //console.log('🎨 After sorting, first bid:', sorted[0].userName, '-', sorted[0].type);
       const firstBidData = JSON.parse(sorted[0].newEntity).Bid;
-      console.log('🎨 First bid amount:', firstBidData?.BidAmount || 'N/A');
+      //console.log('🎨 First bid amount:', firstBidData?.BidAmount || 'N/A');
     }
   }, [bidLogs]);
 

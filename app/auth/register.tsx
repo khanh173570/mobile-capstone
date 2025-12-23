@@ -61,7 +61,7 @@ const RegisterScreen: React.FC = () => {
       // Request permissions
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        console.log('Permission denied for media library');
+        //console.log('Permission denied for media library');
         Alert.alert('Thông báo', 'Cần quyền truy cập thư viện ảnh để tải ảnh lên');
         return;
       }
@@ -78,13 +78,13 @@ const RegisterScreen: React.FC = () => {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const selectedUri = result.assets[0].uri;
-        console.log(`Selected ${title} image: ${selectedUri.substring(0, 30)}...`);
-        console.log(`Image size: ${result.assets[0].fileSize ? result.assets[0].fileSize / 1024 : 'unknown'} KB`);
-        console.log(`Image type: ${result.assets[0].mimeType || 'unknown'}`);
+        // //console.log(`Selected ${title} image: ${selectedUri.substring(0, 30)}...`);
+        // //console.log(`Image size: ${result.assets[0].fileSize ? result.assets[0].fileSize / 1024 : 'unknown'} KB`);
+        // //console.log(`Image type: ${result.assets[0].mimeType || 'unknown'}`);
         
         // Resize the image to ensure it's not too large and optimize for upload
         try {
-          console.log('Resizing image to optimize for upload...');
+          //console.log('Resizing image to optimize for upload...');
           const manipulatedImage = await ImageManipulator.manipulateAsync(
             selectedUri,
             [{ resize: { width: 800 } }], // resize to max width 800px
@@ -94,8 +94,8 @@ const RegisterScreen: React.FC = () => {
             }
           );
           
-          console.log(`Resized ${title} image: ${manipulatedImage.uri.substring(0, 30)}...`);
-          console.log(`New size: ${manipulatedImage.width}x${manipulatedImage.height}`);
+          // //console.log(`Resized ${title} image: ${manipulatedImage.uri.substring(0, 30)}...`);
+          // //console.log(`New size: ${manipulatedImage.width}x${manipulatedImage.height}`);
           
           // Store the optimized URI
           setImage(manipulatedImage.uri);
@@ -118,21 +118,30 @@ const RegisterScreen: React.FC = () => {
     try {
       // Validate all fields
       const fullAddress = formatFullAddress(selectedAddress);
+      
+      // Check for ward specifically since communes field depends on it
+      if (!selectedAddress.ward) {
+        Alert.alert('Thông báo', 'Vui lòng chọn xã/phường');
+        setLoading(false);
+        return;
+      }
+      
       if (!firstName || !lastName || !email || !password || !confirmPassword || !fullAddress || !phoneNumber) {
-        console.log('Missing required fields:', {
-          firstName: !!firstName,
-          lastName: !!lastName,
-          email: !!email,
-          password: !!password,
-          confirmPassword: !!confirmPassword,
-          hasFullAddress: !!fullAddress,
-          hasProvince: !!selectedAddress.province,
-          hasDistrict: !!selectedAddress.district,
-          hasWard: !!selectedAddress.ward,
-          hasDetailAddress: !!selectedAddress.detailAddress,
-          phoneNumber: !!phoneNumber
-        });
+        // //console.log('Missing required fields:', {
+        //  firstName: !!firstName,
+        //  lastName: !!lastName,
+        //  email: !!email,
+        //  password: !!password,
+        //  confirmPassword: !!confirmPassword,
+        //  hasFullAddress: !!fullAddress,
+        //  hasProvince: !!selectedAddress.province,
+        //  hasDistrict: !!selectedAddress.district,
+        //  hasWard: !!selectedAddress.ward,
+        //  hasDetailAddress: !!selectedAddress.detailAddress,
+        //  phoneNumber: !!phoneNumber
+        // });
         Alert.alert('Thông báo', 'Vui lòng nhập đầy đủ thông tin địa chỉ và các trường khác');
+        setLoading(false);
         return;
       }
       
@@ -140,6 +149,7 @@ const RegisterScreen: React.FC = () => {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         Alert.alert('Lỗi xác thực email', 'Vui lòng nhập đúng định dạng email');
+        setLoading(false);
         return;
       }
       
@@ -150,12 +160,14 @@ const RegisterScreen: React.FC = () => {
           'Lỗi xác thực email', 
           'Email phải có đuôi hợp lệ như .com, .edu, .vn, .net, .org, .gov, .info, .biz, hoặc .co'
         );
+        setLoading(false);
         return;
       }
       
       // Validate password complexity
       if (password.length < 6) {
         Alert.alert('Thông báo', 'Mật khẩu phải có ít nhất 6 ký tự');
+        setLoading(false);
         return;
       }
       
@@ -163,23 +175,26 @@ const RegisterScreen: React.FC = () => {
       const phoneRegex = /^[0-9]{10,11}$/;
       if (!phoneRegex.test(phoneNumber)) {
         Alert.alert('Thông báo', 'Số điện thoại không hợp lệ (cần 10-11 chữ số)');
+        setLoading(false);
         return;
       }
       
       // Validate ID images
       if (!frontIdImage || !backIdImage) {
-        console.log('Missing ID images:', {
-          frontIdImage: !!frontIdImage,
-          backIdImage: !!backIdImage
-        });
+        //console.log('Missing ID images:', {
+        //  frontIdImage: !!frontIdImage,
+        //  backIdImage: !!backIdImage
+        //});
         Alert.alert('Thông báo', 'Vui lòng tải lên ảnh CCCD/CMND (mặt trước và mặt sau)');
+        setLoading(false);
         return;
       }
       
       // Validate passwords match
       if (password !== confirmPassword) {
-        console.log('Passwords do not match');
+        //console.log('Passwords do not match');
         Alert.alert('Thông báo', 'Mật khẩu xác nhận không khớp');
+        setLoading(false);
         return;
       }
       
@@ -193,14 +208,18 @@ const RegisterScreen: React.FC = () => {
       );
       
       // Prepare registration data - TypeScript safe
+      // Ensure communes is never empty since we validated ward exists above
+      const communesValue = selectedAddress.ward?.name || selectedAddress.ward?.full_name || '';
+      const provinceValue = selectedAddress.province?.name || selectedAddress.province?.full_name || '';
+      
       const userData: RegisterData = {
         email,
         password,
         firstName,
         lastName,
         address: fullAddress,
-        communes: selectedAddress.ward?.name || '',
-        province: selectedAddress.province?.name || '',
+        communes: communesValue,
+        province: provinceValue,
         phoneNumber,
         roleId: roleId,
         userVerifications: [
@@ -215,19 +234,27 @@ const RegisterScreen: React.FC = () => {
         ]
       };
 
-      console.log('Sending registration data:', {
-        ...userData,
-        password: '******', // Don't log actual password
-        userVerifications: userData.userVerifications.map(v => ({
-          documentType: v.documentType,
-          hasDocument: !!v.document
-        }))
-      });
+      //console.log('Sending registration data:', {
+      //  ...userData,
+      //  password: '******', // Don't log actual password
+      //  userVerifications: userData.userVerifications.map(v => ({
+      //    documentType: v.documentType,
+      //    hasDocument: !!v.document
+      //  })),
+      //  // Extra logging for address fields
+      //  selectedAddressDebug: {
+      //    province: selectedAddress.province?.name,
+      //    ward: selectedAddress.ward?.name,
+      //    communesValue,
+      //    provinceValue,
+      //    detailAddress: selectedAddress.detailAddress
+      //  }
+      //});
       
       try {
         const response = await registerUser(userData);
         
-        console.log('Registration API response:', JSON.stringify(response));
+        //console.log('Registration API response:', JSON.stringify(response));
         
         if (response.isSuccess) {
           Alert.alert(
@@ -268,8 +295,13 @@ const RegisterScreen: React.FC = () => {
                   if (formattedKey === 'FirstName') formattedKey = 'Họ';
                   if (formattedKey === 'LastName') formattedKey = 'Tên';
                   if (formattedKey === 'PhoneNumber') formattedKey = 'Số điện thoại';
+                  if (formattedKey === 'Communes') formattedKey = 'Xã/Phường';
+                  if (formattedKey === 'Province') formattedKey = 'Tỉnh/Thành phố';
+                  if (formattedKey === 'Address') formattedKey = 'Địa chỉ chi tiết';
                   
-                  return `${formattedKey}: ${Array.isArray(value) ? value.join(', ') : value}`;
+                  // Handle both array and string error values
+                  const errorValue = Array.isArray(value) ? value.join(', ') : String(value);
+                  return `${formattedKey}: ${errorValue}`;
                 })
                 .join('\n');
               
@@ -278,6 +310,7 @@ const RegisterScreen: React.FC = () => {
               }
             } catch (parseError) {
               console.error('Error parsing error details:', parseError);
+              //console.log('Full error object:', response.errors);
             }
           }
           

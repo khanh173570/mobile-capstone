@@ -97,23 +97,29 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
   // Ensure custardAppleTypeID is set after types are loaded (only if not already set)
   useEffect(() => {
     if (visible && crop && custardAppleTypes.length > 0 && !loadingTypes && !formData.custardAppleTypeID) {
-      let matchingType = null;
+      let matchingType: CustardAppleType | null = null;
       
       // Try to match by custardAppleTypeID first
       if (crop.custardAppleTypeID) {
-        matchingType = custardAppleTypes.find(t => t.id === crop.custardAppleTypeID);
+        const found = custardAppleTypes.find(t => t.id === crop.custardAppleTypeID);
+        if (found) {
+          matchingType = found;
+        }
       }
       
       // If no match by ID, try to match by custardAppleType name
       if (!matchingType && crop.custardAppleType) {
-        matchingType = custardAppleTypes.find(t => t.name === crop.custardAppleType);
+        const found = custardAppleTypes.find(t => t.name === crop.custardAppleType);
+        if (found) {
+          matchingType = found;
+        }
       }
       
       if (matchingType) {
-        console.log('Auto-setting type from crop:', matchingType.name);
+        //console.log('Auto-setting type from crop:', matchingType.name);
         setFormData(prev => ({
           ...prev,
-          custardAppleTypeID: matchingType.id,
+          custardAppleTypeID: matchingType!.id,
         }));
       }
     }
@@ -179,7 +185,7 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
 
   const handleSubmit = async () => {
     // Debug form data
-    console.log('Form data before validation:', formData);
+    //console.log('Form data before validation:', formData);
     
     // Validation - check all required fields
     if (!formData.name || formData.name.trim().length < 6) {
@@ -187,17 +193,17 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
       return;
     }
     if (!formData.custardAppleTypeID) {
-      console.log('Validation failed: custardAppleTypeID');
+      //console.log('Validation failed: custardAppleTypeID');
       Alert.alert('Lỗi', 'Vui lòng chọn loại mãng cầu');
       return;
     }
     if (formData.area <= 0) {
-      console.log('Validation failed: area');
+      //console.log('Validation failed: area');
       Alert.alert('Lỗi', 'Vui lòng nhập diện tích hợp lệ (phải lớn hơn 0)');
       return;
     }
     if (formData.treeCount <= 0) {
-      console.log('Validation failed: treeCount');
+      //console.log('Validation failed: treeCount');
       Alert.alert('Lỗi', 'Vui lòng nhập số lượng cây (phải lớn hơn 0)');
       return;
     }
@@ -214,7 +220,7 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
       return;
     }
     if (!formData.startPlantingDate || formData.startPlantingDate.trim() === '') {
-      console.log('Validation failed: startPlantingDate');
+      //console.log('Validation failed: startPlantingDate');
       Alert.alert('Lỗi', 'Vui lòng chọn ngày bắt đầu trồng');
       return;
     }
@@ -370,7 +376,7 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
                             formData.custardAppleTypeID === type.id && styles.pickerItemSelected
                           ]}
                           onPress={() => {
-                            console.log('Selected type:', type.name, 'ID:', type.id);
+                            //console.log('Selected type:', type.name, 'ID:', type.id);
                             setFormData(prev => ({ 
                               ...prev, 
                               custardAppleTypeID: type.id 
@@ -539,7 +545,7 @@ export default function EditCropModal({ visible, crop, onClose, onSubmit }: Edit
 
           {/* Area */}
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Diện tích (m²) *</Text>
+            <Text style={styles.inputLabel}>Diện tích (ha) *</Text>
             <TextInput
               style={styles.textInput}
               placeholder="Nhập diện tích"
@@ -746,6 +752,7 @@ const styles = StyleSheet.create({
   },
   inputGroup: {
     marginBottom: 20,
+   
   },
   inputLabel: {
     fontSize: 16,

@@ -61,15 +61,15 @@ const getUserIdFromToken = async (): Promise<string | null> => {
     const userId = payload.id || payload.sub || payload.uid || payload['user_id'] || payload.nameid || payload.UserId || payload.userId;
 
     if (!userId) {
-      console.error('❌ User ID not found in token payload');
-      console.error('Available fields:', Object.keys(payload));
+      // console.error('❌ User ID not found in token payload');
+      // console.error('Available fields:', Object.keys(payload));
       return null;
     }
 
-    console.log('✅ User ID extracted from token:', userId.substring(0, 99) + '...');
+    // //console.log('✅ User ID extracted from token:', userId.substring(0, 99) + '...');
     return userId;
   } catch (error) {
-    console.error('❌ Error extracting user ID from token:', error);
+    // console.error('❌ Error extracting user ID from token:', error);
     return null;
   }
 };
@@ -90,8 +90,8 @@ export const getUserNotifications = async (
       return [];
     }
 
-    console.log(`🔄 Fetching notifications for user: ${userId.substring(0, 8)}...`);
-    console.log(`   Page: ${pageNumber}, Size: ${pageSize}`);
+    //console.log(`🔄 Fetching notifications for user: ${userId.substring(0, 8)}...`);
+    //console.log(`   Page: ${pageNumber}, Size: ${pageSize}`);
 
     const url = `${API_BASE_URL}/Notifications/user/${userId}?pageNumber=${pageNumber}&pageSize=${pageSize}`;
     
@@ -108,16 +108,16 @@ export const getUserNotifications = async (
     }
 
     const notifications: UserNotification[] = await response.json();
-    console.log(`✅ Fetched ${notifications.length} notifications`);
+    //console.log(`✅ Fetched ${notifications.length} notifications`);
 
     // Log first notification for debugging
     if (notifications.length > 0) {
-      console.log('📋 First notification:');
-      console.log('   - ID:', notifications[0].id);
-      console.log('   - Type:', notifications[0].type);
-      console.log('   - Title:', notifications[0].title);
-      console.log('   - IsRead:', notifications[0].isRead);
-      console.log('   - CreatedAt:', notifications[0].createdAt);
+      //console.log('📋 First notification:');
+      //console.log('   - ID:', notifications[0].id);
+      //console.log('   - Type:', notifications[0].type);
+      //console.log('   - Title:', notifications[0].title);
+      //console.log('   - IsRead:', notifications[0].isRead);
+      //console.log('   - CreatedAt:', notifications[0].createdAt);
     }
 
     return notifications;
@@ -138,7 +138,7 @@ export const getUnreadNotificationCount = async (): Promise<number> => {
       return 0;
     }
 
-    console.log(`🔄 Fetching unread count for user: ${userId.substring(0, 8)}...`);
+    // //console.log(`🔄 Fetching unread count for user: ${userId.substring(0, 8)}...`);
 
     const url = `${API_BASE_URL}/Notifications/user/${userId}/unread-count`;
     
@@ -150,12 +150,12 @@ export const getUnreadNotificationCount = async (): Promise<number> => {
     });
 
     if (!response.ok) {
-      console.error('❌ Failed to fetch unread count:', response.status, response.statusText);
+      // console.error('❌ Failed to fetch unread count:', response.status, response.statusText);
       return 0;
     }
 
     const count = await response.json();
-    console.log(`✅ Unread notification count: ${count}`);
+    // //console.log(`✅ Unread notification count: ${count}`);
 
     return count;
   } catch (error) {
@@ -176,7 +176,7 @@ export const markNotificationAsRead = async (notificationId: string): Promise<bo
       return false;
     }
 
-    console.log(`🔄 Marking notification as read: ${notificationId}`);
+    //console.log(`🔄 Marking notification as read: ${notificationId}`);
 
     const url = `${API_BASE_URL}/Notifications/${notificationId}/read`;
     
@@ -192,7 +192,7 @@ export const markNotificationAsRead = async (notificationId: string): Promise<bo
       return false;
     }
 
-    console.log(`✅ Notification marked as read: ${notificationId}`);
+    //console.log(`✅ Notification marked as read: ${notificationId}`);
     return true;
   } catch (error) {
     console.error('❌ Error marking notification as read:', error);
@@ -211,7 +211,7 @@ export const markAllNotificationsAsRead = async (): Promise<boolean> => {
       return false;
     }
 
-    console.log(`🔄 Marking all notifications as read for user: ${userId.substring(0, 8)}...`);
+    //console.log(`🔄 Marking all notifications as read for user: ${userId.substring(0, 8)}...`);
 
     const url = `${API_BASE_URL}/Notifications/user/${userId}/read-all`;
     
@@ -227,7 +227,7 @@ export const markAllNotificationsAsRead = async (): Promise<boolean> => {
       return false;
     }
 
-    console.log(`✅ All notifications marked as read`);
+    //console.log(`✅ All notifications marked as read`);
     return true;
   } catch (error) {
     console.error('❌ Error marking all notifications as read:', error);

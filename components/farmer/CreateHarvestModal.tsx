@@ -79,9 +79,9 @@ export default function CreateHarvestModal({ visible, cropId, cropPlantingDate, 
       return;
     }
 
-    console.log('=== CreateHarvest Submit ===');
-    console.log('FormData:', formData);
-    console.log('CropPlantingDate:', cropPlantingDate);
+    //console.log('=== CreateHarvest Submit ===');
+    //console.log('FormData:', formData);
+    //console.log('CropPlantingDate:', cropPlantingDate);
     
     // Validation - check all required fields
     if (!formData.startDate) {
@@ -117,21 +117,28 @@ export default function CreateHarvestModal({ visible, cropId, cropPlantingDate, 
           }
         }
       } catch (error) {
-        console.log('Invalid cropPlantingDate:', cropPlantingDate);
+        //console.log('Invalid cropPlantingDate:', cropPlantingDate);
         // Continue without planting date validation if date is invalid
       }
     }
 
     setLoading(true);
     try {
+      // Validate all required fields
+      if (!formData.cropID || !formData.cropID.trim()) {
+        Alert.alert('Lỗi', 'Thông tin cây trồng không hợp lệ');
+        setLoading(false);
+        return;
+      }
+
       // Prepare data - convert empty strings to "Không có"
       const submitData = {
-        ...formData,
+        startDate: formData.startDate,
         note: formData.note.trim() || 'Không có',
-        cropID: cropId,
+        cropID: formData.cropID.trim(),
       };
       
-      console.log('Submitting harvest data:', submitData);
+      //console.log('[CreateHarvestModal] Submitting harvest data:', submitData);
       await onSubmit(submitData);
       
       // Reset form
@@ -140,8 +147,10 @@ export default function CreateHarvestModal({ visible, cropId, cropPlantingDate, 
         note: '',
         cropID: cropId,
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error('[CreateHarvestModal] Error:', error);
       // Error handled in parent
+      Alert.alert('Lỗi', error.message || 'Không thể tạo mùa vụ');
     } finally {
       setLoading(false);
     }

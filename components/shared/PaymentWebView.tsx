@@ -60,10 +60,10 @@ export default function PaymentWebView({
       
       if (urlMatch) {
         setQrData(urlMatch[0]);
-        console.log('Found VietQR URL:', urlMatch[0]);
+        //console.log('Found VietQR URL:', urlMatch[0]);
       } else if (qrMatch) {
         setQrData(`data:image/png;base64,${qrMatch[1]}`);
-        console.log('Found QR base64 data');
+        //console.log('Found QR base64 data');
       } else {
         // Fallback: use the payment URL itself
         setQrData(paymentUrl);
@@ -75,7 +75,11 @@ export default function PaymentWebView({
   };
 
   // List of popular banking apps in Vietnam with proper deep link formats
-  const bankingApps = [];
+  const bankingApps: Array<{
+    name: string;
+    scheme: string;
+    deepLinkFormat: (url: string) => string;
+  }> = [];
 
   const handleSelectQROption = () => {
     setSelectedOption('qr');
@@ -90,7 +94,7 @@ export default function PaymentWebView({
       if (canOpen) {
         // Try to open with deep link containing payment data
         const deepLink = app.deepLinkFormat(qrData || paymentUrl);
-        console.log(`Attempting to open ${app.name} with deep link:`, deepLink);
+        //console.log(`Attempting to open ${app.name} with deep link:`, deepLink);
         
         try {
           await Linking.openURL(deepLink);
@@ -139,7 +143,7 @@ export default function PaymentWebView({
     setCanGoBack(navState.canGoBack);
     setCanGoForward(navState.canGoForward);
 
-    console.log('Payment navigation URL:', url); // Debug để xem BE redirect về đâu
+    //console.log('Payment navigation URL:', url); // Debug để xem BE redirect về đâu
   };
 
   const handleClose = () => {
@@ -152,6 +156,9 @@ export default function PaymentWebView({
           text: 'Hủy', 
           style: 'destructive',
           onPress: () => {
+            // When user cancels manually, call onPaymentFailure to indicate payment was not completed
+            // This prevents the backend from treating it as a successful payment
+            onPaymentFailure();
             onClose();
           }
         },
@@ -178,22 +185,45 @@ export default function PaymentWebView({
   // Handle deep links for banking apps and payment success/failure
   const handleShouldStartLoad = (request: any) => {
     const url = request.url;
-    console.log('Should start load URL:', url);
+    console.log('[PaymentWebView] shouldStartLoad url:', url);
 
-    // Check for PayOS success/failure and prevent loading callback website
-    if (url.includes('keychain-teal.vercel.app//payment-success')) {
-      Alert.alert(
-        'Thanh toán thành công',
-        'Giao dịch của bạn đã được xử lý thành công!',
-        [{ text: 'OK', onPress: () => {
-          onPaymentSuccess();
-          onClose();
-        }}]
-      );
+    // First check for cancel/abort indicators - these should NOT trigger success
+    // Do NOT include a generic "error" substring because PayOS success URLs may carry ?errorCode=0
+    // Keep cancel checks light; agrimart links will be handled explicitly below
+    const cancelIndicators = ['cancelled', 'abort', 'aborted', 'hủy', 'huy'];
+    const hasCancelIndicator = cancelIndicators.some(indicator => 
+      url.toLowerCase().includes(indicator.toLowerCase())
+    );
+
+    // Handle BE redirect: agrimart callback. Only show alert on fail; success is silent.
+    if (url.includes('agrimart-web.vercel.app')) {
+      const lowerUrl = url.toLowerCase();
+      const isFailed =
+        lowerUrl.includes('/payment/failed') ||
+        lowerUrl.includes('/payment-failed') ||
+        lowerUrl.includes('status=failed') ||
+        lowerUrl.includes('status=fail') ||
+        lowerUrl.includes('cancel=true');
+      console.log('[PaymentWebView] agrimart redirect detected', { url, isFailed });
+      if (isFailed) {
+        Alert.alert(
+          'Thanh toán thất bại',
+          'Giao dịch không thành công. Vui lòng thử lại.',
+          [{ text: 'OK', onPress: () => {
+            onPaymentFailure();
+            onClose();
+          }}]
+        );
+      } else {
+        // Success: just close and notify caller, no popup
+        onPaymentSuccess();
+        onClose();
+      }
       return false; // Prevent loading callback website
-    } 
+    }
     
-    if (url.includes('keychain-teal.vercel.app//payment-fail')) {
+    // Check for explicit failure indicators for legacy links
+    if (url.includes('payment-fail') || url.includes('payment/failure') || url.includes('payment-failure') || hasCancelIndicator) {
       Alert.alert(
         'Thanh toán thất bại',
         'Giao dịch không thành công. Vui lòng thử lại.',
@@ -259,14 +289,14 @@ export default function PaymentWebView({
     const isBankingDeepLink = bankingSchemes.some(scheme => url.startsWith(scheme));
 
     if (isBankingDeepLink) {
-      console.log('Banking deep link detected:', url);
+      //console.log('Banking deep link detected:', url);
       
       Linking.canOpenURL(url)
         .then(supported => {
           if (supported) {
             return Linking.openURL(url);
           } else {
-            console.log('Cannot open URL:', url);
+            //console.log('Cannot open URL:', url);
             Alert.alert(
               'Thông báo',
               'Không thể mở ứng dụng ngân hàng. Vui lòng cài đặt ứng dụng hoặc sử dụng phương thức thanh toán khác.',

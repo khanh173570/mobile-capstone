@@ -23,8 +23,9 @@ export default {
       }
     },
     android: {
-      package: "com.agrimart.shop",
+      package: "com.agrimart.app",
       versionCode: 1,
+        googleServicesFile: "./google-services.json",
       adaptiveIcon: {
         foregroundImage: "./assets/images/agriMart.png",
         backgroundColor: "#22C55E"
@@ -39,14 +40,19 @@ export default {
     },
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.agrimart.shop"
+      bundleIdentifier: "com.agrimart.app"
     },
     web: {
       bundler: "metro",
       output: "single",
       favicon: "./assets/images/agriMart.png",
     },
-    plugins: ["expo-router", "expo-font", "expo-web-browser"],
+    plugins: [
+  "expo-router",
+  "expo-font",
+  "expo-web-browser",
+  "expo-notifications"
+],
     experiments: {
       typedRoutes: true,
     },

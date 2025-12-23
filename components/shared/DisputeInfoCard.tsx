@@ -29,8 +29,9 @@ export const DisputeInfoCard: React.FC<DisputeInfoCardProps> = ({
   const statusColor = getDisputeStatusColor(dispute.disputeStatus);
 
   // Debug attachments
-  console.log('DisputeInfoCard - Attachments:', dispute.attachments);
-  console.log('DisputeInfoCard - Attachments length:', dispute.attachments?.length);
+  //console.log('[DisputeInfoCard] Rendering with dispute:', dispute);
+  //console.log('[DisputeInfoCard] Attachments:', dispute.attachments);
+  //console.log('[DisputeInfoCard] Attachments length:', dispute.attachments?.length);
 
   return (
     <View style={styles.container}>

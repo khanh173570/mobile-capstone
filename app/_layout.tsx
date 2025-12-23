@@ -10,8 +10,10 @@ import { NotificationMessage } from '../services/notificationService';
 import { registerGlobalNotificationSetter } from '../services/auctionLogNotificationService';
 import { AuctionContext } from '../hooks/useAuctionContext';
 import { SignalRProvider } from './providers/SignalRProvider';
+import { NotificationProvider } from '../contexts/NotificationContext';
 import { initializeNotifications, setupPushNotifications } from '../services/pushNotificationService';
 import { initializeFirebase } from '../services/firebaseInit';
+import { getCurrentUser } from '../services/authService';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -22,6 +24,7 @@ export default function RootLayout() {
   });
   const [firebaseReady, setFirebaseReady] = useState(false);
   const [currentAuctionId, setCurrentAuctionId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<'farmer' | 'wholesaler'>('farmer');
   const { notification, setNotification } = useNotifications();
 
   // Register global notification setter for use in services
@@ -29,15 +32,30 @@ export default function RootLayout() {
     registerGlobalNotificationSetter(setNotification);
   }, [setNotification]);
 
+  // Get user role for NotificationProvider
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const user = await getCurrentUser();
+        if (user && user.role) {
+          setUserRole(user.role === 'farmer' ? 'farmer' : 'wholesaler');
+        }
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+      }
+    };
+    fetchUserRole();
+  }, []);
+
   // Initialize Firebase FIRST before anything else
   useEffect(() => {
     const initFirebase = async () => {
       try {
         const success = await initializeFirebase();
         if (success) {
-          console.log('✓ Firebase init service ready');
+          //console.log('✓ Firebase init service ready');
         } else {
-          console.warn('⚠️ Firebase init failed, but continuing');
+          // console.warn('⚠️ Firebase init failed, but continuing');
         }
       } catch (error) {
         console.error('✗ Error initializing Firebase:', error);
@@ -56,7 +74,7 @@ export default function RootLayout() {
     const initNotifications = async () => {
       try {
         const unsubscribe = await initializeNotifications();
-        console.log('✓ Firebase notifications initialized');
+        //console.log('✓ Firebase notifications initialized');
       } catch (error) {
         console.warn('⚠️ Failed to initialize notifications:', error);
         // Continue anyway
@@ -73,32 +91,32 @@ export default function RootLayout() {
   useEffect(() => {
     const setupDeviceTokenOnStartup = async () => {
       try {
-        console.log('📱 [Startup] Checking if user is logged in to setup device token...');
+        //console.log('📱 [Startup] Checking if user is logged in to setup device token...');
         
         // Get stored user from AsyncStorage
         const userJson = await AsyncStorage.getItem('user');
         if (!userJson) {
-          console.log('ℹ️  [Startup] User not logged in, skipping device token setup');
+          //console.log('ℹ️  [Startup] User not logged in, skipping device token setup');
           return;
         }
         
         try {
           const user = JSON.parse(userJson);
-          console.log('✓ [Startup] User found on startup:', user.id.substring(0, 20) + '...');
+          //console.log('✓ [Startup] User found on startup:', user.id.substring(0, 20) + '...');
           
           // Check if device token already registered for this user (avoid duplicate setup)
           const registeredUserId = await AsyncStorage.getItem('deviceTokenRegisteredUserId');
           if (registeredUserId === user.id) {
-            console.log('✓ [Startup] Device token already registered for this user, skipping');
+            //console.log('✓ [Startup] Device token already registered for this user, skipping');
             return;
           }
           
           // Setup push notifications for this user
-          console.log('📍 [Startup] Setting up device token on app startup...');
+          //console.log('📍 [Startup] Setting up device token on app startup...');
           const success = await setupPushNotifications(user.id);
           
           if (success) {
-            console.log('✅ [Startup] Device token setup completed successfully on app startup');
+            //console.log('✅ [Startup] Device token setup completed successfully on app startup');
           } else {
             console.warn('⚠️  [Startup] Device token setup had issues, will retry on next login');
           }
@@ -129,21 +147,23 @@ export default function RootLayout() {
 
   return (
     <SignalRProvider>
-      <AuctionContext.Provider value={{ currentAuctionId, setCurrentAuctionId }}>
-        <View style={{ flex: 1 }}>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="auth" />
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="pages" />
-          </Stack>
-          
-          {/* Global notification toast */}
-          <NotificationToast
-            notification={notification}
-            onDismiss={() => setNotification(null)}
-          />
-        </View>
-      </AuctionContext.Provider>
+      <NotificationProvider role={userRole}>
+        <AuctionContext.Provider value={{ currentAuctionId, setCurrentAuctionId }}>
+          <View style={{ flex: 1 }}>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="auth" />
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="pages" />
+            </Stack>
+            
+            {/* Global notification toast */}
+            <NotificationToast
+              notification={notification}
+              onDismiss={() => setNotification(null)}
+            />
+          </View>
+        </AuctionContext.Provider>
+      </NotificationProvider>
     </SignalRProvider>
   );
 }

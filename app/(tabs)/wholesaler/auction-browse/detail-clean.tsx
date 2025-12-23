@@ -32,6 +32,7 @@ export default function AuctionDetailScreen() {
   const [expectedPrice, setExpectedPrice] = useState('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showPriceSuggestions, setShowPriceSuggestions] = useState(false);
 
   React.useEffect(() => {
     loadUserProfile();
@@ -48,6 +49,23 @@ export default function AuctionDetailScreen() {
     }
   };
 
+  // Generate 6 price suggestions based on current price
+  const getPriceSuggestions = (): number[] => {
+    const basePrice = harvest.salePrice || 0;
+    if (basePrice === 0) return [100000, 200000, 300000, 400000, 500000, 600000];
+
+    const suggestions = [
+      Math.round(basePrice * 0.8),     // 80% of current
+      Math.round(basePrice * 0.9),     // 90% of current
+      basePrice,                        // Same as current
+      Math.round(basePrice * 1.1),     // 110% of current
+      Math.round(basePrice * 1.2),     // 120% of current
+      Math.round(basePrice * 1.3),     // 130% of current
+    ];
+    
+    return suggestions;
+  };
+
   if (!harvest) {
     return (
       <View style={styles.container}>
@@ -57,8 +75,33 @@ export default function AuctionDetailScreen() {
   }
 
   const handleCreateRequest = async () => {
-    if (!requiredDate || !expectedPrice || !message) {
-      Alert.alert('Lỗi', 'Vui lòng điền đầy đủ thông tin');
+    // Validate required date is in the future
+    if (!requiredDate) {
+      Alert.alert('Lỗi', 'Vui lòng nhập ngày cần thiết');
+      return;
+    }
+
+    const requiredDateTime = new Date(requiredDate).getTime();
+    const nowTime = new Date().getTime();
+
+    if (requiredDateTime <= nowTime) {
+      Alert.alert('Lỗi', 'Ngày cần thiết phải là ngày tương lai');
+      return;
+    }
+
+    if (!expectedPrice) {
+      Alert.alert('Lỗi', 'Vui lòng nhập giá dự kiến');
+      return;
+    }
+
+    const price = parseFloat(expectedPrice);
+    if (isNaN(price) || price <= 0) {
+      Alert.alert('Lỗi', 'Giá dự kiến phải là số lớn hơn 0');
+      return;
+    }
+
+    if (!message) {
+      Alert.alert('Lỗi', 'Vui lòng nhập ghi chú / yêu cầu đặc biệt');
       return;
     }
 
@@ -67,10 +110,10 @@ export default function AuctionDetailScreen() {
 
       const payload = {
         requiredDate: new Date(requiredDate).toISOString(),
-        expectedPrice: parseFloat(expectedPrice),
+        expectedPrice: price,
         message,
         status: 'Pending',
-        isBuyingBulk: true,
+        isBuyingBulk: false,
         wholesalerId: userId,
         harvestId: harvest.id,
         farmerId: harvest.farmerID,
@@ -87,9 +130,10 @@ export default function AuctionDetailScreen() {
           },
         },
       ]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating request:', error);
-      Alert.alert('Lỗi', 'Không thể tạo yêu cầu mua');
+      const errorMessage = error?.message || error?.toString() || 'Không thể tạo yêu cầu mua';
+      Alert.alert('Lỗi', errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -165,6 +209,41 @@ export default function AuctionDetailScreen() {
                   placeholderTextColor="#9CA3AF"
                 />
               </View>
+
+              {/* Price Suggestions */}
+              <TouchableOpacity
+                style={styles.suggestionsToggle}
+                onPress={() => setShowPriceSuggestions(!showPriceSuggestions)}
+              >
+                <Text style={styles.suggestionsToggleText}>
+                  {showPriceSuggestions ? '✓ Ẩn gợi ý giá' : '💡 Gợi ý giá'}
+                </Text>
+              </TouchableOpacity>
+
+              {showPriceSuggestions && (
+                <View style={styles.suggestionsContainer}>
+                  <Text style={styles.suggestionsLabel}>Giá được gợi ý:</Text>
+                  <View style={styles.suggestionsGrid}>
+                    {getPriceSuggestions().map((price, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={styles.suggestionItem}
+                        onPress={() => {
+                          setExpectedPrice(price.toString());
+                          setShowPriceSuggestions(false);
+                        }}
+                      >
+                        <Text style={styles.suggestionPrice}>
+                          {price.toLocaleString('vi-VN')}
+                        </Text>
+                        <Text style={styles.suggestionLabel}>
+                          {index === 0 ? '-20%' : index === 1 ? '-10%' : index === 2 ? 'Hiện' : index === 3 ? '+10%' : index === 4 ? '+20%' : '+30%'}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
             </View>
 
             <View style={styles.formField}>
@@ -616,4 +695,57 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-});
+  suggestionsToggle: {
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  suggestionsToggleText: {
+    fontSize: 14,
+    color: '#22C55E',
+    fontWeight: '600',
+  },
+  suggestionsContainer: {
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  suggestionsLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '600',
+    marginBottom: 10,
+  },
+  suggestionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  suggestionItem: {
+    width: '32%',
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  suggestionPrice: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#059669',
+    marginBottom: 4,
+  },
+  suggestionLabel: {
+    fontSize: 11,
+    color: '#6B7280',
+  },});

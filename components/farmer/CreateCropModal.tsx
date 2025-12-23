@@ -348,7 +348,7 @@ export default function CreateCropModal({ visible, onClose, onSubmit }: CreateCr
 
           {/* Area */}
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Diện tích (m²) *</Text>
+            <Text style={styles.inputLabel}>Diện tích (ha) *</Text>
             <TextInput
               style={styles.textInput}
               placeholder="Nhập diện tích"

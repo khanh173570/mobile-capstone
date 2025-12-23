@@ -36,11 +36,11 @@ export const getHarvestsByCropId = async (cropId: string): Promise<Harvest[]> =>
   try {
     const token = await AsyncStorage.getItem('accessToken');
     if (!token) {
-      console.log('No access token found');
+      //console.log('No access token found');
       throw new Error('No authentication token found');
     }
 
-    console.log('Fetching harvests for crop:', cropId);
+    //console.log('Fetching harvests for crop:', cropId);
     const response = await fetch(`${API_URL}/farm-service/crop/${cropId}/harvest`, {
       method: 'GET',
       headers: {
@@ -60,15 +60,15 @@ export const getHarvestsByCropId = async (cropId: string): Promise<Harvest[]> =>
       throw new Error('Invalid response format from server');
     }
 
-    console.log('Response status:', response.status);
-    console.log('Response data:', data);
+    //console.log('Response status:', response.status);
+    //console.log('Response data:', data);
 
     if (!response.ok) {
       console.error('API Error:', data.message || response.statusText);
       throw new Error(data.message || `Failed to fetch harvests (Status: ${response.status})`);
     }
 
-    console.log('Harvests fetched successfully:', data.data?.length || 0);
+    //console.log('Harvests fetched successfully:', data.data?.length || 0);
     return data.data || [];
   } catch (error) {
     console.error('Error fetching harvests:', error);
@@ -121,32 +121,61 @@ export const createHarvest = async (harvestData: CreateHarvestData): Promise<Har
       throw new Error('No authentication token found');
     }
 
+    //console.log('[harvestService] Creating harvest with data:', harvestData);
+    
+    // Validate required fields
+    if (!harvestData.cropID || !harvestData.cropID.trim()) {
+      throw new Error('cropID is required');
+    }
+    if (!harvestData.startDate) {
+      throw new Error('startDate is required');
+    }
+    if (!harvestData.note) {
+      throw new Error('note is required');
+    }
+
+    // Prepare request body
+    const requestBody = {
+      startDate: harvestData.startDate,
+      note: harvestData.note || 'Không có',
+      cropID: harvestData.cropID,
+    };
+
+    //console.log('[harvestService] Request body:', requestBody);
+
     const response = await fetch(`${API_URL}/farm-service/harvest`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(harvestData),
+      body: JSON.stringify(requestBody),
     });
 
+    //console.log('[harvestService] Response status:', response.status);
+    
     const text = await response.text();
     let data;
     
     try {
       data = text ? JSON.parse(text) : {};
     } catch (e) {
-      console.error('JSON parse error:', e);
+      console.error('[harvestService] JSON parse error:', e);
+      console.error('[harvestService] Response text:', text);
       throw new Error('Invalid response format from server');
     }
 
+    //console.log('[harvestService] Response data:', data);
+
     if (!response.ok) {
-      throw new Error(data.message || 'Failed to create harvest');
+      const errorMessage = data.message || data.error || 'Failed to create harvest';
+      console.error('[harvestService] API Error:', errorMessage);
+      throw new Error(errorMessage);
     }
 
     return data.data;
   } catch (error) {
-    console.error('Error creating harvest:', error);
+    console.error('[harvestService] Error creating harvest:', error);
     throw error;
   }
 };
@@ -219,7 +248,7 @@ export const deleteHarvest = async (harvestId: string): Promise<void> => {
       throw new Error(data.message || 'Failed to delete harvest');
     }
 
-    console.log('Harvest deleted successfully');
+    //console.log('Harvest deleted successfully');
   } catch (error) {
     console.error('Error deleting harvest:', error);
     throw error;

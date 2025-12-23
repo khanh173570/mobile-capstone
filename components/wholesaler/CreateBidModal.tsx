@@ -29,6 +29,7 @@ interface CreateBidModalProps {
   minBidIncrement: number;
   auctionSessionId: string;
   sessionCode: string;
+  enableReserveProxy?: boolean;
 }
 
 export default function CreateBidModal({
@@ -39,14 +40,24 @@ export default function CreateBidModal({
   minBidIncrement,
   auctionSessionId,
   sessionCode,
+  enableReserveProxy = false,
 }: CreateBidModalProps) {
   const [autoBidMaxLimit, setAutoBidMaxLimit] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState<number | null>(null);
 
+  // If auto-bid not allowed, close modal immediately
+  React.useEffect(() => {
+    if (visible && !enableReserveProxy) {
+      Alert.alert('Không hỗ trợ auto-bid', 'Phiên này không bật đặt giá tự động.', [
+        { text: 'OK', onPress: onClose },
+      ]);
+    }
+  }, [visible, enableReserveProxy, onClose]);
+
   // Log visibility changes
   React.useEffect(() => {
-    console.log('CreateBidModal visible changed:', visible);
+    //console.log('CreateBidModal visible changed:', visible);
   }, [visible]);
 
   // Calculate minimum valid limit
@@ -92,6 +103,12 @@ export default function CreateBidModal({
         autoBidMaxLimit: limitValue,
         auctionSessionId,
       };
+
+      if (!enableReserveProxy) {
+        Alert.alert('Thông báo', 'Phiên này không bật đặt giá tự động.', [{ text: 'OK' }]);
+        setLoading(false);
+        return;
+      }
 
       const response = await createBid(request);
 

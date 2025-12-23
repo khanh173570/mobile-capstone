@@ -37,7 +37,7 @@ export const usePushNotifications = (
         const isValid = await isDeviceTokenStillValid(userId);
         
         if (isValid) {
-          console.log('✓ Device token is still valid for current user');
+          //console.log('✓ Device token is still valid for current user');
           setIsSetup(true);
           setIsLoading(false);
           return;
@@ -79,7 +79,7 @@ export const useClearPushNotifications = () => {
   const clearNotifications = async () => {
     try {
       await clearStoredDeviceToken();
-      console.log('✓ Push notifications cleared on logout');
+      //console.log('✓ Push notifications cleared on logout');
     } catch (error) {
       console.error('Error clearing push notifications:', error);
     }

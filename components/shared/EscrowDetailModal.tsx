@@ -28,6 +28,7 @@ import { ReviewDisputeModal } from './ReviewDisputeModal';
 import { Dispute, getDisputeByEscrowId } from '../../services/disputeService';
 import { BuyRequestDepositModal } from './BuyRequestDepositModal';
 import { DollarSign } from 'lucide-react-native';
+import { DisputeResolutionModal } from './DisputeResolutionModal';
 
 interface EscrowDetailModalProps {
   visible: boolean;
@@ -57,6 +58,7 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
   const [loadingDispute, setLoadingDispute] = useState(false);
   const [showCreateDisputeModal, setShowCreateDisputeModal] = useState(false);
   const [showReviewDisputeModal, setShowReviewDisputeModal] = useState(false);
+  const [showResolutionModal, setShowResolutionModal] = useState(false);
   const [disputeYPosition, setDisputeYPosition] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -101,7 +103,7 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
         } catch (auctionError: any) {
           // Silently handle 404 - auction might not exist or be deleted
           if (auctionError.message?.includes('404')) {
-            console.log('Auction not found for escrow, this is expected for buy request escrows');
+            //console.log('Auction not found for escrow, this is expected for buy request escrows');
           } else {
             console.error('Error fetching auction details:', auctionError);
           }
@@ -111,18 +113,18 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
 
       // Check if buyRequestId is valid (not empty UUID and not null)
       const isValidBuyRequestId = contract.buyRequestId !== null && contract.buyRequestId !== '00000000-0000-0000-0000-000000000000';
-      console.log('Contract data:', {
-        auctionId: contract.auctionId,
-        buyRequestId: contract.buyRequestId,
-        isValidAuctionId,
-        isValidBuyRequestId
-      });
+      // console.log('Contract data:', {
+      //   auctionId: contract.auctionId,
+      //   buyRequestId: contract.buyRequestId,
+      //   isValidAuctionId,
+      //   isValidBuyRequestId
+      // });
 
       // Fetch buy request details if buyRequestId exists and is valid
       if (isValidBuyRequestId) {
         try {
           const buyRequestData = await getBuyRequestDetail(contract.buyRequestId!);
-          console.log('Buy request data fetched:', buyRequestData);
+          //console.log('Buy request data fetched:', buyRequestData);
           setBuyRequestInfo(buyRequestData);
           farmerIdToFetch = buyRequestData.farmerId;
           wholesalerIdToFetch = buyRequestData.wholesalerId;
@@ -131,23 +133,23 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
           setBuyRequestInfo(null);
         }
       } else {
-        console.log('buyRequestId is not valid, skipping buy request fetch');
+        //console.log('buyRequestId is not valid, skipping buy request fetch');
       }
 
       // Fetch farmer info
       if (farmerIdToFetch) {
-        console.log('Fetching farmer with ID:', farmerIdToFetch);
+        //console.log('Fetching farmer with ID:', farmerIdToFetch);
         const farmerData = await getUserInfoByUsername(farmerIdToFetch);
-        console.log('Farmer data:', farmerData);
+        //console.log('Farmer data:', farmerData);
         setFarmerInfo(farmerData);
       }
 
       // Fetch winner/wholesaler info from winnerId or wholesalerId
       const winnerIdToFetch = contract.winnerId || wholesalerIdToFetch;
       if (winnerIdToFetch) {
-        // console.log('Fetching winner/wholesaler with ID:', winnerIdToFetch);
+        // //console.log('Fetching winner/wholesaler with ID:', winnerIdToFetch);
         const winnerData = await getUserInfoByUsername(winnerIdToFetch);
-        // console.log('Winner/wholesaler data:', winnerData);
+        // //console.log('Winner/wholesaler data:', winnerData);
         setWinnerInfo(winnerData);
       }
 
@@ -163,10 +165,12 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
   const loadDisputeInfo = async (escrowId: string) => {
     try {
       setLoadingDispute(true);
+      //console.log('[EscrowDetailModal] Loading dispute for escrowId:', escrowId);
       const disputeData = await getDisputeByEscrowId(escrowId);
+      //console.log('[EscrowDetailModal] Dispute data loaded:', disputeData);
       setDispute(disputeData);
     } catch (error) {
-      console.error('Error loading dispute:', error);
+      console.error('[EscrowDetailModal] Error loading dispute:', error);
       setDispute(null);
     } finally {
       setLoadingDispute(false);
@@ -260,25 +264,27 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
   const canReadyToHarvest = role === 'farmer' && contract.escrowStatus <= 1;
   const canPayRemaining = role === 'wholesaler' && contract.escrowStatus === 2;
   const shouldShowDepositButton = role === 'wholesaler' && contract.escrowStatus === 0; // Status 0: PendingPayment
-  const canCreateDispute = contract.escrowStatus === 3 && !dispute;
+  const canCreateDispute = role === 'wholesaler' && contract.escrowStatus === 3 && !dispute; // Only wholesaler can create dispute
   const canReviewDispute = role === 'farmer' && dispute !== null && dispute?.disputeStatus === 0;
   // Show "View Dispute" button when dispute exists, but hide if farmer can review (to avoid duplicate buttons)
   const canViewDispute = dispute !== null && !canReviewDispute;
+  // Show "View Dispute Resolution" button when dispute exists (for both farmer and wholesaler)
+  const canViewResolution = dispute !== null;
 
   // Debug logs for dispute review
-  console.log('=== ESCROW DETAIL MODAL DEBUG ===');
-  console.log('Role:', role);
-  console.log('Escrow Status:', contract.escrowStatus);
-  console.log('Dispute:', dispute);
-  console.log('Loading Dispute:', loadingDispute);
-  console.log('Can Create Dispute:', canCreateDispute);
-  console.log('Can Review Dispute:', canReviewDispute);
-  console.log('Can View Dispute:', canViewDispute);
+  //console.log('=== ESCROW DETAIL MODAL DEBUG ===');
+  //console.log('Role:', role);
+  //console.log('Escrow Status:', contract.escrowStatus);
+  //console.log('Dispute:', dispute);
+  //console.log('Loading Dispute:', loadingDispute);
+  //console.log('Can Create Dispute:', canCreateDispute);
+  //console.log('Can Review Dispute:', canReviewDispute);
+  //console.log('Can View Dispute:', canViewDispute);
   if (dispute) {
-    console.log('Dispute Status:', dispute.disputeStatus);
-    console.log('Dispute ID:', dispute.id);
+    //console.log('Dispute Status:', dispute.disputeStatus);
+    //console.log('Dispute ID:', dispute.id);
   }
-  console.log('================================');
+  //console.log('================================');
 
   return (
     <Modal visible={visible} transparent animationType="slide">
@@ -708,6 +714,25 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
               </TouchableOpacity>
             )}
 
+            {canViewResolution && (
+              <TouchableOpacity
+                style={[styles.button, styles.resolutionButton]}
+                onPress={() => setShowResolutionModal(true)}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <MaterialIcons name="assessment" size={20} color="#FFFFFF" />
+                    <Text style={styles.resolutionButtonText}>
+                      Xem kết quả tranh chấp
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               style={[styles.button, styles.secondaryButton]}
               onPress={onClose}
@@ -772,6 +797,7 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
           visible={showCreateDisputeModal}
           escrowId={contract.id}
           totalAmount={contract.totalAmount}
+          isWholeSalerCreating={role === 'wholesaler'}
           onClose={() => setShowCreateDisputeModal(false)}
           onSuccess={handleDisputeSuccess}
         />
@@ -784,6 +810,15 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
           disputeId={dispute.id}
           onClose={() => setShowReviewDisputeModal(false)}
           onSuccess={handleDisputeSuccess}
+        />
+      )}
+
+      {/* Dispute Resolution Modal */}
+      {contract && (
+        <DisputeResolutionModal
+          visible={showResolutionModal}
+          escrowId={contract.id}
+          onClose={() => setShowResolutionModal(false)}
         />
       )}
     </Modal>
@@ -821,7 +856,6 @@ const styles = StyleSheet.create({
   modalContent: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    marginTop: 40,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
   },
@@ -1017,6 +1051,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#3B82F6',
   },
   viewDisputeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginLeft: 8,
+  },
+  resolutionButton: {
+    backgroundColor: '#6366F1',
+  },
+  resolutionButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',

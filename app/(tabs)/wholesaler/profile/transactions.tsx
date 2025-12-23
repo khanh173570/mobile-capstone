@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { FileText, Filter, DollarSign } from 'lucide-react-native';
 import { EscrowContractCard } from '../../../../components/shared/EscrowContractCard';
 import { EscrowDetailModal } from '../../../../components/shared/EscrowDetailModal';
@@ -20,6 +21,7 @@ import { getBuyRequestDetail } from '../../../../services/buyRequestService';
 import { getEscrowStatusName, EscrowStatus } from '../../../../services/escrowService';
 
 export default function WholesalerTransactionsScreen() {
+  const params = useLocalSearchParams();
   const [escrows, setEscrows] = useState<EscrowContract[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -51,7 +53,9 @@ export default function WholesalerTransactionsScreen() {
               const buyRequestDetail = await getBuyRequestDetail(escrow.buyRequestId);
               return {
                 ...escrow,
-                sessionCode: buyRequestDetail?.requestCode || `BUY-${escrow.buyRequestId.slice(0, 8)}`,
+                sessionCode: (buyRequestDetail?.requestCode && buyRequestDetail.requestCode.trim() !== '') 
+                  ? buyRequestDetail.requestCode 
+                  : `BRQ-${escrow.buyRequestId.slice(0, 8).toUpperCase()}`,
               };
             } else {
               return {
@@ -87,6 +91,18 @@ export default function WholesalerTransactionsScreen() {
   useEffect(() => {
     fetchEscrows();
   }, []);
+
+  // Auto-open modal when escrowId is provided in params (from notification)
+  useEffect(() => {
+    const escrowId = params.escrowId as string | undefined;
+    if (escrowId && escrows.length > 0) {
+      const escrow = escrows.find((e) => e.id === escrowId);
+      if (escrow) {
+        setSelectedEscrow(escrow);
+        setModalVisible(true);
+      }
+    }
+  }, [params.escrowId, escrows]);
 
   const handleContractPress = (contract: EscrowContract) => {
     setSelectedEscrow(contract);

@@ -46,6 +46,7 @@ export default function FarmerWalletScreen() {
   const [showBalance, setShowBalance] = useState(false);
   const [userId, setUserId] = useState<string>('');
   const [showAddFundsModal, setShowAddFundsModal] = useState(false);
+  const [displayedLedgerCount, setDisplayedLedgerCount] = useState(10);
 
   useEffect(() => {
     loadUserProfile();
@@ -88,6 +89,7 @@ export default function FarmerWalletScreen() {
 
   const handleRefresh = () => {
     setRefreshing(true);
+    setDisplayedLedgerCount(10); // Reset về 10 items khi refresh
     loadWallet();
     loadLedgers();
   };
@@ -206,51 +208,64 @@ export default function FarmerWalletScreen() {
           </View>
 
           {ledgers.length > 0 ? (
-            <View style={styles.transactionList}>
-              {ledgers.slice(0, 5).map((ledger, index) => (
-                <View
-                  key={ledger.id}
-                  style={[
-                    styles.transactionItem,
-                    index === Math.min(ledgers.length - 1, 4) && { borderBottomWidth: 0 },
-                  ]}
-                >
-                  <View style={styles.transactionLeft}>
-                    <View
-                      style={[
-                        styles.transactionIconContainer,
-                        {
-                          backgroundColor: getLedgerDirectionColor(ledger.direction) + '20',
-                        },
-                      ]}
-                    >
-                      {ledger.direction === 1 ? (
-                        <ArrowDownLeft size={20} color={getLedgerDirectionColor(ledger.direction)} />
-                      ) : (
-                        <ArrowUpRight size={20} color={getLedgerDirectionColor(ledger.direction)} />
-                      )}
+            <>
+              <View style={styles.transactionList}>
+                {ledgers.slice(0, displayedLedgerCount).map((ledger, index) => (
+                  <View
+                    key={ledger.id}
+                    style={[
+                      styles.transactionItem,
+                      index === Math.min(ledgers.length - 1, displayedLedgerCount - 1) && 
+                      displayedLedgerCount >= ledgers.length && { borderBottomWidth: 0 },
+                    ]}
+                  >
+                    <View style={styles.transactionLeft}>
+                      <View
+                        style={[
+                          styles.transactionIconContainer,
+                          {
+                            backgroundColor: getLedgerDirectionColor(ledger.direction) + '20',
+                          },
+                        ]}
+                      >
+                        {ledger.direction === 1 ? (
+                          <ArrowDownLeft size={20} color={getLedgerDirectionColor(ledger.direction)} />
+                        ) : (
+                          <ArrowUpRight size={20} color={getLedgerDirectionColor(ledger.direction)} />
+                        )}
+                      </View>
+                      <View style={styles.transactionInfo}>
+                        <Text style={styles.transactionTitle}>
+                          {ledger.description || getLedgerDirectionName(ledger.direction)}
+                        </Text>
+                        <Text style={styles.transactionDate}>{formatDate(ledger.createdAt)}</Text>
+                      </View>
                     </View>
-                    <View style={styles.transactionInfo}>
-                      <Text style={styles.transactionTitle}>
-                        {ledger.description || getLedgerDirectionName(ledger.direction)}
-                      </Text>
-                      <Text style={styles.transactionDate}>{formatDate(ledger.createdAt)}</Text>
-                    </View>
-                  </View>
 
-                  <View style={styles.transactionRight}>
-                    <Text
-                      style={[
-                        styles.transactionAmount,
-                        { color: getLedgerDirectionColor(ledger.direction) },
-                      ]}
-                    >
-                      {ledger.direction === 1 ? '+' : '-'}{formatCurrency(ledger.amount)}
-                    </Text>
+                    <View style={styles.transactionRight}>
+                      <Text
+                        style={[
+                          styles.transactionAmount,
+                          { color: getLedgerDirectionColor(ledger.direction) },
+                        ]}
+                      >
+                        {ledger.direction === 1 ? '+' : '-'}{formatCurrency(ledger.amount)}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              ))}
-            </View>
+                ))}
+              </View>
+              {ledgers.length > displayedLedgerCount && (
+                <TouchableOpacity
+                  style={styles.showMoreButton}
+                  onPress={() => setDisplayedLedgerCount(ledgers.length)}
+                >
+                  <Text style={styles.showMoreText}>
+                    Xem thêm ({ledgers.length - displayedLedgerCount} giao dịch)
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
           ) : (
             <View style={styles.emptyTransactions}>
               <Clock size={48} color="#D1D5DB" />
@@ -455,5 +470,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#374151',
     marginTop: 16,
+  },
+  showMoreButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+  },
+  showMoreText: {
+    color: '#22C55E',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

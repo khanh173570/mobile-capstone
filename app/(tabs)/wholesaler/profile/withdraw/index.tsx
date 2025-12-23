@@ -31,7 +31,6 @@ import {
   getMyWithdrawRequests,
   getBanks,
   createUserBankAccount,
-  updateUserBankAccount,
   deleteUserBankAccount,
   createWithdrawRequest,
   getWithdrawStatusName,
@@ -119,6 +118,7 @@ export default function WithdrawScreen() {
   const [bankSearch, setBankSearch] = useState('');
   const [isPrimary, setIsPrimary] = useState(false);
   const [editingAccount, setEditingAccount] = useState<UserBankAccount | null>(null);
+  const [displayedHistoryCount, setDisplayedHistoryCount] = useState(10);
 
   // Optimized bank filtering function
   const getFilteredBanks = (searchText: string) => {
@@ -192,6 +192,7 @@ export default function WithdrawScreen() {
 
   const handleRefresh = () => {
     setRefreshing(true);
+    setDisplayedHistoryCount(10); // Reset về 10 items khi refresh
     loadData();
   };
 
@@ -211,24 +212,14 @@ export default function WithdrawScreen() {
           onPress: async () => {
             setSubmitting(true);
             try {
-              if (editingAccount) {
-                await updateUserBankAccount(editingAccount.id, {
-                  accountNumber,
-                  accountName,
-                  bankId: selectedBank.id,
-                  isPrimary,
-                });
-                Alert.alert('Thành công', 'Cập nhật tài khoản ngân hàng thành công!');
-              } else {
-                await createUserBankAccount({
-                  userId,
-                  accountNumber,
-                  accountName,
-                  bankId: selectedBank.id,
-                  isPrimary,
-                });
-                Alert.alert('Thành công', 'Thêm tài khoản ngân hàng thành công!');
-              }
+              await createUserBankAccount({
+                userId,
+                accountNumber,
+                accountName,
+                bankId: selectedBank.id,
+                isPrimary,
+              });
+              Alert.alert('Thành công', 'Thêm tài khoản ngân hàng thành công!');
               
               setShowAddAccount(false);
               setSelectedBank(null);
@@ -248,15 +239,6 @@ export default function WithdrawScreen() {
         },
       ]
     );
-  };
-
-  const handleEditAccount = (account: UserBankAccount) => {
-    setEditingAccount(account);
-    setSelectedBank(account.bank || null);
-    setAccountNumber(account.accountNumber);
-    setAccountName(account.accountName);
-    setIsPrimary(account.isPrimary);
-    setShowAddAccount(true);
   };
 
   const handleDeleteAccount = (account: UserBankAccount) => {
@@ -424,12 +406,6 @@ export default function WithdrawScreen() {
                   )}
                   <View style={styles.actionButtons}>
                     <TouchableOpacity
-                      style={styles.editButton}
-                      onPress={() => handleEditAccount(account)}
-                    >
-                      <Edit2 size={16} color="#3B82F6" />
-                    </TouchableOpacity>
-                    <TouchableOpacity
                       style={styles.deleteButton}
                       onPress={() => handleDeleteAccount(account)}
                     >
@@ -460,71 +436,83 @@ export default function WithdrawScreen() {
 
         {/* Withdraw History Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Lịch sử rút tiền</Text>
+          <Text style={styles.sectionTitle}>Biến động số dư</Text>
 
           {withdrawRequests.length > 0 ? (
-            withdrawRequests.map((request) => (
-              <TouchableOpacity
-                key={request.id}
-                style={styles.historyCard}
-                onPress={() => handleViewWithdrawDetail(request)}
-              >
-                <View style={styles.historyLeft}>
-                  <View
-                    style={[
-                      styles.historyIcon,
-                      {
-                        backgroundColor:
-                          getWithdrawStatusColor(request.status) + '20',
-                      },
-                    ]}
-                  >
-                    <TrendingDown
-                      size={20}
-                      color={getWithdrawStatusColor(request.status)}
-                    />
-                  </View>
-                  <View style={styles.historyInfo}>
-                    <Text style={styles.historyAmount}>
-                      -{request.amount.toLocaleString('vi-VN')} ₫
-                    </Text>
-                    <Text style={styles.historyDate}>
-                      {new Date(request.createdAt).toLocaleDateString('vi-VN', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                      })}
-                    </Text>
-                    <Text style={styles.historyTime}>
-                      {new Date(request.createdAt).toLocaleTimeString('vi-VN', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.historyRight}>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      {
-                        backgroundColor:
-                          getWithdrawStatusColor(request.status) + '20',
-                      },
-                    ]}
-                  >
-                    <Text
+            <>
+              {withdrawRequests.slice(0, displayedHistoryCount).map((request) => (
+                <TouchableOpacity
+                  key={request.id}
+                  style={styles.historyCard}
+                  onPress={() => handleViewWithdrawDetail(request)}
+                >
+                  <View style={styles.historyLeft}>
+                    <View
                       style={[
-                        styles.statusBadgeText,
-                        { color: getWithdrawStatusColor(request.status) },
+                        styles.historyIcon,
+                        {
+                          backgroundColor:
+                            getWithdrawStatusColor(request.status) + '20',
+                        },
                       ]}
                     >
-                      {getWithdrawStatusName(request.status)}
-                    </Text>
+                      <TrendingDown
+                        size={20}
+                        color={getWithdrawStatusColor(request.status)}
+                      />
+                    </View>
+                    <View style={styles.historyInfo}>
+                      <Text style={styles.historyAmount}>
+                        -{request.amount.toLocaleString('vi-VN')} ₫
+                      </Text>
+                      <Text style={styles.historyDate}>
+                        {new Date(request.createdAt).toLocaleDateString('vi-VN', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                        })}
+                      </Text>
+                      <Text style={styles.historyTime}>
+                        {new Date(request.createdAt).toLocaleTimeString('vi-VN', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              </TouchableOpacity>
-            ))
+                  <View style={styles.historyRight}>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        {
+                          backgroundColor:
+                            getWithdrawStatusColor(request.status) + '20',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusBadgeText,
+                          { color: getWithdrawStatusColor(request.status) },
+                        ]}
+                      >
+                        {getWithdrawStatusName(request.status)}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+              {withdrawRequests.length > displayedHistoryCount && (
+                <TouchableOpacity
+                  style={styles.showMoreButton}
+                  onPress={() => setDisplayedHistoryCount(withdrawRequests.length)}
+                >
+                  <Text style={styles.showMoreText}>
+                    Xem thêm ({withdrawRequests.length - displayedHistoryCount} yêu cầu)
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
           ) : (
             <View style={styles.emptyState}>
               <Clock size={32} color="#9CA3AF" />
@@ -715,7 +703,7 @@ export default function WithdrawScreen() {
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
                     <Text style={styles.submitButtonText}>
-                      {editingAccount ? 'Cập nhật' : 'Thêm'}
+                      Thêm
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -1118,6 +1106,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     backgroundColor: '#DBEAFE',
     borderRadius: 6,
+    marginBottom: 8,
   },
   primaryBadgeText: {
     fontSize: 11,
@@ -1286,14 +1275,14 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
     paddingVertical: 16,
-    paddingBottom: 16,
+    paddingBottom: 8,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
     color: '#374151',
     marginBottom: 10,
-    marginTop: 16,
+    marginTop: 8,
   },
   searchInput: {
     paddingHorizontal: 14,
@@ -1494,6 +1483,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     marginTop: 8,
+    fontStyle: 'italic',
+    fontWeight: 'bold',
   },
   buttonGroup: {
     flexDirection: 'row',
@@ -1504,7 +1495,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    paddingBottom: 40,
+
   },
   button: {
     flex: 1,

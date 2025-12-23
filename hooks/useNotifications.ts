@@ -29,7 +29,7 @@ export const useNotifications = () => {
       },
       (responseNotification) => {
         // Handle tap on notification
-        console.log('Notification tapped:', responseNotification);
+        //console.log('Notification tapped:', responseNotification);
         setNotification(null);
       }
     );
@@ -112,7 +112,7 @@ export const useSingleAuctionLogPolling = ({
         const key = `lastLogId_${auctionId}`;
         try {
           await AsyncStorage.removeItem(key);
-          console.log(`✓ Reset auction log cache for ${auctionId}`);
+          // //console.log(`✓ Reset auction log cache for ${auctionId}`);
         } catch (error) {
           console.error('Error resetting cache:', error);
         }

@@ -45,7 +45,7 @@ export interface ApiResponse<T> {
  */
 export const updateFarm = async (farmData: UpdateFarmFormData): Promise<ApiResponse<Farm>> => {
   try {
-    console.log('Update farm request URL:', `${API_URL}/farm-service/farm/${farmData.id}`);
+    //console.log('Update farm request URL:', `${API_URL}/farm-service/farm/${farmData.id}`);
     
     const token = await AsyncStorage.getItem('accessToken');
     
@@ -62,10 +62,10 @@ export const updateFarm = async (farmData: UpdateFarmFormData): Promise<ApiRespo
       formData.append('FarmImage', farmData.farmImageFile);
     }
     
-    console.log('Update farm FormData:', {
-      name: farmData.name,
-      hasFile: !!farmData.farmImageFile
-    });
+    //console.log('Update farm FormData:', {
+    //   name: farmData.name,
+    //   hasFile: !!farmData.farmImageFile
+    // });
     
     const response = await fetch(`${API_URL}/farm-service/farm/${farmData.id}`, {
       method: 'PUT',
@@ -77,7 +77,7 @@ export const updateFarm = async (farmData: UpdateFarmFormData): Promise<ApiRespo
     });
     
     const data = await response.json();
-    console.log('Update farm response:', data);
+    //console.log('Update farm response:', data);
     
     if (!response.ok) {
       throw new Error(data.message || 'Không thể cập nhật trang trại');
@@ -98,7 +98,7 @@ export const updateFarm = async (farmData: UpdateFarmFormData): Promise<ApiRespo
  */
 export const getUserFarms = async (): Promise<ApiResponse<Farm[]>> => {
   try {
-    console.log('Get user farms request URL:', `${API_URL}/farm-service/farm/user`);
+    //console.log('Get user farms request URL:', `${API_URL}/farm-service/farm/user`);
     
     const token = await AsyncStorage.getItem('accessToken');
     
@@ -115,7 +115,7 @@ export const getUserFarms = async (): Promise<ApiResponse<Farm[]>> => {
     });
     
     const data = await response.json();
-    console.log('Get user farms response:', data);
+    //console.log('Get user farms response:', data);
     
     if (!response.ok) {
       throw new Error(data.message || 'Không thể lấy danh sách trang trại');
@@ -136,7 +136,7 @@ export const getUserFarms = async (): Promise<ApiResponse<Farm[]>> => {
  */
 export const getFarmById = async (farmId: string): Promise<ApiResponse<Farm>> => {
   try {
-    console.log('Get farm by ID request URL:', `${API_URL}/farm-service/farm/${farmId}`);
+    //console.log('Get farm by ID request URL:', `${API_URL}/farm-service/farm/${farmId}`);
     
     const token = await AsyncStorage.getItem('accessToken');
     
@@ -153,7 +153,7 @@ export const getFarmById = async (farmId: string): Promise<ApiResponse<Farm>> =>
     });
     
     const data = await response.json();
-    console.log('Get farm by ID response:', data);
+    //console.log('Get farm by ID response:', data);
     
     if (!response.ok) {
       throw new Error(data.message || 'Không thể lấy thông tin trang trại');
@@ -174,7 +174,7 @@ export const getFarmById = async (farmId: string): Promise<ApiResponse<Farm>> =>
  */
 export const createFarm = async (farmData: FarmFormData): Promise<ApiResponse<Farm>> => {
   try {
-    console.log('Create farm request URL:', `${API_URL}/farm-service/farm`);
+    //console.log('Create farm request URL:', `${API_URL}/farm-service/farm`);
     
     const token = await AsyncStorage.getItem('accessToken');
     
@@ -192,7 +192,7 @@ export const createFarm = async (farmData: FarmFormData): Promise<ApiResponse<Fa
     });
     
     const data = await response.json();
-    console.log('Create farm response:', data);
+    //console.log('Create farm response:', data);
     
     if (!response.ok) {
       throw new Error(data.message || 'Không thể tạo trang trại mới');
@@ -229,7 +229,7 @@ export const getUserFarmsFromStorage = async (): Promise<Farm[]> => {
  */
 export const deleteFarm = async (farmId: string): Promise<ApiResponse<void>> => {
   try {
-    console.log('Delete farm request URL:', `${API_URL}/farm-service/farm/${farmId}`);
+    //console.log('Delete farm request URL:', `${API_URL}/farm-service/farm/${farmId}`);
     
     const token = await AsyncStorage.getItem('accessToken');
     
@@ -246,7 +246,7 @@ export const deleteFarm = async (farmId: string): Promise<ApiResponse<void>> => 
     });
     
     const data = await response.json();
-    console.log('Delete farm response:', data);
+    //console.log('Delete farm response:', data);
     
     if (!response.ok) {
       throw new Error(data.message || 'Không thể xóa trang trại');
