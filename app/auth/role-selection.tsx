@@ -11,8 +11,8 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { Sprout, ShoppingBag, User } from 'lucide-react-native';
-import { Loader2, UserCircle } from 'lucide-react-native';
+import { Sprout, ShoppingBag, User , Loader2, UserCircle } from 'lucide-react-native';
+
 import { getRoles, Role } from '../../services/authService';
 import { handleError } from '../../utils/errorHandler';
 

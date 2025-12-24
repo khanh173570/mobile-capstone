@@ -11,8 +11,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { X, Bell } from 'lucide-react-native';
-import { BackendNotification } from '../../services/notificationService';
-import {
+import { BackendNotification ,
   getNotificationTypeColor,
   getNotificationIcon,
 } from '../../services/notificationService';

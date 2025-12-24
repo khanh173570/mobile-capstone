@@ -63,7 +63,7 @@ interface Auction {
   expectedTotalQuantity: number;
   createdAt: string;
   updatedAt: string;
-  harvests?: Array<{
+  harvests?: {
     id: string;
     harvestDate: string | null;
     startDate: string;
@@ -71,13 +71,13 @@ interface Auction {
     unit: string;
     note: string;
     salePrice: number;
-    harvestGradeDetails: Array<{
+    harvestGradeDetails: {
       id: string;
       grade: string;
       quantity: number;
       unit: string;
-    }>;
-  }>;
+    }[];
+  }[];
 }
 
 export default function WholesalerAuctionDetailScreen() {

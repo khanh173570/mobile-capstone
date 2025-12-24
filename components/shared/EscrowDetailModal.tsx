@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { Clock3 } from 'lucide-react-native';
+import { Clock3 , DollarSign, CheckCircle } from 'lucide-react-native';
 import {
   EscrowContract,
   formatCurrency,
@@ -31,7 +31,7 @@ import { ReviewDisputeModal } from './ReviewDisputeModal';
 import { Dispute, getDisputeByEscrowId } from '../../services/disputeService';
 import { RescheduleHarvestDateModal } from '../farmer/RescheduleHarvestDateModal';
 import { BuyRequestDepositModal } from './BuyRequestDepositModal';
-import { DollarSign, CheckCircle } from 'lucide-react-native';
+
 import { DisputeResolutionModal } from './DisputeResolutionModal';
 
 interface EscrowDetailModalProps {

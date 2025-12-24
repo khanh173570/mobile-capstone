@@ -44,9 +44,9 @@ interface Auction {
   buyNowPrice?: number;
   createdAt: string;
   updatedAt: string;
-  harvests?: Array<{
+  harvests?: {
     startDate?: string;
-  }>;
+  }[];
 }
 
 export default function WholesalerHomeScreen() {

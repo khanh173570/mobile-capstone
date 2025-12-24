@@ -15,8 +15,8 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
-import { User, Lock, Mail, Sprout, Home, MapPin, Phone, Camera } from 'lucide-react-native';
-import { Eye, EyeOff } from 'lucide-react-native';
+import { User, Lock, Mail, Sprout, Home, MapPin, Phone, Camera , Eye, EyeOff } from 'lucide-react-native';
+
 import { registerUser, RegisterData } from '../../services/authService';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';

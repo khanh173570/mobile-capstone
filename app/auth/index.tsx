@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react-native';
-import { FontAwesome } from '@expo/vector-icons';
-import { FontAwesome5 } from '@expo/vector-icons';
+import { Eye, EyeOff , User, Lock, Sprout, Mail } from 'lucide-react-native';
+import { FontAwesome , FontAwesome5 } from '@expo/vector-icons';
+
 
 import {
   View,
@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { User, Lock, Sprout, Mail } from 'lucide-react-native';
+
 import { loginUser, LoginData } from '../../services/authService';
 import { setupPushNotifications } from '../../services/pushNotificationService';
 

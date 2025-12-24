@@ -12,8 +12,7 @@ import {
 import { Bell, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useNotificationContext } from '../../contexts/NotificationContext';
-import { BackendNotification } from '../../services/notificationService';
-import {
+import { BackendNotification ,
   getNotificationTypeName,
   getNotificationTypeColor,
   getNotificationIcon,

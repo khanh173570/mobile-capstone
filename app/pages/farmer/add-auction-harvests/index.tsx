@@ -20,8 +20,8 @@ import {
   CurrentHarvest,
   updateAuctionSessionStatus,
 } from '../../../../services/auctionService';
-import { getCropsByFarmId } from '../../../../services/cropService';
-import { Crop } from '../../../../services/cropService';
+import { getCropsByFarmId , Crop } from '../../../../services/cropService';
+
 import { getCurrentUser } from '../../../../services/authService';
 
 interface SelectedCropHarvest {

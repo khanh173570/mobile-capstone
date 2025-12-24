@@ -21,18 +21,18 @@ export const startLogCapture = () => {
   isCapturing = true;
 
   // Store original console methods
-  originalLog = //console.log;
+  originalLog = console.log;
   originalWarn = console.warn;
   originalError = console.error;
 
-  // Override //console.log
-  //console.log = (...args: any[]) => {
-    const message = args.map((arg) => {
+  // Override console.log
+  console.log = (...args: any[]) => {
+    const message = args.map((arg: any) => {
       if (typeof arg === 'string') return arg;
       if (arg instanceof Error) return arg.toString();
       try {
         return JSON.stringify(arg);
-      } catch {
+      } catch (e) {
         return String(arg);
       }
     }).join(' ');
@@ -56,18 +56,17 @@ export const startLogCapture = () => {
       capturedLogs.push(`ℹ️ ${message}`);
     }
 
-    // Also call original //console.log
     originalLog(...args);
   };
 
   // Override console.warn
   console.warn = (...args: any[]) => {
-    const message = args.map((arg) => {
+    const message = args.map((arg: any) => {
       if (typeof arg === 'string') return arg;
       if (arg instanceof Error) return arg.toString();
       try {
         return JSON.stringify(arg);
-      } catch {
+      } catch (e) {
         return String(arg);
       }
     }).join(' ');
@@ -79,12 +78,12 @@ export const startLogCapture = () => {
 
   // Override console.error
   console.error = (...args: any[]) => {
-    const message = args.map((arg) => {
+    const message = args.map((arg: any) => {
       if (typeof arg === 'string') return arg;
       if (arg instanceof Error) return arg.toString();
       try {
         return JSON.stringify(arg);
-      } catch {
+      } catch (e) {
         return String(arg);
       }
     }).join(' ');
@@ -93,7 +92,7 @@ export const startLogCapture = () => {
     capturedLogs.push(`❌ ${message}`);
     originalError(...args);
   };
-};
+}
 
 /**
  * Stop capturing logs and restore original console methods
@@ -103,7 +102,7 @@ export const stopLogCapture = () => {
 
   isCapturing = false;
 
-  if (originalLog) //console.log = originalLog;
+  if (originalLog) console.log = originalLog;
   if (originalWarn) console.warn = originalWarn;
   if (originalError) console.error = originalError;
 };

@@ -75,11 +75,11 @@ export default function PaymentWebView({
   };
 
   // List of popular banking apps in Vietnam with proper deep link formats
-  const bankingApps: Array<{
+  const bankingApps: {
     name: string;
     scheme: string;
     deepLinkFormat: (url: string) => string;
-  }> = [];
+  }[] = [];
 
   const handleSelectQROption = () => {
     setSelectedOption('qr');
