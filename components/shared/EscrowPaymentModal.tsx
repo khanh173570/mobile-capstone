@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -38,6 +38,43 @@ export default function EscrowPaymentModal({
   const [loading, setLoading] = useState(false);
   const [selectedOption, setSelectedOption] = useState<'wallet' | 'qr' | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showTimeoutAlert, setShowTimeoutAlert] = useState(false);
+
+  // Show timeout alert when modal opens
+  useEffect(() => {
+    if (visible && !showTimeoutAlert) {
+      setShowTimeoutAlert(true);
+      Alert.alert(
+        'Xác nhận đặt cọc',
+        'Bạn phải cọc trong vòng 2h, còn lại hệ thống sẽ hủy giao dịch.',
+        [
+          {
+            text: 'Hủy',
+            onPress: () => {
+              setShowTimeoutAlert(false);
+              onClose();
+            },
+            style: 'cancel',
+          },
+          {
+            text: 'Đồng ý',
+            onPress: () => {
+              setShowTimeoutAlert(false);
+            },
+          },
+        ]
+      );
+    }
+  }, [visible]);
+
+  // Reset states when modal closes
+  useEffect(() => {
+    if (!visible) {
+      setSelectedOption(null);
+      setShowConfirm(false);
+      setShowTimeoutAlert(false);
+    }
+  }, [visible]);
 
   const handleSelectWallet = () => {
     setSelectedOption('wallet');

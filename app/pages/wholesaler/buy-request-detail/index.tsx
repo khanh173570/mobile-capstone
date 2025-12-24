@@ -168,13 +168,13 @@ export default function BuyRequestDetailScreen() {
             <View style={styles.infoBox}>
               <Text style={styles.infoLabel}>Số lượng cần</Text>
               <Text style={styles.infoValue}>
-                {buyRequest.requiredQuantity.toLocaleString('vi-VN')} kg
+                {buyRequest.requiredQuantity ? buyRequest.requiredQuantity.toLocaleString('vi-VN') : '0'} kg
               </Text>
             </View>
             <View style={styles.infoBox}>
               <Text style={styles.infoLabel}>Giá mong muốn</Text>
               <Text style={styles.infoValue}>
-                {buyRequest.desiredPrice.toLocaleString('vi-VN')}₫
+                {buyRequest.desiredPrice ? buyRequest.desiredPrice.toLocaleString('vi-VN') : '0'}₫
               </Text>
             </View>
           </View>

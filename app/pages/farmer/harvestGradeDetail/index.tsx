@@ -6,7 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import HarvestGradeCard from '@/components/farmer/HarvestGradeCard';
 import CreateGradeModal from '@/components/farmer/CreateGradeModal';
 import EditGradeModal from '@/components/farmer/EditGradeModal';
-import { HarvestGradeDetail, getHarvestGradeDetails, deleteHarvestGradeDetail } from '@/services/harvestGradeDetailService';
+import { HarvestGradeDetail, getHarvestGradeDetails } from '@/services/harvestGradeDetailService';
 
 export default function HarvestGradeDetailPage() {
   const navigation = useNavigation();
@@ -53,33 +53,6 @@ export default function HarvestGradeDetailPage() {
     setShowEditModal(false);
     setSelectedGrade(null);
     await fetchGrades();
-  };
-
-  const handleDeleteGrade = async (gradeId: string) => {
-    Alert.alert(
-      'Xóa đánh giá',
-      'Bạn có chắc chắn muốn xóa đánh giá này không?',
-      [
-        {
-          text: 'Hủy',
-          style: 'cancel',
-        },
-        {
-          text: 'Xóa',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteHarvestGradeDetail(gradeId);
-              Alert.alert('Thành công', 'Đã xóa đánh giá');
-              await fetchGrades();
-            } catch (error) {
-              console.error('Error deleting grade:', error);
-              Alert.alert('Lỗi', 'Không thể xóa đánh giá. Vui lòng thử lại.');
-            }
-          },
-        },
-      ]
-    );
   };
 
   useEffect(() => {
@@ -165,7 +138,6 @@ export default function HarvestGradeDetailPage() {
             <HarvestGradeCard 
               grade={item}
               onEdit={() => handleEditGrade(item)}
-              onDelete={() => handleDeleteGrade(item.id)}
             />
           )}
           style={styles.gradeList}

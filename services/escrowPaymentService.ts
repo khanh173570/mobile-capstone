@@ -23,6 +23,10 @@ export enum TransactionType {
   AddFunds = 4,
   WithdrawFunds = 5,
   PayRemainingEscrow = 6,
+  AuctionJoinFee = 7,
+  RefundAuctionJoinFee = 8,
+  AuctionFee = 9,
+  DisputeRefund = 10,
 }
 
 // PaymentType enum from Payment.Domain.Enums
@@ -227,4 +231,32 @@ export const formatCurrency = (amount: number | null | undefined): string => {
     return '0 ₫';
   }
   return amount.toLocaleString('vi-VN') + ' ₫';
+};
+/**
+ * Complete escrow transaction
+ * Called when wholesaler has fully paid and wants to complete the transaction
+ */
+export const completeEscrow = async (escrowId: string): Promise<boolean> => {
+  try {
+    const response = await fetchWithTokenRefresh(
+      `${API_URL}/escrow/complete?escrowId=${escrowId}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    const result: EscrowPaymentResponse = await response.json();
+
+    if (!result.isSuccess) {
+      throw new Error(result.message || 'Failed to complete escrow');
+    }
+
+    return result.data;
+  } catch (error) {
+    console.error('Error completing escrow:', error);
+    throw error;
+  }
 };

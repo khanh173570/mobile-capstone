@@ -24,6 +24,10 @@ export enum TransactionType {
   AddFunds = 4,
   WithdrawFunds = 5,
   PayRemainingEscrow = 6,
+  AuctionJoinFee = 7,
+  RefundAuctionJoinFee = 8,
+  AuctionFee = 9,
+  DisputeRefund = 10,
 }
 
 // PaymentType enum from Payment.Domain.Enums

@@ -37,6 +37,34 @@ export default function PayRemainingModal({
   const [showConfirm, setShowConfirm] = useState(false);
   const [showQRCode, setShowQRCode] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+  const [showTimeoutAlert, setShowTimeoutAlert] = useState(false);
+
+  // Show timeout alert when modal opens
+  useEffect(() => {
+    if (visible && !showTimeoutAlert) {
+      setShowTimeoutAlert(true);
+      Alert.alert(
+        'Xác nhận thanh toán phần còn lại',
+        'Bạn phải thanh toán trong 24h, nếu không hệ thống sẽ hủy giao dịch.',
+        [
+          {
+            text: 'Hủy',
+            onPress: () => {
+              setShowTimeoutAlert(false);
+              onClose();
+            },
+            style: 'cancel',
+          },
+          {
+            text: 'Đồng ý',
+            onPress: () => {
+              setShowTimeoutAlert(false);
+            },
+          },
+        ]
+      );
+    }
+  }, [visible]);
 
   useEffect(() => {
     if (!visible) {
@@ -44,6 +72,7 @@ export default function PayRemainingModal({
       setShowConfirm(false);
       setShowQRCode(false);
       setQrCodeUrl(null);
+      setShowTimeoutAlert(false);
     }
   }, [visible]);
 

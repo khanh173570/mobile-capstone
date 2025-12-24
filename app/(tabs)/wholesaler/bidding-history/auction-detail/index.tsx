@@ -57,6 +57,7 @@ interface Auction {
   minBidIncrement: number;
   buyNowPrice?: number;
   enableBuyNow?: boolean;
+  enableReserveProxy?: boolean;
   status: string;
   expectedHarvestDate: string;
   expectedTotalQuantity: number;

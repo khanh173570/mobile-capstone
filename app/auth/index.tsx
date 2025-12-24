@@ -28,9 +28,9 @@ export default function LoginScreen() { // Test fix workflow
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    // Form validation
-    if (email.trim() === '' || password.trim() === '') {
-      Alert.alert('Thông báo', 'Vui lòng nhập đầy đủ thông tin đăng nhập');
+    // Form validation - only check email is provided
+    if (email.trim() === '') {
+      Alert.alert('Thông báo', 'Vui lòng nhập email');
       return;
     }
 
@@ -38,12 +38,6 @@ export default function LoginScreen() { // Test fix workflow
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
       Alert.alert('Thông báo', 'Vui lòng nhập email hợp lệ');
-      return;
-    }
-
-    // Password length validation
-    if (password.length < 6) {
-      Alert.alert('Thông báo', 'Mật khẩu phải có ít nhất 6 ký tự');
       return;
     }
 

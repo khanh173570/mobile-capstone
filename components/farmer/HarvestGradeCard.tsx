@@ -6,7 +6,6 @@ import { Package, Calendar, MoreVertical } from 'lucide-react-native';
 interface HarvestGradeCardProps {
   grade: HarvestGradeDetail;
   onEdit?: () => void;
-  onDelete?: () => void;
 }
 
 const GRADE_COLORS: Record<1 | 2 | 3, { bg: string; border: string; text: string }> = {
@@ -15,7 +14,7 @@ const GRADE_COLORS: Record<1 | 2 | 3, { bg: string; border: string; text: string
   3: { bg: '#F3E8FF', border: '#E9D5FF', text: '#A855F7' },
 };
 
-export default function HarvestGradeCard({ grade, onEdit, onDelete }: HarvestGradeCardProps) {
+export default function HarvestGradeCard({ grade, onEdit }: HarvestGradeCardProps) {
   const colors = GRADE_COLORS[grade.grade];
   const [showMenu, setShowMenu] = React.useState(false);
 
@@ -58,17 +57,6 @@ export default function HarvestGradeCard({ grade, onEdit, onDelete }: HarvestGra
                       }}
                     >
                       <Text style={styles.menuItemText}>Cập nhật</Text>
-                    </TouchableOpacity>
-                  )}
-                  {onDelete && (
-                    <TouchableOpacity 
-                      style={[styles.menuItem, styles.deleteMenuItem]}
-                      onPress={() => {
-                        setShowMenu(false);
-                        onDelete();
-                      }}
-                    >
-                      <Text style={[styles.menuItemText, styles.deleteMenuText]}>Xóa</Text>
                     </TouchableOpacity>
                   )}
                 </View>

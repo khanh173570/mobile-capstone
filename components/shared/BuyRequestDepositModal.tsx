@@ -104,9 +104,11 @@ export const BuyRequestDepositModal: React.FC<BuyRequestDepositModalProps> = ({
             <Text style={styles.amountValue}>
               {depositAmount ? depositAmount.toLocaleString('vi-VN') : '0'} VND
             </Text>
-            <Text style={styles.amountNote}>
-              Đây là tiền cọc 30% của tổng giá trị đơn hàng
-            </Text>
+            <View style={styles.warningBox}>
+              <Text style={styles.amountNote}>
+                ⚠️ BẠN PHẢI THANH TOÁN TRONG VÒNG 2 GIỜ
+              </Text>
+            </View>
           </View>
 
           {/* Payment Methods */}
@@ -224,9 +226,20 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   amountNote: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#DC2626',
     textAlign: 'center',
+  },
+  warningBox: {
+    width: '100%',
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1.5,
+    borderColor: '#DC2626',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginTop: 12,
   },
   methodsSection: {
     paddingHorizontal: 20,

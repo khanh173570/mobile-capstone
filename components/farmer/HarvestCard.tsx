@@ -1,17 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Harvest } from '../../services/harvestService';
-import { Calendar, TrendingUp, DollarSign, Package, MoreVertical, Edit3, Trash2, Eye, Image as ImageIcon } from 'lucide-react-native';
+import { Calendar, TrendingUp, DollarSign, Package, Edit3, Eye, Image as ImageIcon, MoreHorizontal } from 'lucide-react-native';
 import HarvestImagesModal from './HarvestImagesModal';
 
 interface HarvestCardProps {
   harvest: Harvest;
   onEdit?: () => void;
-  onDelete?: () => void;
   onViewGrades?: () => void;
 }
 
-export default function HarvestCard({ harvest, onEdit, onDelete, onViewGrades }: HarvestCardProps) {
+export default function HarvestCard({ harvest, onEdit, onViewGrades }: HarvestCardProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [showImagesModal, setShowImagesModal] = useState(false);
   
@@ -27,73 +26,17 @@ export default function HarvestCard({ harvest, onEdit, onDelete, onViewGrades }:
     }).format(amount);
   };
 
-  const handleDelete = () => {
-    Alert.alert(
-      'Xóa mùa vụ',
-      'Bạn có chắc chắn muốn xóa mùa vụ này không? Hành động này không thể hoàn tác.',
-      [
-        {
-          text: 'Hủy',
-          style: 'cancel',
-        },
-        {
-          text: 'Xóa',
-          style: 'destructive',
-          onPress: () => {
-            setShowMenu(false);
-            onDelete && onDelete();
-          },
-        },
-      ]
-    );
-  };
-
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        {(onEdit || onDelete) && (
+        {onEdit && (
           <View style={styles.menuContainer}>
             <TouchableOpacity 
               style={styles.menuButton}
-              onPress={() => setShowMenu(!showMenu)}
+              onPress={() => onEdit()}
             >
-              <MoreVertical size={18} color="#6B7280" />
+              <MoreHorizontal size={18} color="#6B7280" />
             </TouchableOpacity>
-            
-            {/* Dropdown Menu */}
-            {showMenu && (
-              <>
-                {/* Invisible overlay to close menu when touching outside */}
-                <TouchableOpacity 
-                  style={styles.invisibleOverlay}
-                  activeOpacity={1}
-                  onPress={() => setShowMenu(false)}
-                />
-                <View style={styles.menuDropdown}>
-                  {onEdit && (
-                    <TouchableOpacity 
-                      style={styles.menuItem}
-                      onPress={() => {
-                        setShowMenu(false);
-                        onEdit();
-                      }}
-                    >
-                      <Edit3 size={16} color="#374151" />
-                      <Text style={styles.menuItemText}>Chỉnh sửa</Text>
-                    </TouchableOpacity>
-                  )}
-                  {onDelete && (
-                    <TouchableOpacity 
-                      style={[styles.menuItem, styles.deleteMenuItem]}
-                      onPress={handleDelete}
-                    >
-                      <Trash2 size={16} color="#EF4444" />
-                      <Text style={[styles.menuItemText, styles.deleteMenuText]}>Xóa</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </>
-            )}
           </View>
         )}
       </View>

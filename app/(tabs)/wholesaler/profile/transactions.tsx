@@ -211,7 +211,7 @@ export default function WholesalerTransactionsScreen() {
                   onPress={(e) => handlePayRemainingPress(item, e)}
                   activeOpacity={0.7}
                 >
-                  <DollarSign size={18} color="#FFFFFF" />
+                  {/* <DollarSign size={18} color="#FFFFFF" /> */}
                   <Text style={styles.payRemainingButtonText}>
                     Thanh toán phần còn lại {remainingAmount.toLocaleString('vi-VN')} VND
                   </Text>

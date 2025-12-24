@@ -9,7 +9,7 @@ export interface CropStatusInfo {
 
 // CropStatus enum from backend:
 // PreSeason = 0, Growing = 1, OpenForBidding = 2, ReadyToHarvest = 3, 
-// Harvesting = 4, Harvested = 5, StoppedCultivation = 6
+// Harvesting = 4, Harvested = 5, StoppedCultivation = 6, ReservedForBuyRequest = 7
 
 export const CROP_STATUSES: CropStatusInfo[] = [
   {
@@ -60,6 +60,13 @@ export const CROP_STATUSES: CropStatusInfo[] = [
     color: '#EF4444', // Red
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
     description: 'Ngừng canh tác vườn này'
+  },
+  {
+    id: 7,
+    name: 'Đã được bán qua yêu cầu mua',
+    color: '#6366F1', // Indigo
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    description: 'Vườn đã được bán qua yêu cầu mua, không thể đấu giá'
   }
 ];
 

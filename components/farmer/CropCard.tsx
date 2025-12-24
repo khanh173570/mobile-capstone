@@ -9,8 +9,6 @@ import {
   MapPin,
   Clock,
   Edit3,
-  MoreVertical,
-  Trash2,
   CheckCircle,
   Eye,
 } from 'lucide-react-native';
@@ -20,15 +18,14 @@ interface CropCardProps {
   cropIndex?: number; // Add index for numbering
   onPress?: () => void;
   onEdit?: () => void;
-  onDelete?: () => void;
   onCreateHarvest?: () => void;
 }
 
-export default function CropCard({ crop, cropIndex, onPress, onEdit, onDelete, onCreateHarvest }: CropCardProps) {
+export default function CropCard({ crop, cropIndex, onPress, onEdit, onCreateHarvest }: CropCardProps) {
   const [showDropdown, setShowDropdown] = useState(false);
   
   // Debug props
-  //console.log('CropCard props:', { onEdit: !!onEdit, onDelete: !!onDelete, shouldShowMenu: !!(onEdit || onDelete) });
+  //console.log('CropCard props:', { onEdit: !!onEdit, shouldShowMenu: !!onEdit });
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN');
   };
@@ -67,58 +64,18 @@ export default function CropCard({ crop, cropIndex, onPress, onEdit, onDelete, o
             </Text>
           </View>
         </View>
-        {(onEdit || onDelete) && (
+        {onEdit && (
           <View style={styles.menuContainer}>
             <TouchableOpacity 
               style={styles.menuButton}
-              onPress={() => {
-                //console.log('Menu button clicked');
-                setShowDropdown(!showDropdown);
-              }}
+              onPress={() => onEdit()}
             >
-              <MoreVertical size={20} color="#6B7280" />
+              {crop.status === 2 ? (
+                <Eye size={20} color="#6B7280" />
+              ) : (
+                <Edit3 size={20} color="#6B7280" />
+              )}
             </TouchableOpacity>
-            
-            {showDropdown && (
-              <View style={styles.dropdown}>
-                {onEdit && (
-                  <TouchableOpacity 
-                    style={styles.dropdownItem}
-                    onPress={() => {
-                      //console.log('Edit/View clicked');
-                      setShowDropdown(false);
-                      onEdit();
-                    }}
-                  >
-                    {crop.status === 2 ? (
-                      <>
-                        <Eye size={16} color="#6B7280" />
-                        <Text style={styles.dropdownText}>Xem chi tiết</Text>
-                      </>
-                    ) : (
-                      <>
-                        <Edit3 size={16} color="#6B7280" />
-                        <Text style={styles.dropdownText}>Chỉnh sửa</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                )}
-                
-                {onDelete && (
-                  <TouchableOpacity 
-                    style={[styles.dropdownItem, styles.deleteItem]}
-                    onPress={() => {
-                      //console.log('Delete clicked');
-                      setShowDropdown(false);
-                      onDelete();
-                    }}
-                  >
-                    <Trash2 size={16} color="#EF4444" />
-                    <Text style={[styles.dropdownText, styles.deleteText]}>Xóa</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
           </View>
         )}
       </View>
@@ -418,13 +375,6 @@ const styles = StyleSheet.create({
   dropdownText: {
     fontSize: 14,
     color: '#374151',
-  },
-  deleteItem: {
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-  },
-  deleteText: {
-    color: '#EF4444',
   },
   overlay: {
     position: 'absolute',

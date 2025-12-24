@@ -636,6 +636,57 @@ export const getAuctionWithHarvests = async (auction: FarmerAuction) => {
 };
 
 /**
+ * Reschedule harvest date for an auction
+ * Only allows extending up to 3 days from the current expected harvest date
+ */
+export const rescheduleHarvestDate = async (
+  auctionId: string,
+  newExpectedHarvestDate: string,
+  reason: string
+): Promise<boolean> => {
+  try {
+    const endpoint = `${API_URL}/auction-service/englishauction/${auctionId}/reschedule-harvest-date`;
+    console.log('Rescheduling to endpoint:', endpoint);
+    
+    const response = await fetchWithTokenRefresh(
+      endpoint,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          newExpectedHarvestDate,
+          reason,
+        }),
+      }
+    );
+
+    console.log('Reschedule response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Reschedule error response:', response.status, errorText);
+      throw new Error(`Failed to reschedule: ${response.status}`);
+    }
+
+    const responseText = await response.text();
+    console.log('Reschedule response:', responseText);
+    
+    // Handle empty response (204 No Content)
+    if (!responseText) {
+      return true;
+    }
+
+    const result = JSON.parse(responseText);
+    return result.isSuccess || result.data === true || result === true;
+  } catch (error) {
+    console.error('Error rescheduling harvest date:', error);
+    throw error;
+  }
+};
+
+/**
  * Helper function to format auction status for display
  */
 export const getAuctionStatusInfo = (status: string) => {

@@ -8,8 +8,10 @@ import {
   ScrollView,
   ActivityIndicator,
   Linking,
+  Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Clock3 } from 'lucide-react-native';
 import {
   EscrowContract,
   formatCurrency,
@@ -17,6 +19,7 @@ import {
   setEscrowReadyToHarvest,
   getPayRemainingEscrowUrl,
 } from '../../services/escrowContractService';
+import { completeEscrow } from '../../services/escrowPaymentService';
 import { getAuctionDetail } from '../../services/auctionService';
 import { getUserById, getUserInfoByUsername } from '../../services/authService';
 import { getBuyRequestDetail, BuyRequest } from '../../services/buyRequestService';
@@ -26,8 +29,9 @@ import { DisputeInfoCard } from './DisputeInfoCard';
 import { CreateDisputeModal } from './CreateDisputeModal';
 import { ReviewDisputeModal } from './ReviewDisputeModal';
 import { Dispute, getDisputeByEscrowId } from '../../services/disputeService';
+import { RescheduleHarvestDateModal } from '../farmer/RescheduleHarvestDateModal';
 import { BuyRequestDepositModal } from './BuyRequestDepositModal';
-import { DollarSign } from 'lucide-react-native';
+import { DollarSign, CheckCircle } from 'lucide-react-native';
 import { DisputeResolutionModal } from './DisputeResolutionModal';
 
 interface EscrowDetailModalProps {
@@ -46,6 +50,7 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
   onStatusUpdated,
 }) => {
   const [loading, setLoading] = useState(false);
+  const [completingEscrow, setCompletingEscrow] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [auctionInfo, setAuctionInfo] = useState<any>(null);
   const [buyRequestInfo, setBuyRequestInfo] = useState<BuyRequest | null>(null);
@@ -60,6 +65,7 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
   const [showReviewDisputeModal, setShowReviewDisputeModal] = useState(false);
   const [showResolutionModal, setShowResolutionModal] = useState(false);
   const [disputeYPosition, setDisputeYPosition] = useState(0);
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
   const handleReadyToHarvest = async () => {
@@ -78,6 +84,57 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCompleteEscrow = async () => {
+    if (!contract) return;
+
+    Alert.alert(
+      'Xác nhận hoàn thành giao dịch',
+      'Bạn có chắc chắn muốn hoàn thành giao dịch này? Hành động này không thể hoàn tác.',
+      [
+        {
+          text: 'Hủy',
+          onPress: () => {},
+          style: 'cancel',
+        },
+        {
+          text: 'Hoàn thành',
+          onPress: async () => {
+            setCompletingEscrow(true);
+            try {
+              const success = await completeEscrow(contract.id);
+              if (success) {
+                Alert.alert(
+                  'Thành công',
+                  'Giao dịch đã được hoàn thành. Tiền đã được chuyển cho người bán.',
+                  [
+                    {
+                      text: 'OK',
+                      onPress: () => {
+                        onStatusUpdated?.();
+                        onClose();
+                      },
+                    },
+                  ]
+                );
+              } else {
+                Alert.alert('Lỗi', 'Không thể hoàn thành giao dịch. Vui lòng thử lại.');
+              }
+            } catch (error: any) {
+              console.error('Error completing escrow:', error);
+              Alert.alert(
+                'Lỗi',
+                error.message || 'Không thể hoàn thành giao dịch. Vui lòng thử lại.'
+              );
+            } finally {
+              setCompletingEscrow(false);
+            }
+          },
+          style: 'destructive',
+        },
+      ]
+    );
   };
 
   const fetchAuctionAndUserDetails = async () => {
@@ -264,6 +321,7 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
   const canReadyToHarvest = role === 'farmer' && contract.escrowStatus <= 1;
   const canPayRemaining = role === 'wholesaler' && contract.escrowStatus === 2;
   const shouldShowDepositButton = role === 'wholesaler' && contract.escrowStatus === 0; // Status 0: PendingPayment
+  const shouldShowCompleteButton = role === 'wholesaler' && contract.escrowStatus === 3; // Status 3: FullyFunded
   const canCreateDispute = role === 'wholesaler' && contract.escrowStatus === 3 && !dispute; // Only wholesaler can create dispute
   const canReviewDispute = role === 'farmer' && dispute !== null && dispute?.disputeStatus === 0;
   // Show "View Dispute" button when dispute exists, but hide if farmer can review (to avoid duplicate buttons)
@@ -612,22 +670,43 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
           {/* Action Buttons */}
           <View style={styles.footer}>
             {canReadyToHarvest && (
-              <TouchableOpacity
-                style={[styles.button, styles.primaryButton]}
-                onPress={handleReadyToHarvest}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <>
-                    <MaterialIcons name="check-circle" size={20} color="#FFFFFF" />
-                    <Text style={styles.primaryButtonText}>
-                      Sẵn sàng thu hoạch
-                    </Text>
-                  </>
+              <View style={styles.buttonRow}>
+                <TouchableOpacity
+                  style={[styles.button, styles.primaryButton, styles.flexButton]}
+                  onPress={handleReadyToHarvest}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <MaterialIcons name="check-circle" size={20} color="#FFFFFF" />
+                      <Text style={styles.primaryButtonText}>
+                        Sẵn sàng thu hoạch
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                {auctionInfo && (
+                  <TouchableOpacity
+                    style={[styles.button, styles.rescheduleButton]}
+                    onPress={() => setShowRescheduleModal(true)}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <>
+                        <Clock3 size={18} color="#FFFFFF" />
+                        <Text style={styles.rescheduleButtonText}>
+                          Gia hạn
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
                 )}
-              </TouchableOpacity>
+              </View>
             )}
 
             {canPayRemaining && (
@@ -643,6 +722,25 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
                     <MaterialIcons name="payment" size={20} color="#FFFFFF" />
                     <Text style={styles.primaryButtonText}>
                       Thanh toán phần còn lại
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+
+            {shouldShowCompleteButton && (
+              <TouchableOpacity
+                style={[styles.button, styles.completeButton]}
+                onPress={handleCompleteEscrow}
+                disabled={completingEscrow}
+              >
+                {completingEscrow ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <CheckCircle size={20} color="#FFFFFF" />
+                    <Text style={styles.completeButtonText}>
+                      Hoàn thành giao dịch
                     </Text>
                   </>
                 )}
@@ -751,7 +849,7 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <>
-                    <DollarSign size={20} color="#FFFFFF" />
+                    {/* <DollarSign size={20} color="#FFFFFF" /> */}
                     <Text style={styles.depositButtonText}>
                       Thanh toán cọc {contract?.escrowAmount.toLocaleString('vi-VN')} VND
                     </Text>
@@ -819,6 +917,25 @@ export const EscrowDetailModal: React.FC<EscrowDetailModalProps> = ({
           visible={showResolutionModal}
           escrowId={contract.id}
           onClose={() => setShowResolutionModal(false)}
+        />
+      )}
+
+      {/* Reschedule Harvest Modal */}
+      {auctionInfo && contract && (
+        <RescheduleHarvestDateModal
+          visible={showRescheduleModal}
+          auctionId={auctionInfo.id}
+          currentExpectedHarvestDate={auctionInfo.expectedHarvestDate}
+          onClose={() => setShowRescheduleModal(false)}
+          onSuccess={() => {
+            setShowRescheduleModal(false);
+            // Reload auction info to show updated date
+            if (auctionInfo.id) {
+              getAuctionDetail(auctionInfo.id).then(updated => {
+                setAuctionInfo(updated);
+              });
+            }
+          }}
         />
       )}
     </Modal>
@@ -1001,6 +1118,14 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
   },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 8,
+  },
+  flexButton: {
+    flex: 1,
+  },
   button: {
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -1073,5 +1198,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
     marginLeft: 8,
+  },
+  completeButton: {
+    backgroundColor: '#059669',
+  },
+  completeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginLeft: 8,
+  },
+  rescheduleButton: {
+    backgroundColor: '#22C55E',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    minWidth: 100,
+  },
+  rescheduleButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginLeft: 4,
   },
 });

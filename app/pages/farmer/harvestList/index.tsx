@@ -17,7 +17,6 @@ import {
   getHarvestsByCropId, 
   createHarvest, 
   updateHarvest,
-  deleteHarvest,
   Harvest,
   CreateHarvestData,
   UpdateHarvestData,
@@ -111,15 +110,6 @@ export default function HarvestListPage() {
     }
   };
 
-  const handleDeleteHarvest = async (harvestId: string) => {
-    try {
-      await deleteHarvest(harvestId);
-      loadHarvests(); // Reload danh sách sau khi xóa thành công
-    } catch (error) {
-      handleError(error, 'Không thể xóa mùa vụ');
-    }
-  };
-
   const handleViewGrades = (harvest: Harvest) => {
     router.push({
       pathname: '/pages/farmer/harvestGradeDetail' as any,
@@ -184,7 +174,6 @@ export default function HarvestListPage() {
           <HarvestCard 
             harvest={item}
             onEdit={() => handleEditHarvest(item)}
-            onDelete={() => handleDeleteHarvest(item.id)}
             onViewGrades={() => handleViewGrades(item)}
           />
         )}

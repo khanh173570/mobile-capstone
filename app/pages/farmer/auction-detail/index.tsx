@@ -22,6 +22,7 @@ import {
 } from 'lucide-react-native';
 import AuctionLogModal from '../../../../components/farmer/AuctionLogModal';
 import AllBidsDisplay from '../../../../components/wholesaler/AllBidsDisplay';
+import { RescheduleHarvestDateModal } from '../../../../components/farmer/RescheduleHarvestDateModal';
 import { 
   FarmerAuction, 
   getAuctionSessionHarvests, 
@@ -56,6 +57,7 @@ export default function AuctionDetailScreen() {
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [bidLogs, setBidLogs] = useState<any[]>([]);
   const [bidLogsLoading, setBidLogsLoading] = useState(false);
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
 
   // Debug: Log state changes
   useEffect(() => {
@@ -698,12 +700,14 @@ export default function AuctionDetailScreen() {
                 </Text>
               </View>
 
+              <View>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Thu hoạch dự kiến</Text>
                 <Text style={styles.infoValue}>
                   {formatDate(auction.expectedHarvestDate)}
                 </Text>
               </View>
+            </View>
             </View>
           </View>
 
@@ -950,6 +954,28 @@ export default function AuctionDetailScreen() {
         loading={logsLoading}
         onClose={() => setShowLogsModal(false)}
       />
+
+      {auction && (
+        <RescheduleHarvestDateModal
+          visible={showRescheduleModal}
+          auctionId={auction.id}
+          currentExpectedHarvestDate={auction.expectedHarvestDate}
+          onClose={() => setShowRescheduleModal(false)}
+          onSuccess={() => {
+            // Reload auction data to reflect the new expected harvest date
+            if (auctionData) {
+              const parsedAuction = JSON.parse(auctionData as string);
+              // Update the expectedHarvestDate in the local state
+              setAuction(prev => prev ? {
+                ...prev,
+                expectedHarvestDate: new Date(
+                  new Date(parsedAuction.expectedHarvestDate).getTime() + 24 * 60 * 60 * 1000
+                ).toISOString()
+              } : prev);
+            }
+          }}
+        />
+      )}
     </View>
   );
 }
